@@ -1,0 +1,1290 @@
+{
+  "format": "ghost-rehearsal",
+  "schemaVersion": 1,
+  "scenarios": [
+    {
+      "id": "open-house",
+      "name": "双入口开放日",
+      "seed": 20261114,
+      "observationCutoff": 1800,
+      "horizon": 7200,
+      "startClock": "18:00",
+      "attributes": [
+        {
+          "id": "ticket",
+          "name": "票种",
+          "values": [
+            "regular",
+            "vip"
+          ]
+        },
+        {
+          "id": "visit",
+          "name": "参与方式",
+          "values": [
+            "full",
+            "quick"
+          ]
+        }
+      ],
+      "arrivalStreams": [
+        {
+          "id": "main-stream",
+          "kind": "total_in_window",
+          "name": "主入口到达",
+          "count": 180,
+          "start": 0,
+          "end": 1200,
+          "spacing": "even",
+          "attributeDistributions": {
+            "ticket": {
+              "values": [
+                {
+                  "value": "regular",
+                  "probability": 0.8
+                },
+                {
+                  "value": "vip",
+                  "probability": 0.2
+                }
+              ],
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "visit": {
+              "values": [
+                {
+                  "value": "full",
+                  "probability": 0.9
+                },
+                {
+                  "value": "quick",
+                  "probability": 0.1
+                }
+              ],
+              "provenance": {
+                "kind": "synthetic"
+              }
+            }
+          },
+          "provenance": {
+            "kind": "synthetic"
+          }
+        },
+        {
+          "id": "side-stream",
+          "kind": "bucketed",
+          "name": "侧入口到达",
+          "buckets": [
+            {
+              "start": 0,
+              "end": 600,
+              "count": 70
+            },
+            {
+              "start": 600,
+              "end": 1200,
+              "count": 50
+            }
+          ],
+          "attributeDistributions": {
+            "ticket": {
+              "values": [
+                {
+                  "value": "regular",
+                  "probability": 0.8
+                },
+                {
+                  "value": "vip",
+                  "probability": 0.2
+                }
+              ],
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "visit": {
+              "values": [
+                {
+                  "value": "full",
+                  "probability": 0.9
+                },
+                {
+                  "value": "quick",
+                  "probability": 0.1
+                }
+              ],
+              "provenance": {
+                "kind": "synthetic"
+              }
+            }
+          },
+          "provenance": {
+            "kind": "synthetic"
+          }
+        }
+      ],
+      "assumptionOverrides": [],
+      "statistics": {
+        "bucketSec": 300,
+        "bottleneckThreshold": 2
+      }
+    }
+  ],
+  "plans": [
+    {
+      "id": "baseline",
+      "name": "方案 A · 基线",
+      "scenarioId": "open-house",
+      "graph": {
+        "nodes": [
+          {
+            "id": "main",
+            "type": "entrance",
+            "name": "主入口",
+            "layout": {
+              "x": 0,
+              "y": 100
+            },
+            "arrivalStreamIds": [
+              "main-stream"
+            ]
+          },
+          {
+            "id": "side",
+            "type": "entrance",
+            "name": "侧入口",
+            "layout": {
+              "x": 0,
+              "y": 300
+            },
+            "arrivalStreamIds": [
+              "side-stream"
+            ]
+          },
+          {
+            "id": "intake",
+            "type": "merge",
+            "name": "入口汇合",
+            "layout": {
+              "x": 240,
+              "y": 200
+            },
+            "incomingPriority": [
+              "main-intake",
+              "side-intake"
+            ]
+          },
+          {
+            "id": "tickets",
+            "type": "decision",
+            "name": "按票种分流",
+            "layout": {
+              "x": 480,
+              "y": 200
+            },
+            "decisionKey": "ticket-routing",
+            "routing": {
+              "kind": "attribute",
+              "branches": [
+                {
+                  "branchKey": "vip",
+                  "condition": {
+                    "attributeId": "ticket",
+                    "values": [
+                      "vip"
+                    ]
+                  }
+                },
+                {
+                  "branchKey": "regular"
+                }
+              ]
+            }
+          },
+          {
+            "id": "checkin",
+            "type": "service",
+            "name": "身份核验",
+            "layout": {
+              "x": 720,
+              "y": 300
+            },
+            "stageKey": "checkin",
+            "duration": {
+              "kind": "fixed",
+              "value": 30,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "check",
+                "quantity": 1
+              },
+              {
+                "kind": "device",
+                "deviceTypeId": "scanner",
+                "quantity": 1
+              }
+            ],
+            "openWindows": [
+              {
+                "openAt": 0,
+                "closeAt": 1500,
+                "provenance": {
+                  "kind": "synthetic"
+                }
+              }
+            ],
+            "closePolicy": {
+              "queued": {
+                "kind": "serve"
+              },
+              "late": {
+                "kind": "reject"
+              }
+            }
+          },
+          {
+            "id": "checked",
+            "type": "merge",
+            "name": "核验后汇合",
+            "layout": {
+              "x": 960,
+              "y": 200
+            },
+            "incomingPriority": [
+              "vip-checked",
+              "checkin-checked"
+            ]
+          },
+          {
+            "id": "review",
+            "type": "decision",
+            "name": "是否复检",
+            "layout": {
+              "x": 1200,
+              "y": 200
+            },
+            "decisionKey": "recheck-routing",
+            "routing": {
+              "kind": "probability",
+              "branches": [
+                {
+                  "branchKey": "again",
+                  "weight": 0.15
+                },
+                {
+                  "branchKey": "forward",
+                  "weight": 0.85
+                }
+              ]
+            },
+            "loopGuard": {
+              "maxVisits": 2,
+              "exitBranchKey": "forward"
+            }
+          },
+          {
+            "id": "recheck",
+            "type": "service",
+            "name": "人工复检",
+            "layout": {
+              "x": 1200,
+              "y": 450
+            },
+            "stageKey": "recheck",
+            "duration": {
+              "kind": "fixed",
+              "value": 20,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "check",
+                "quantity": 1
+              }
+            ],
+            "openWindows": []
+          },
+          {
+            "id": "holding",
+            "type": "waiting_area",
+            "name": "分批等候",
+            "layout": {
+              "x": 1440,
+              "y": 200
+            },
+            "queueCapacity": 30,
+            "fullPolicy": {
+              "kind": "reroute",
+              "targetNodeId": "leave"
+            },
+            "release": {
+              "kind": "batch",
+              "batchSize": 10,
+              "maxHoldSec": 90
+            }
+          },
+          {
+            "id": "packing",
+            "type": "service",
+            "name": "领取资料",
+            "layout": {
+              "x": 1680,
+              "y": 200
+            },
+            "stageKey": "packing",
+            "duration": {
+              "kind": "fixed",
+              "value": 45,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "pack",
+                "quantity": 1
+              }
+            ],
+            "openWindows": []
+          },
+          {
+            "id": "visit-choice",
+            "type": "decision",
+            "name": "参与方式",
+            "layout": {
+              "x": 1920,
+              "y": 200
+            },
+            "decisionKey": "visit-routing",
+            "routing": {
+              "kind": "attribute",
+              "branches": [
+                {
+                  "branchKey": "full",
+                  "condition": {
+                    "attributeId": "visit",
+                    "values": [
+                      "full"
+                    ]
+                  }
+                },
+                {
+                  "branchKey": "quick"
+                }
+              ]
+            }
+          },
+          {
+            "id": "orientation",
+            "type": "service",
+            "name": "现场导览",
+            "layout": {
+              "x": 2160,
+              "y": 100
+            },
+            "stageKey": "orientation",
+            "duration": {
+              "kind": "fixed",
+              "value": 30,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [],
+            "openWindows": [],
+            "maxConcurrent": 4
+          },
+          {
+            "id": "finish",
+            "type": "exit",
+            "name": "正常完成",
+            "layout": {
+              "x": 2400,
+              "y": 100
+            },
+            "countsAsCompleted": true
+          },
+          {
+            "id": "leave",
+            "type": "exit",
+            "name": "中途离开",
+            "layout": {
+              "x": 2160,
+              "y": 400
+            },
+            "countsAsCompleted": false
+          },
+          {
+            "id": "verification",
+            "type": "subflow",
+            "name": "核验与复检",
+            "layout": {
+              "x": 700,
+              "y": 0
+            },
+            "memberNodeIds": [
+              "checkin",
+              "checked",
+              "review",
+              "recheck"
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "id": "main-intake",
+            "source": "main",
+            "target": "intake"
+          },
+          {
+            "id": "side-intake",
+            "source": "side",
+            "target": "intake"
+          },
+          {
+            "id": "intake-tickets",
+            "source": "intake",
+            "target": "tickets"
+          },
+          {
+            "id": "vip-checked",
+            "source": "tickets",
+            "target": "checked",
+            "branchKey": "vip"
+          },
+          {
+            "id": "regular-checkin",
+            "source": "tickets",
+            "target": "checkin",
+            "branchKey": "regular"
+          },
+          {
+            "id": "checkin-checked",
+            "source": "checkin",
+            "target": "checked"
+          },
+          {
+            "id": "checked-review",
+            "source": "checked",
+            "target": "review"
+          },
+          {
+            "id": "review-again",
+            "source": "review",
+            "target": "recheck",
+            "branchKey": "again"
+          },
+          {
+            "id": "recheck-review",
+            "source": "recheck",
+            "target": "review"
+          },
+          {
+            "id": "review-holding",
+            "source": "review",
+            "target": "holding",
+            "branchKey": "forward"
+          },
+          {
+            "id": "holding-packing",
+            "source": "holding",
+            "target": "packing"
+          },
+          {
+            "id": "packing-visit",
+            "source": "packing",
+            "target": "visit-choice"
+          },
+          {
+            "id": "full-activity",
+            "source": "visit-choice",
+            "target": "orientation",
+            "branchKey": "full"
+          },
+          {
+            "id": "quick-leave",
+            "source": "visit-choice",
+            "target": "leave",
+            "branchKey": "quick"
+          },
+          {
+            "id": "orientation-finish",
+            "source": "orientation",
+            "target": "finish"
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "check",
+          "name": "身份核验"
+        },
+        {
+          "id": "pack",
+          "name": "资料发放"
+        }
+      ],
+      "staff": [
+        {
+          "id": "check-staff",
+          "name": "核验工作人员",
+          "skillIds": [
+            "check"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        },
+        {
+          "id": "pack-staff",
+          "name": "资料工作人员",
+          "skillIds": [
+            "pack"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [
+            {
+              "start": 400,
+              "end": 460
+            }
+          ],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        },
+        {
+          "id": "floater",
+          "name": "机动工作人员",
+          "skillIds": [
+            "check",
+            "pack"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        }
+      ],
+      "deviceTypes": [
+        {
+          "id": "scanner",
+          "name": "核验终端",
+          "quantity": 1,
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        }
+      ],
+      "assignments": [
+        {
+          "resourceUnitId": "check-staff",
+          "periods": [
+            {
+              "from": 0,
+              "nodeIds": [
+                "checkin"
+              ]
+            }
+          ]
+        },
+        {
+          "resourceUnitId": "pack-staff",
+          "periods": [
+            {
+              "from": 0,
+              "nodeIds": [
+                "packing"
+              ]
+            }
+          ]
+        },
+        {
+          "resourceUnitId": "floater",
+          "periods": [
+            {
+              "from": 0,
+              "to": 600,
+              "nodeIds": [
+                "packing",
+                "recheck"
+              ]
+            },
+            {
+              "from": 600,
+              "nodeIds": [
+                "checkin",
+                "recheck"
+              ],
+              "handoverSec": 30
+            }
+          ]
+        }
+      ],
+      "layout": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "zoom": 0.75
+        }
+      }
+    },
+    {
+      "id": "alternative",
+      "name": "方案 B · 双核验通道",
+      "scenarioId": "open-house",
+      "graph": {
+        "nodes": [
+          {
+            "id": "main",
+            "type": "entrance",
+            "name": "主入口",
+            "layout": {
+              "x": 0,
+              "y": 100
+            },
+            "arrivalStreamIds": [
+              "main-stream"
+            ]
+          },
+          {
+            "id": "side",
+            "type": "entrance",
+            "name": "侧入口",
+            "layout": {
+              "x": 0,
+              "y": 300
+            },
+            "arrivalStreamIds": [
+              "side-stream"
+            ]
+          },
+          {
+            "id": "intake",
+            "type": "merge",
+            "name": "入口汇合",
+            "layout": {
+              "x": 240,
+              "y": 200
+            },
+            "incomingPriority": [
+              "main-intake",
+              "side-intake"
+            ]
+          },
+          {
+            "id": "tickets",
+            "type": "decision",
+            "name": "按票种分流",
+            "layout": {
+              "x": 480,
+              "y": 200
+            },
+            "decisionKey": "ticket-routing",
+            "routing": {
+              "kind": "attribute",
+              "branches": [
+                {
+                  "branchKey": "vip",
+                  "condition": {
+                    "attributeId": "ticket",
+                    "values": [
+                      "vip"
+                    ]
+                  }
+                },
+                {
+                  "branchKey": "regular"
+                }
+              ]
+            }
+          },
+          {
+            "id": "checkin",
+            "type": "service",
+            "name": "身份核验",
+            "layout": {
+              "x": 960,
+              "y": 300
+            },
+            "stageKey": "checkin",
+            "duration": {
+              "kind": "fixed",
+              "value": 30,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "check",
+                "quantity": 1
+              },
+              {
+                "kind": "device",
+                "deviceTypeId": "scanner",
+                "quantity": 1
+              }
+            ],
+            "openWindows": [
+              {
+                "openAt": 0,
+                "closeAt": 1500,
+                "provenance": {
+                  "kind": "synthetic"
+                }
+              }
+            ],
+            "closePolicy": {
+              "queued": {
+                "kind": "serve"
+              },
+              "late": {
+                "kind": "reject"
+              }
+            }
+          },
+          {
+            "id": "checked",
+            "type": "merge",
+            "name": "核验后汇合",
+            "layout": {
+              "x": 1200,
+              "y": 200
+            },
+            "incomingPriority": [
+              "vip-checked",
+              "checkin-checked",
+              "extra-checked"
+            ]
+          },
+          {
+            "id": "review",
+            "type": "decision",
+            "name": "是否复检",
+            "layout": {
+              "x": 1440,
+              "y": 200
+            },
+            "decisionKey": "recheck-routing",
+            "routing": {
+              "kind": "probability",
+              "branches": [
+                {
+                  "branchKey": "again",
+                  "weight": 0.15
+                },
+                {
+                  "branchKey": "forward",
+                  "weight": 0.85
+                }
+              ]
+            },
+            "loopGuard": {
+              "maxVisits": 2,
+              "exitBranchKey": "forward"
+            }
+          },
+          {
+            "id": "recheck",
+            "type": "service",
+            "name": "人工复检",
+            "layout": {
+              "x": 1440,
+              "y": 450
+            },
+            "stageKey": "recheck",
+            "duration": {
+              "kind": "fixed",
+              "value": 20,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "check",
+                "quantity": 1
+              }
+            ],
+            "openWindows": []
+          },
+          {
+            "id": "holding",
+            "type": "waiting_area",
+            "name": "分批等候",
+            "layout": {
+              "x": 1680,
+              "y": 200
+            },
+            "queueCapacity": 30,
+            "fullPolicy": {
+              "kind": "reroute",
+              "targetNodeId": "leave"
+            },
+            "release": {
+              "kind": "batch",
+              "batchSize": 10,
+              "maxHoldSec": 90
+            }
+          },
+          {
+            "id": "packing",
+            "type": "service",
+            "name": "领取资料",
+            "layout": {
+              "x": 1920,
+              "y": 200
+            },
+            "stageKey": "packing",
+            "duration": {
+              "kind": "fixed",
+              "value": 45,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "pack",
+                "quantity": 1
+              }
+            ],
+            "openWindows": []
+          },
+          {
+            "id": "visit-choice",
+            "type": "decision",
+            "name": "参与方式",
+            "layout": {
+              "x": 2160,
+              "y": 200
+            },
+            "decisionKey": "visit-routing",
+            "routing": {
+              "kind": "attribute",
+              "branches": [
+                {
+                  "branchKey": "full",
+                  "condition": {
+                    "attributeId": "visit",
+                    "values": [
+                      "full"
+                    ]
+                  }
+                },
+                {
+                  "branchKey": "quick"
+                }
+              ]
+            }
+          },
+          {
+            "id": "finish",
+            "type": "exit",
+            "name": "正常完成",
+            "layout": {
+              "x": 2640,
+              "y": 100
+            },
+            "countsAsCompleted": true
+          },
+          {
+            "id": "leave",
+            "type": "exit",
+            "name": "中途离开",
+            "layout": {
+              "x": 2400,
+              "y": 400
+            },
+            "countsAsCompleted": false
+          },
+          {
+            "id": "verification",
+            "type": "subflow",
+            "name": "核验与复检",
+            "layout": {
+              "x": 940,
+              "y": 0
+            },
+            "memberNodeIds": [
+              "checkin",
+              "checked",
+              "review",
+              "recheck",
+              "lane-choice",
+              "checkin-extra"
+            ]
+          },
+          {
+            "id": "lane-choice",
+            "type": "decision",
+            "name": "核验通道选择",
+            "layout": {
+              "x": 720,
+              "y": 300
+            },
+            "decisionKey": "lane-routing",
+            "routing": {
+              "kind": "probability",
+              "branches": [
+                {
+                  "branchKey": "first",
+                  "weight": 0.5
+                },
+                {
+                  "branchKey": "second",
+                  "weight": 0.5
+                }
+              ]
+            }
+          },
+          {
+            "id": "checkin-extra",
+            "type": "service",
+            "name": "第二核验通道",
+            "layout": {
+              "x": 960,
+              "y": 500
+            },
+            "stageKey": "checkin",
+            "duration": {
+              "kind": "fixed",
+              "value": 30,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [
+              {
+                "kind": "staff",
+                "skillId": "check",
+                "quantity": 1
+              },
+              {
+                "kind": "device",
+                "deviceTypeId": "scanner",
+                "quantity": 1
+              }
+            ],
+            "openWindows": [
+              {
+                "openAt": 0,
+                "closeAt": 1500,
+                "provenance": {
+                  "kind": "synthetic"
+                }
+              }
+            ],
+            "closePolicy": {
+              "queued": {
+                "kind": "serve"
+              },
+              "late": {
+                "kind": "reject"
+              }
+            }
+          },
+          {
+            "id": "briefing",
+            "type": "service",
+            "name": "自助说明",
+            "layout": {
+              "x": 2400,
+              "y": 100
+            },
+            "stageKey": "briefing",
+            "duration": {
+              "kind": "fixed",
+              "value": 20,
+              "provenance": {
+                "kind": "synthetic"
+              }
+            },
+            "requirements": [],
+            "openWindows": [],
+            "maxConcurrent": 6
+          }
+        ],
+        "edges": [
+          {
+            "id": "main-intake",
+            "source": "main",
+            "target": "intake"
+          },
+          {
+            "id": "side-intake",
+            "source": "side",
+            "target": "intake"
+          },
+          {
+            "id": "intake-tickets",
+            "source": "intake",
+            "target": "tickets"
+          },
+          {
+            "id": "vip-checked",
+            "source": "tickets",
+            "target": "checked",
+            "branchKey": "vip"
+          },
+          {
+            "id": "regular-checkin",
+            "source": "tickets",
+            "target": "lane-choice",
+            "branchKey": "regular"
+          },
+          {
+            "id": "checkin-checked",
+            "source": "checkin",
+            "target": "checked"
+          },
+          {
+            "id": "checked-review",
+            "source": "checked",
+            "target": "review"
+          },
+          {
+            "id": "review-again",
+            "source": "review",
+            "target": "recheck",
+            "branchKey": "again"
+          },
+          {
+            "id": "recheck-review",
+            "source": "recheck",
+            "target": "review"
+          },
+          {
+            "id": "review-holding",
+            "source": "review",
+            "target": "holding",
+            "branchKey": "forward"
+          },
+          {
+            "id": "holding-packing",
+            "source": "holding",
+            "target": "packing"
+          },
+          {
+            "id": "packing-visit",
+            "source": "packing",
+            "target": "visit-choice"
+          },
+          {
+            "id": "full-activity",
+            "source": "visit-choice",
+            "target": "briefing",
+            "branchKey": "full"
+          },
+          {
+            "id": "quick-leave",
+            "source": "visit-choice",
+            "target": "leave",
+            "branchKey": "quick"
+          },
+          {
+            "id": "lane-first",
+            "source": "lane-choice",
+            "target": "checkin",
+            "branchKey": "first"
+          },
+          {
+            "id": "lane-second",
+            "source": "lane-choice",
+            "target": "checkin-extra",
+            "branchKey": "second"
+          },
+          {
+            "id": "extra-checked",
+            "source": "checkin-extra",
+            "target": "checked"
+          },
+          {
+            "id": "briefing-finish",
+            "source": "briefing",
+            "target": "finish"
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "check",
+          "name": "身份核验"
+        },
+        {
+          "id": "pack",
+          "name": "资料发放"
+        }
+      ],
+      "staff": [
+        {
+          "id": "check-staff",
+          "name": "核验工作人员",
+          "skillIds": [
+            "check"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        },
+        {
+          "id": "pack-staff",
+          "name": "资料工作人员",
+          "skillIds": [
+            "pack"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [
+            {
+              "start": 400,
+              "end": 460
+            }
+          ],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        },
+        {
+          "id": "floater",
+          "name": "机动工作人员",
+          "skillIds": [
+            "check",
+            "pack"
+          ],
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        }
+      ],
+      "deviceTypes": [
+        {
+          "id": "scanner",
+          "name": "核验终端",
+          "quantity": 2,
+          "shifts": [
+            {
+              "start": 0,
+              "end": 7200
+            }
+          ],
+          "unavailability": [],
+          "provenance": {
+            "kind": "synthetic"
+          }
+        }
+      ],
+      "assignments": [
+        {
+          "resourceUnitId": "check-staff",
+          "periods": [
+            {
+              "from": 0,
+              "nodeIds": [
+                "checkin"
+              ]
+            }
+          ]
+        },
+        {
+          "resourceUnitId": "pack-staff",
+          "periods": [
+            {
+              "from": 0,
+              "nodeIds": [
+                "packing"
+              ]
+            }
+          ]
+        },
+        {
+          "resourceUnitId": "floater",
+          "periods": [
+            {
+              "from": 0,
+              "to": 600,
+              "nodeIds": [
+                "packing",
+                "recheck"
+              ]
+            },
+            {
+              "from": 600,
+              "nodeIds": [
+                "checkin",
+                "recheck",
+                "checkin-extra"
+              ],
+              "handoverSec": 30
+            }
+          ]
+        }
+      ],
+      "layout": {
+        "viewport": {
+          "x": 0,
+          "y": 0,
+          "zoom": 0.75
+        }
+      },
+      "sourcePlanId": "baseline"
+    }
+  ]
+}

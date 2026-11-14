@@ -1,0 +1,107 @@
+# Ghost Rehearsal 👻
+
+**Rehearse an event before the real guests arrive.**
+
+Ghost Rehearsal is a visual event planner and discrete-event simulator with a Halloween costume: ghost guests, pumpkin lanterns, a moonlit canvas, and curved routes. Build an event, watch its queues form, and compare two plans under the same arrival conditions.
+
+[Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Kiro usage status](KIRO_USAGE.md) · [MIT license](LICENSE)
+
+![The Haunted House example in the Ghost Rehearsal workbench](docs/images/workbench.png)
+
+## What you can do
+
+- **Build a flow:** entrances, services, decisions, waiting areas, merges, exits, and subflow groups; curved connections, parameter editing, undo/redo, and automatic layout.
+- **Reuse your work:** start with Haunted House, Trick or Treat, Open House, or a blank plan. Save a node or an entire plan as a template. Each plan has its own node list, and applying a saved template creates an independent copy.
+- **Run a rehearsal:** deterministic arrivals and sampling, queues, branching, batch release, shared staff and equipment, shifts, handovers, and opening/closing rules.
+- **Follow the ghosts:** replay actual simulation events, inspect a guest's journey, and see waiting-time and resource-use summaries.
+- **Compare Two Futures:** synchronize two plans, compare the same guests, inspect parameter differences, and try a slower-service stress scenario. Changed inputs mark previous results as stale.
+- **Keep your plans:** save locally, import/export project JSON, and export an operational plan in Markdown. Switch between English and Chinese.
+
+No account, API key, or backend is needed. Simulation runs in a browser worker; project data stays in your browser unless you export it. Fonts and icons are bundled locally.
+
+## Try it in three minutes
+
+1. Open the [live workbench](https://kanzaler123.github.io/ghost-rehearsal/). A two-entrance Open House example is loaded on a fresh visit.
+2. Click **Run rehearsal**, then play or scrub the timeline to inspect queues and guest journeys.
+3. Choose **Two Futures** to run and compare the included baseline and alternative plans. They share the same guest scenario but have different service and resource arrangements.
+4. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
+5. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
+
+Templates are stored separately from the current project in the same browser. Project JSON exports contain the project, not the saved-template library. Export a project before switching devices or clearing browser storage. Simulation results are recalculated after a reload.
+
+## Run locally
+
+Use **Node.js 24 LTS** and npm. The supported Node versions are declared in `package.json`.
+
+```sh
+git clone https://github.com/kanzaler123/ghost-rehearsal.git
+cd ghost-rehearsal
+npm ci
+npm run dev
+```
+
+Open `http://127.0.0.1:5173` or the address printed by Vite.
+
+```sh
+npm run check
+npm run build
+npm run preview
+```
+
+`check` runs both strict TypeScript checks and the automated tests once. `build` produces `dist/`; `preview` serves that build locally. There are no environment variables or external services to configure.
+
+## Deployment and verification
+
+[GitHub Actions](https://github.com/kanzaler123/ghost-rehearsal/actions/workflows/pages.yml) installs the locked dependencies, runs tests and type checks, and builds the site. Successful pushes to `main` deploy to GitHub Pages; pull requests run the checks without deployment.
+
+The Pages build uses `/ghost-rehearsal/` as its base path. If you fork and publish under another repository name, update the build argument in [the workflow](.github/workflows/pages.yml), and select **GitHub Actions** in **Settings → Pages**. A normal local build uses `/`.
+
+Local verification on **2026-11-15**: 112 automated tests across five files, both TypeScript checks, and the production build passed. Browser checks covered running and comparing plans, template copies and reload persistence, project import/export, curved connections, and desktop/mobile layouts. Tests include hand-calculated queue cases, shared resources, shift changes, closing policies, incomplete guests, and run limits.
+
+## Scope and limitations
+
+This is a working preview. The planning specification describes a broader target; the preview has **not** completed acceptance of all 47 requirements.
+
+- Example parameters are synthetic. Results describe the supplied assumptions, not guaranteed outcomes at a real event. This is an operational process model, not a crowd-safety or evacuation certification tool.
+- The 10,000-guest run cap is a protective limit, not a performance certification at that size.
+- Subflows currently group members. Advanced JSON editing exposes complex distributions, attribute routing, and multi-segment shifts.
+- Waiting summaries use the observation cutoff; completion mode can continue simulation and event playback beyond that cutoff.
+- Stale-result detection uses an input comparison key, not the planned canonical SHA-256 fingerprint. JSON import/export is not acceptance of the full planned document codec.
+- The complete output contracts, extended golden cases, large-scale benchmarks, and full keyboard-interaction acceptance remain unfinished.
+
+## Kiroween 2026
+
+Intended category: **Costume Contest**. The Halloween presentation wraps a practical event-planning tool; ghosts represent simulated guests and make queues and individual journeys visible.
+
+The public repository includes the source, examples, setup instructions, an open-source license, and the root [`.kiro/`](.kiro/) directory. English product and testing instructions are above; the original internal planning documents remain in Chinese.
+
+**Submission is not complete.** The existing Kiro usage log has no verified development entries or exported sessions. The current implementation and repository preparation were completed with Codex; the presence of spec and hook files does not establish that Kiro executed them. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
+
+Before submitting, complete substantive work in Kiro and document its actual contribution, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
+
+## Project map
+
+| Location | Contents |
+| --- | --- |
+| `src/app/`, `src/components/` | React workbench, flow canvas, inspector, and results |
+| `src/features/project.ts` | Project operations, built-in examples, and reusable templates |
+| `src/simulation/` | Simulation worker, event engine, and metrics |
+| `src/schemas/` | Input schemas, graph validation, and plan operations |
+| `src/i18n/` | English and Chinese interface text |
+| `tests/` | Schema, simulation, example, boundary, and template tests |
+| [examples/open-house.json](examples/open-house.json) | Synthetic two-plan Open House example |
+| [.kiro/specs/product-foundation/](.kiro/specs/product-foundation/) | Existing requirements, design, and task records |
+| [.kiro/hooks/](.kiro/hooks/) | Kiro usage-recording hook configuration |
+| [PLAN.md](PLAN.md) | Original product roadmap; planned scope, not a completion report |
+
+Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
+
+## 中文快速说明
+
+Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人员设备安排，并比较不同方案。可直接打开上方在线演示，右上角切换中文；也可使用 Node.js 24，执行 `npm ci`、`npm run dev` 本地运行。
+
+支持每个方案独立的节点列表、弧形连线、万圣节预设，以及保存节点和整套方案作为模板。项目和模板保存在当前浏览器中；换设备前请导出项目 JSON，模板库不随项目 JSON 导出。当前是可运行预览版，尚未完成全部规划需求，也尚未完成 Kiro 使用证明、演示视频和 Devpost 正式提交。
+
+## License
+
+Original project code is available under the [MIT license](LICENSE). Bundled dependencies and fonts retain their own licenses; their notices are included in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt) and distributed with the live build.
