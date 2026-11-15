@@ -4,7 +4,6 @@ import '@fontsource-variable/inter/index.css';
 import '@fontsource-variable/fraunces/full-italic.css';
 import '@fontsource-variable/fraunces/full.css';
 import '@fontsource-variable/jetbrains-mono/index.css';
-import '@xyflow/react/dist/style.css';
 import './styles.css';
 import { App } from './App';
 import { I18nProvider } from '../i18n';

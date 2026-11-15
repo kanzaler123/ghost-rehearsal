@@ -10,6 +10,8 @@ import type { PlaybackState } from '../simulation/types';
 import { Ghost, NodeIcon } from './Icons';
 import { pickValue } from './Journey';
 import { resourceName } from './Results';
+import { longestQueues, momentsSoFar } from './shell/navigation';
+import { StatusMarker } from './shell/StatusMarker';
 
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
@@ -37,16 +39,14 @@ interface NowProps {
 /** Rehearse: what is happening at the replay moment. */
 export function NowPanel({ plan, view, previous, time, moments, tracked, picks, nameOf, onFocus, onJump, onChoose, onOpenJourney }: NowProps) {
   const { t } = useI18n();
-  const queues = plan.graph.nodes.filter(node => node.type === 'service' || node.type === 'waiting_area')
-    .map(node => ({ node, waiting: waitingAt(view, node.id), serving: view.nodes[node.id]?.serving.length ?? 0, trend: previous ? waitingAt(view, node.id) - waitingAt(previous, node.id) : 0 }))
-    .filter(item => item.waiting > 0).sort((a, b) => b.waiting - a.waiting).slice(0, 4);
+  const queues = longestQueues(plan, view, previous);
   const peak = Math.max(1, ...queues.map(item => item.waiting));
-  const past = moments.filter(item => item.time <= time).reverse().slice(0, 6);
+  const past = momentsSoFar(moments, time);
   return <div className="now-panel">
     <section className="now-col">
       <h4>{t.now.bottleneck}<small>{t.now.bottleneckHint}</small></h4>
       {queues.length ? queues.map((item, index) => <button type="button" key={item.node.id} className={cls('queue-row', index === 0 && 'is-top')} onClick={() => onFocus(item.node.id)}>
-        <NodeIcon type={item.node.type} size={14} /><span className="queue-name">{item.node.name}</span>
+        <StatusMarker id="queue" compact /><span className="queue-name">{item.node.name}</span>
         <span className="queue-bar"><i style={{ width: `${item.waiting / peak * 100}%` }} /></span>
         <b>{item.waiting}</b>
         <span className={cls('queue-trend', item.trend > 0 && 'up', item.trend < 0 && 'down')} title={t.canvas.trendTitle}>{item.trend > 0 ? <ArrowUpRight size={12} /> : item.trend < 0 ? <ArrowDownRight size={12} /> : null}{item.trend ? t.canvas.trend(item.trend) : ''}</span>
@@ -56,7 +56,7 @@ export function NowPanel({ plan, view, previous, time, moments, tracked, picks, 
     <section className="now-col">
       <h4>{t.now.moments}</h4>
       {past.length ? <ol className="moment-list">{past.map((item, index) => <li key={index}><button type="button" className={`moment k-${item.kind}`} onClick={() => onJump(item.time, item.nodeId)}>
-        <time>{formatTime(item.time)}</time><i /><span>{keyEventText(item, plan, nameOf, t)}</span>
+        <time>{formatTime(item.time)}</time><StatusMarker id={item.kind === 'blocked' ? 'blocked' : item.kind === 'first-done' ? 'finished' : item.kind === 'leave' ? 'left' : 'queue'} compact /><span>{keyEventText(item, plan, nameOf, t)}</span>
       </button></li>)}</ol> : <p className="subtle">{t.now.momentsEmpty}</p>}
     </section>
     <section className="now-col">
@@ -77,11 +77,12 @@ export function NowPanel({ plan, view, previous, time, moments, tracked, picks, 
 
 interface NavigatorProps {
   plan: Plan; index: StageIndex; view: PlaybackState; previous?: PlaybackState; expanded: Set<string> | 'all'; selected: string;
+  time?: number;
   onStage: (id: string) => void; onNode: (id: string) => void; onExpandSidebar: () => void;
 }
 
 /** Rehearse sidebar: the flow as a short list of stages with live queue counts. */
-export function FlowNavigator({ plan, index, view, previous, expanded, selected, onStage, onNode, onExpandSidebar }: NavigatorProps) {
+export function FlowNavigator({ plan, index, view, previous, expanded, selected, time = 0, onStage, onNode, onExpandSidebar }: NavigatorProps) {
   const { t } = useI18n();
   const regular = plan.graph.nodes.filter(node => node.type !== 'subflow');
   const items = [...new Set(regular.map(node => index.top.get(node.id) ?? node.id))];
@@ -96,7 +97,7 @@ export function FlowNavigator({ plan, index, view, previous, expanded, selected,
     const ids = membersOf(id);
     const count = waiting(ids); const change = trend(ids);
     const stage = index.subflows.has(id);
-    return <button type="button" key={id} className={cls('nav-item', nested && 'nested', stage && 'is-stage', selected === id && 'active', count > 10 && 'hot')} onClick={() => stage ? onStage(id) : onNode(id)}>
+    return <button type="button" key={id} className={cls('nav-item', nested && 'nested', stage && 'is-stage', selected === id && 'active', count > 10 && 'hot')} title={count > 10 ? t.reportUi.hot(formatTime(time)) : undefined} onClick={() => stage ? onStage(id) : onNode(id)}>
       {stage ? <Boxes size={14} aria-hidden="true" /> : <NodeIcon type={node.type} size={14} />}
       <span className="nav-name">{node.name}</span>
       {count > 0 && <span className="nav-trend">{change > 0 ? <ArrowUpRight size={11} aria-hidden="true" /> : change < 0 ? <ArrowDownRight size={11} aria-hidden="true" /> : null}</span>}

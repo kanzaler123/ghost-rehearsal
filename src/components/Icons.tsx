@@ -58,8 +58,8 @@ export function Pumpkin({ size = 32, className }: { size?: number; className?: s
 }
 
 /** Decorative night layer behind the canvas. Purely visual; pointer events are disabled. */
-export function HauntedBackdrop() {
-  return <div className="haunt" aria-hidden="true">
+export function HauntedBackdrop({ quiet = false }: { quiet?: boolean }) {
+  return <div className={quiet ? 'haunt is-quiet' : 'haunt'} aria-hidden="true">
     <div className="haunt-moon" />
     <Bat className="haunt-bat bat-1" />
     <Bat className="haunt-bat bat-2" />

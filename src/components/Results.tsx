@@ -8,6 +8,8 @@ import { useI18n } from '../i18n';
 import type { SimulationEvent, SimulationRun } from '../simulation/types';
 import { Ghost } from './Icons';
 import { StatisticsScope } from './StatisticsScope';
+import { RunStateCard } from './shell/RunStateCard';
+import { deriveEmptyState } from './shell/runState';
 
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
@@ -42,9 +44,10 @@ interface InsightsProps {
   scenarioId: string; overrides: number; basis: ResultBasis; onSelectNode: (id: string, owner: string) => void;
   onChoose: (id: string) => void; onJump: (time: number, nodeId: string, owner: string) => void; onExperiment?: () => void;
   threshold?: WaitThreshold; initialEvidence?: { id: string; owner: string };
+  onRerun?: () => void;
 }
 
-export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD, initialEvidence }: InsightsProps) {
+export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD, initialEvidence, onRerun }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
   const context = useMemo(() => comparisonContext(run, second, basis, threshold, comparisonReady), [run, second, basis, threshold, comparisonReady]);
@@ -68,6 +71,7 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
   const evidenceId = selected?.id ?? rows[0]?.[0] ?? '';
   const evidenceRun = second && secondStats && (selected?.owner === second.request.plan.id || (!selected && !run.request.plan.graph.nodes.some(node => node.id === evidenceId))) ? second : run;
   const evidence = useMemo(() => nodeEvidence(evidenceRun, evidenceId, basis), [evidenceRun, evidenceId, basis]);
+  const emptyEvidence = deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: false, evidenceCount: evidence?.events.length ?? 0 });
   const pick = (id: string, owner: string) => { setSelected({ id, owner }); onSelectNode(id, owner); };
   const changeText = (plan: Plan, change: PlanChange) => {
     if (change.kind === 'node') { const node = plan.graph.nodes.find(item => item.id === change.id); return node ? nodeInstructions(node, plan, t).join(' · ') : '—'; }
@@ -115,7 +119,7 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
     </div>
     <section className="evidence-card">
       <h3>{t.review.evidence} · {evidenceRun.request.plan.name} · {evidence?.node.name ?? nameOf(evidenceId)}</h3>
-      {evidence ? <>
+      {evidence && !emptyEvidence ? <>
         <p><b>{t.review.observed}</b>: {formatTime(evidence.from)}–{formatTime(evidence.to)} · {evidence.queued} {t.review.queued}, {evidence.blocked} {t.review.blocked}, {evidence.holding} {t.review.holding}, {evidence.serving} {t.review.serving}</p>
         <button type="button" className="btn small" onClick={() => onJump(evidence.from, evidence.node.id, evidenceRun.request.plan.id)}>{t.review.jump}</button>
         <h4>{t.review.constraints}</h4>
@@ -124,7 +128,7 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
         <p className="subtle">{t.review.hypothesis}</p>
         <details><summary>{t.review.affected} ({evidence.visitors.length})</summary><div className="evidence-guests">{[...evidence.visitors].sort((a, b) => Math.abs(pairs.find(pair => pair.id === b)?.delta ?? 0) - Math.abs(pairs.find(pair => pair.id === a)?.delta ?? 0)).map(id => <button type="button" className="text-btn" key={id} onClick={() => onChoose(id)}>{id}{pairs.length > 0 ? ` · Δ ${t.formatWait(pairs.find(pair => pair.id === id)?.delta)}` : ''}</button>)}</div></details>
         <details><summary>{t.review.records}</summary><EventLog nameOf={id => visitorName(id, evidenceRun.request.plan, evidenceRun.request.scenario)} plan={evidenceRun.request.plan} events={[...new Map([...evidence.resources.flatMap(unit => unit.records.slice(-3)), ...evidence.events].map(event => [event.seq, event])).values()].sort((a, b) => a.seq - b.seq)} onPick={event => { onJump(event.time, event.nodeId ?? evidence.node.id, evidenceRun.request.plan.id); if (event.participantId) onChoose(event.participantId); }} /></details>
-      </> : <p className="subtle">{t.review.noEvidence}</p>}
+      </> : emptyEvidence && <RunStateCard kind={emptyEvidence.kind} action={emptyEvidence.action} detail={t.review.noEvidence} onAction={() => onRerun?.()} />}
     </section>
   </div>;
 }

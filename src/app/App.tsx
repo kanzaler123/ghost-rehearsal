@@ -15,7 +15,7 @@ import { GuidedDemo } from '../components/GuidedDemo';
 import type { DemoProgress } from '../components/GuidedDemo';
 import { Inspector } from '../components/Inspector';
 import { EventCreator, JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
-import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
+import { Ghost, HauntedBackdrop, NodeIcon, Pumpkin } from '../components/Icons';
 import { describeStatus, GhostJourney } from '../components/Journey';
 import { FlowNavigator, keyEventText, NowPanel } from '../components/Rehearse';
 import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Results';
@@ -31,6 +31,23 @@ import type { Lang, Messages } from '../i18n';
 import { inputKey, populationSize } from '../simulation/input';
 import { playbackAt } from '../simulation/metrics';
 import type { SimulationRun } from '../simulation/types';
+
+import { TopBar } from '../components/shell/TopBar';
+import { PlanNavigator } from '../components/shell/PlanNavigator';
+import { ModeActions } from '../components/shell/ModeActions';
+import { ArrangementControl } from '../components/shell/ArrangementControl';
+import { effectiveArrangement } from '../components/shell/arrangement';
+import { RunStateCard } from '../components/shell/RunStateCard';
+import { deriveRunState } from '../components/shell/runState';
+import type { LastRunOutcome } from '../components/shell/runState';
+import { LiveAnnouncer } from '../components/shell/LiveAnnouncer';
+import { LiveStatusStrip } from '../components/shell/LiveStatusStrip';
+import { SummaryStrip } from '../components/shell/SummaryStrip';
+import { StatusMarker } from '../components/shell/StatusMarker';
+import { longestQueues } from '../components/shell/navigation';
+import { autoplayAfterRun } from '../features/motion';
+import { loadArrangement, saveArrangement } from './preferences';
+import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
 type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
@@ -70,6 +87,15 @@ function loadProject(lang: Lang): { document: ProjectDocument; notice: Notice; s
 
 export function App() {
   const { t, lang, setLang } = useI18n();
+  const reducedMotion = usePrefersReducedMotion();
+  const narrowScreen = useNarrowScreen();
+  const reducedRef = useRef(reducedMotion); reducedRef.current = reducedMotion;
+  const [arrangement, setArrangement] = useState(loadArrangement);
+  const [lastRun, setLastRun] = useState<LastRunOutcome | null>(null);
+  const runningPlans = useRef<string[]>([]);
+  const [viewMark, setViewMark] = useState<'default' | 'all' | null>('default');
+  const [navigatorCollapsed, setNavigatorCollapsed] = useState(() => window.matchMedia?.('(min-width: 981px) and (max-width: 1366px)')?.matches ?? false);
+  const [reportCollapsed, setReportCollapsed] = useState(false);
   const [loaded] = useState(() => loadProject(lang));
   const [project, setProject] = useState(loaded.document);
   const [savedText, setSavedText] = useState(loaded.saved ? JSON.stringify(loaded.document) : '');
@@ -82,6 +108,7 @@ export function App() {
   const [basis, setBasis] = useState<ResultBasis>('cutoff');
   const [threshold, setThreshold] = useState<WaitThreshold>(THRESHOLD);
   const [guide, setGuide] = useState<DemoProgress | null>(null);
+  const [evidenceReveal, setEvidenceReveal] = useState(0);
   const [evidenceTarget, setEvidenceTarget] = useState<{ id: string; owner: string }>();
   const [draftSaved, setDraftSaved] = useState(false);
   const [planName, setPlanName] = useState('');
@@ -121,6 +148,8 @@ export function App() {
   const [documentIssues, setDocumentIssues] = useState<ValidationIssue[]>([]);
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
+  const thresholdInput = useRef<HTMLSelectElement>(null);
+  const checksTrigger = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<Worker | null>(null);
@@ -136,8 +165,9 @@ export function App() {
   const requestFor = (target: Plan, document = project): RunRequest => ({ schemaVersion: 1, scenario: document.scenarios.find(item => item.id === target.scenarioId)!, plan: target, runMode });
   const stale = useMemo(() => !!run && run.inputKey !== inputKey(requestFor(plan)), [run, plan, scenario, runMode]);
   const secondStale = useMemo(() => !!secondRun && !!second && secondRun.inputKey !== inputKey(requestFor(second)), [secondRun, second, project.scenarios, runMode]);
-  const comparisonReady = !!second && !!run && !!secondRun && compatibleRuns(run, secondRun) && !stale && !secondStale;
-  const comparison = useMemo(() => comparisonContext(run, secondRun, basis, threshold, !stale && !secondStale), [run, secondRun, basis, threshold, stale, secondStale]);
+  const interrupted = !!lastRun && lastRun.planIds.some(id => id === plan.id || id === second?.id);
+  const comparisonReady = !busy && !interrupted && !!second && !!run && !!secondRun && compatibleRuns(run, secondRun) && !stale && !secondStale;
+  const comparison = useMemo(() => comparisonContext(run, secondRun, basis, threshold, !busy && !stale && !secondStale && !interrupted), [run, secondRun, basis, threshold, stale, secondStale, interrupted, busy]);
   const endTime = Math.max(run?.coveredUntil ?? scenario.observationCutoff, mode === 'Compare' ? secondRun?.coveredUntil ?? 0 : 0);
   const issues = useMemo(() => [...validateScenario(scenario), ...validatePlan(plan), ...validateGraph(scenario, plan)], [scenario, plan]);
   const ownerIssues = owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(project.scenarios.find(item => item.id === owner.scenarioId)!, owner)];
@@ -161,7 +191,11 @@ export function App() {
   const nameOf = useCallback((id: string) => visitorName(id, run?.request.plan ?? plan, scenario), [run, plan, scenario]);
   const tracked = useMemo(() => visitorId ? { id: visitorId, name: nameOf(visitorId) } : undefined, [visitorId, nameOf]);
   const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
-  const trackedStatus = trackedJourneys.map((journey, index) => journey ? describeStatus(statusAt(journey, time), (index ? secondRun : run)!.request.plan, time, t) : '');
+  const trackedStatus = trackedJourneys.map((journey, index) => {
+    if (!journey) return t.reportUi.notInSystem;
+    const status = statusAt(journey, time);
+    return status.kind === 'not_arrived' || status.kind === 'done' || status.kind === 'left' ? t.reportUi.notInSystem : describeStatus(status, (index ? secondRun : run)!.request.plan, time, t);
+  });
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
   const selectedStats = statisticsAt(run, basis), selectedSecondStats = statisticsAt(secondRun, basis);
   const featured = comparison.featured;
@@ -231,7 +265,7 @@ export function App() {
     })));
     setLang(next);
   }
-  function requestView(target: ViewTarget) { setViewRequest(previous => ({ token: previous.token + 1, target })); }
+  function requestView(target: ViewTarget) { setViewMark(target === 'default' || target === 'all' ? target : null); setViewRequest(previous => ({ token: previous.token + 1, target })); }
   /** Zooms both canvases to the given nodes. Stages that contain them are opened first; service nodes match across plans by stage key. */
   function focusNodes(ids: string[], byPlan?: Record<string, string[]>) {
     const plans = [plan, ...(comparing && second ? [second] : [])];
@@ -285,34 +319,40 @@ export function App() {
   }
   function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
+    runningPlans.current = targets.map(target => target.id); setLastRun(null);
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
     worker.current?.terminate();
     const active = new Worker(new URL('../simulation/worker.ts', import.meta.url), { type: 'module' });
     worker.current = active;
     active.onmessage = (event: MessageEvent<{ runs?: SimulationRun[]; error?: string }>) => {
       setBusy(false); active.terminate(); worker.current = null;
-      if (event.data.error || !event.data.runs) { const error = event.data.error; say(tr => tr.notices.runFailed(error ? errorText(error, tr.lang) : tr.notices.noResult)); return; }
+      if (event.data.error || !event.data.runs) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const error = event.data.error; say(tr => tr.notices.runFailed(error ? errorText(error, tr.lang) : tr.notices.noResult)); return; }
       const results = event.data.runs;
       const failed = results.find(result => result.status === 'failed' || (destination === 'Compare' && result.status !== 'succeeded'));
-      if (failed) { const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3); say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`); setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); return; }
+      if (failed) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3); say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`); setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); return; }
       setRuns(previous => ({ ...previous, ...Object.fromEntries(results.map(result => [result.request.plan.id, result])) }));
-      setMode(destination); setTime(0); setSpeed(1); setPlaying(true); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: targets[0].id });
+      setMode(destination); setTime(0); setSpeed(1); setPlaying(autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: targets[0].id });
       if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
       const people = results[0].population.length; const total = results.reduce((sum, result) => sum + result.events.length, 0);
       say(results.some(result => result.status === 'aborted') ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
     };
-    active.onerror = () => { setBusy(false); say(tr => tr.notices.workerFailed); active.terminate(); };
+    active.onerror = () => { setBusy(false); setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); worker.current = null; say(tr => tr.notices.workerFailed); active.terminate(); };
     active.postMessage({ requests: targets.map(target => ({ ...requestFor(target, document), runMode: scope })) });
   }
+  function stopRun() {
+    worker.current?.terminate(); worker.current = null; setBusy(false); setPlaying(false);
+    setLastRun({ kind: 'stopped', planIds: runningPlans.current }); say(tr => tr.notices.cancelled);
+  }
+  function rerun() { launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Compare' ? 'Compare' : 'Rehearse'); }
   function switchMode(next: Mode) {
     setPlaying(false);
     if (next === 'Build') { enterBuild(); return; }
     if (next === 'Compare') {
       if (!second) { say(tr => tr.notices.needSecond); return; }
       if (!comparisonReady) launch([plan, second], next);
-      else { setMode(next); setTime(0); setPlaying(true); }
+      else { setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
     } else if (!run || stale || run.status === 'failed') launch([plan], next);
-    else { setMode(next); setTime(0); setPlaying(true); }
+    else { setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
   }
   function copyPlan() {
     const result = duplicatePlan(plan, new Set(project.plans.map(item => item.id)));
@@ -432,16 +472,17 @@ export function App() {
     setExpanded([]); setRailExpanded(false); setBottomTab(mode === 'Compare' ? 'journey' : 'now');
     setCompareFocus('overview'); setPeopleGroup(undefined); setMobilePanel('report');
     if (mode === 'Compare') setDockOpen(false);
+    else setReportCollapsed(false);
     if (mode === 'Build') { setGuide(null); setEvidenceTarget(undefined); }
     if (mode !== 'Build') setInspectorOpen(false);
     requestView('default');
   }, [mode]);
   useEffect(() => {
-    if (window.matchMedia?.('(max-width: 980px)')?.matches) workspaceRef.current?.scrollTo({ top: 0, left: 0 });
+    if (window.matchMedia?.('(max-width: 980px)')?.matches) workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'auto' : undefined });
   }, [mobilePanel]);
   useEffect(() => { requestView('default'); }, [plan.id, canvasView]);
   // Two Futures opens on a ghost whose futures differ, so the story is visible without searching.
-  useEffect(() => { if (mode === 'Compare') setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup]);
+  useEffect(() => { if (mode === 'Compare' && !busy && !interrupted) setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup, busy, interrupted]);
   useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
@@ -480,6 +521,7 @@ export function App() {
   const splitRows = stageView || !plan.graph.nodes.length || (bounds.maxX - bounds.minX + 240) >= (bounds.maxY - bounds.minY + 140);
   const scenarioNameOf = (target: Plan) => project.scenarios.find(item => item.id === target.scenarioId)?.name ?? target.scenarioId;
   const live = liveSummary(view);
+  const runState = deriveRunState({ busy, hasRun: !!run, runFailed: run?.status === 'failed', stale: stale || (mode === 'Compare' && secondStale), lastRun, planId: plan.id });
   const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second);
   const cutoffLabel = formatTime(stats?.until ?? scenario.observationCutoff);
 
@@ -506,51 +548,19 @@ export function App() {
       onConnect: connect, onDelete: (nodes: string[], edges: string[]) => deleteElements(nodes, edges, target.id), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
       previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, time, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
       chooseVisitor, visitorName: nameOf, changed: comparing ? changedIds : undefined,
-      request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage };
+      request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage, reducedMotion, onManual: () => setViewMark(null) };
   }
 
   const stageTitle = mode === 'Build' ? plan.name : mode === 'Compare' ? t.stage.compare : t.stage.rehearse;
   const stageSub = mode === 'Build' ? t.stage.counts(plan.graph.nodes.length, plan.graph.edges.length) : `${t.live.clock(formatTime(time))} / ${formatTime(endTime)}`;
   const exampleCounts = useMemo(() => { const example = initialDocument().plans[0]; return t.stage.counts(example.graph.nodes.length, example.graph.edges.length); }, [t]);
 
-  return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`)}>
-    <header className="topbar">
-      <div className="brand">
-        <div className="brand-mark"><Ghost size={22} /></div>
-        <div className="brand-text"><strong>{t.brand.name}</strong><small>{t.brand.tagline}</small></div>
-      </div>
-      <nav className="mode-switch" role="tablist" aria-label={t.modes.label}>
-        {MODES.map(({ mode: item, icon: Icon }) => <button type="button" role="tab" aria-selected={mode === item} key={item} className={mode === item ? 'active' : ''} disabled={busy} onClick={() => switchMode(item)}>
-          <Icon size={15} aria-hidden="true" /><span>{t.modes[item]}</span>
-        </button>)}
-      </nav>
-      <div className="topbar-spacer" />
-      <div className="command-group">
-        <button type="button" className="icon-btn" title={t.header.undo} aria-label={t.header.undo} disabled={!past.length || busy} onClick={undo}><Undo2 size={17} /></button>
-        <button type="button" className="icon-btn" title={t.header.redo} aria-label={t.header.redo} disabled={!future.length || busy} onClick={redo}><Redo2 size={17} /></button>
-        <span className="divider" />
-        {busy
-          ? <button type="button" className="btn run is-busy" onClick={() => { worker.current?.terminate(); setBusy(false); say(tr => tr.notices.cancelled); }}><Square size={13} aria-hidden="true" />{t.run.stop}</button>
-          : <button type="button" className="btn run" onClick={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Compare' ? 'Compare' : 'Rehearse')}><Ghost size={16} />{t.run.start}</button>}
-      </div>
-      <div className="file-group">
-        <button type="button" className="btn ghost" onClick={save} title={t.header.saveTitle}><Save size={15} aria-hidden="true" /><span>{t.header.save}</span></button>
-        <details className="workspace-menu">
-          <summary className="icon-btn" aria-label={t.header.more} title={t.header.more}><MoreHorizontal size={19} /></summary>
-          <div className="workspace-menu-body" onClick={event => { if ((event.target as HTMLElement).closest('button')) event.currentTarget.parentElement?.removeAttribute('open'); }}>
-            <button type="button" className="side-action" onClick={() => fileInput.current?.click()}><Upload size={15} />{t.header.import}</button>
-            <button type="button" className="side-action" onClick={() => setDialog('export')}><Download size={15} />{t.header.export}</button>
-            <button type="button" className="side-action" onClick={() => setDialog('plan-json')}><Braces size={15} />{t.sidebar.planJson}</button>
-            <button type="button" className="side-action" onClick={() => setDialog('scenario-json')}><FileText size={15} />{t.sidebar.scenarioJson}</button>
-            <label className="field"><span>{t.run.scope}</span><select aria-label={t.run.scope} value={runMode} disabled={busy} onChange={event => { setPlaying(false); setRunMode(event.target.value as RunRequest['runMode']); }}><option value="cutoff">{t.run.cutoff}</option><option value="run_to_completion">{t.run.completion}</option></select></label>
-            <button type="button" className="side-action" onClick={() => setDialog('about')}><CircleHelp size={15} />{t.header.about}</button>
-          </div>
-        </details>
-      </div>
-      <div className="lang-switch" role="group" aria-label={t.language.label}>
-        {(['en', 'zh'] as Lang[]).map(item => <button type="button" key={item} aria-pressed={lang === item} className={lang === item ? 'active' : ''} onClick={() => switchLanguage(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}
-      </div>
-    </header>
+  return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
+    {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><HauntedBackdrop /></div>}
+    <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
+      compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
+      onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
+      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} />
 
     {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
@@ -558,7 +568,7 @@ export function App() {
     {comparing && <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>}
     {comparing && <div className="comparison-settings">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
-      <label>{t.evidence.threshold}<select aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
+      <label>{t.evidence.threshold}<select ref={thresholdInput} aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
       <small>{t.review.completionHint}</small>
     </div>}
     {comparing && <nav className="mobile-compare-nav" aria-label={t.workspace.focus}>
@@ -569,66 +579,34 @@ export function App() {
     </nav>}
     <div className="workspace" ref={workspaceRef}>
       {!fullSidebar && mode === 'Rehearse' && <aside className="sidebar is-rail" aria-label={t.navigator.title}>
-        <FlowNavigator plan={plan} index={indexA} view={view} previous={previousView} expanded={expandedSet} selected={selection.id}
+        <div className="plan-rail-badges"><button type="button" className="plan-badge is-a" title={plan.name} aria-label={`A · ${plan.name} · ${t.studioUi.currentPlan}`} onClick={() => setRailExpanded(true)}>A<StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{second && <button type="button" className="plan-badge is-b" title={second.name} aria-label={`B · ${second.name}`} onClick={() => setRailExpanded(true)}>B</button>}</div>
+        <FlowNavigator plan={plan} index={indexA} view={view} previous={previousView} expanded={expandedSet} selected={selection.id} time={time}
           onStage={id => toggleStage(id, !(expandedSet === 'all' || expandedSet.has(id)) || canvasView === 'full')} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onExpandSidebar={() => setRailExpanded(true)} />
       </aside>}
-      {!fullSidebar && comparing && second && <aside className="sidebar is-report" aria-label={t.compare.title}>
-        <div className="report-toolbar">{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
-        <CompareReport basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+      {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
+        <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">A · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
+        <CompareReport onChooseRule={() => thresholdInput.current?.focus()} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
-      {fullSidebar && <aside className="sidebar">
-        {mode !== 'Build' && <button type="button" className="side-collapse" onClick={() => setRailExpanded(false)}><PanelLeftClose size={15} aria-hidden="true" />{t.sidebar.collapse}</button>}
-        <section className="side-section event-card">
-          <div className="event-eyebrow"><span className="eyebrow">{t.sidebar.event}</span><span className={cls('save-pill', unsaved && 'unsaved')} title={unsaved && !draftSaved && dialog !== 'welcome' ? t.review.draftFailed : undefined}>{unsaved ? draftSaved ? t.review.draftSaved : t.header.unsaved : t.header.saved}</span></div>
-          <div className="event-picker">
-            <select className="event-title" aria-label={t.eventSetup.active} value={scenario.id} disabled={busy} onChange={event => { const target = project.plans.find(item => item.scenarioId === event.target.value); if (target) selectPlan(target.id); }}>
-              {project.scenarios.filter(item => project.plans.some(plan => plan.scenarioId === item.id)).map(item => <option key={item.id} value={item.id}>{item.name ?? t.header.untitled}</option>)}
-            </select>
-            <button type="button" className="icon-btn" aria-label={t.eventSetup.settings} title={t.eventSetup.settings} disabled={busy} onClick={() => enterBuild(plan.id, 'scenario')}><Settings2 size={16} /></button>
-          </div>
-          <button type="button" className="text-btn new-event" disabled={busy} onClick={() => setDialog('new')}><Plus size={14} />{t.eventSetup.new}</button>
-          <button type="button" className="side-link" onClick={() => enterBuild(plan.id, 'scenario')}><Ghost size={15} /><span>{t.sidebar.guests}</span><b>{populationSize(scenario)}</b></button>
-          <button type="button" className="side-link" onClick={() => enterBuild(plan.id, 'resources')}><Users size={15} aria-hidden="true" /><span>{t.sidebar.resources}</span><b>{staffCount + deviceCount}</b></button>
-        </section>
-        <section className="side-section">
-          <div className="section-heading"><h2>{t.sidebar.plans}</h2><div className="section-actions"><button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} disabled={busy} onClick={() => prepareTemplate()}><BookmarkPlus size={16} /></button><button type="button" className="icon-btn" aria-label={t.sidebar.duplicate} title={t.sidebar.duplicate} disabled={busy} onClick={copyPlan}><Copy size={16} /></button></div></div>
-          <div className="plan-actions"><button type="button" className="text-btn" disabled={busy} onClick={() => { setPlanName(plan.name); setDialog('rename-plan'); }}>{t.review.rename}</button><button type="button" className="text-btn danger" disabled={busy || project.plans.length < 2} onClick={() => { const remaining = project.plans.filter(item => item.id !== plan.id); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}>{t.review.removePlan}</button></div>
-          <ul className="plan-list">{project.plans.filter(item => item.scenarioId === scenario.id).map(item => {
-            const isA = item.id === plan.id; const isB = item.id === second?.id;
-            return <li key={item.id} className={cls('plan-card', isA && 'is-a', isB && 'is-b')}>
-              <button type="button" className="plan-main" aria-pressed={isA} onClick={() => selectPlan(item.id)}>
-                <span className="plan-badge">{isA ? t.sidebar.currentBadge : isB ? t.sidebar.secondBadge : ''}</span>
-                <span className="plan-text"><b>{item.name}</b><small>{scenarioNameOf(item)}</small></span>
-              </button>
-              {!isA && !isB && item.scenarioId === plan.scenarioId && <button type="button" className="plan-setb" title={t.sidebar.setB} aria-label={`${t.sidebar.setB}: ${item.name}`} onClick={() => { setSecondId(item.id); setPlaying(false); }}>B</button>}
-            </li>;
-          })}</ul>
-        </section>
-        <section className="side-section palette-section">
-          <div className="section-heading"><h2>{t.sidebar.nodes}<span className="node-count">{plan.graph.nodes.length}</span></h2><button type="button" className="icon-btn add-node" disabled={readOnly} aria-label={t.sidebar.addNode} title={t.sidebar.addNode} onClick={() => openLibrary('nodes')}><Plus size={17} /></button></div>
-          <label className="search-box"><Search size={14} aria-hidden="true" /><input aria-label={t.sidebar.searchLabel} placeholder={t.sidebar.search} value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="plan-nodes">{planNodes.map(node => <button type="button" key={node.id} className={cls('plan-node', `type-${node.type}`, selection.id === node.id && selection.owner === plan.id && 'active')} onClick={() => { setSelection({ id: node.id, kind: 'node', owner: plan.id }); focusNodes([node.id]); }}>
-            <NodeIcon type={node.type} size={15} /><span>{node.name}</span>
-          </button>)}{!planNodes.length && <p className="subtle">{plan.graph.nodes.length ? t.sidebar.noMatch : t.sidebar.emptyNodes}</p>}</div>
-        </section>
-        <section className="side-section side-footer">
-          <button type="button" className="side-action" disabled={busy} onClick={startGuide}><Ghost size={17} />{t.guide.start}</button>
-          <button type="button" className="side-action template-launch" disabled={busy} onClick={() => openLibrary('plans')}><BookOpen size={17} aria-hidden="true" />{t.templates.browse}<span>↗</span></button>
-        </section>
-      </aside>}
+      {fullSidebar && <PlanNavigator project={project} scenario={scenario} plan={plan} second={second} busy={busy} editing={!readOnly} collapsed={mode === 'Build' && navigatorCollapsed} selection={selection} search={search}
+        onCollapse={() => mode === 'Build' ? setNavigatorCollapsed(value => !value) : setRailExpanded(false)}
+        onScenario={id => { const target = project.plans.find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { setSecondId(id); setPlaying(false); }}
+        onNew={() => setDialog('new')} onSettings={() => enterBuild(plan.id, 'scenario')} onGuests={() => enterBuild(plan.id, 'scenario')} onResources={() => enterBuild(plan.id, 'resources')}
+        onRename={() => { setPlanName(plan.name); setDialog('rename-plan'); }} onDuplicate={copyPlan} onDelete={() => { const remaining = project.plans.filter(item => item.id !== plan.id); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}
+        onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
 
       <main className="stage">
         <div className="stage-head">
           <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
-          <div className="stage-tools">
+          <ModeActions unavailable={busy ? t.runState.computing.description : !second ? t.topbar.compareUnavailable : undefined}>
             {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
+            {comparing && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
             {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
             </div>}
-            {(mode === 'Build' || errorCount > 0) && <button type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
+            {(mode === 'Build' || errorCount > 0) && <button ref={checksTrigger} type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
               {errorCount ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}{errorCount ? t.stage.toFix(errorCount) : issues.length ? t.stage.notices(issues.length) : t.stage.passed}
             </button>}
             {mode !== 'Build' && hasStages && <div className="view-switch" role="group" aria-label={t.stage.views.label} title={t.stage.viewsHint}>
@@ -636,27 +614,24 @@ export function App() {
               <button type="button" aria-label={t.stage.views.full} title={t.stage.views.full} aria-pressed={canvasView === 'full'} className={cls(canvasView === 'full' && 'active')} onClick={() => setCanvasView('full')}><Workflow size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.full}</span></button>
             </div>}
             {mode === 'Build' && <button type="button" className="btn ghost small" title={t.stage.arrange} onClick={arrange} disabled={busy}><WandSparkles size={14} aria-hidden="true" /><span className="btn-label">{t.stage.arrange}</span></button>}
-            <button type="button" className="btn ghost small" title={t.stage.fit} onClick={() => requestView('default')}><LocateFixed size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
-            <button type="button" className="btn ghost small" title={t.stage.overview} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
-          </div>
+            <button type="button" className="btn ghost small" title={t.stage.fit} aria-pressed={viewMark === 'default'} onClick={() => requestView('default')}><LocateFixed size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
+            <button type="button" className="btn ghost small" title={t.stage.overview} aria-pressed={viewMark === 'all'} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
+          </ModeActions>
         </div>
-        {mode === 'Rehearse' && run && <div className="metrics-strip two-clocks">
-          <div className="metric-group is-live">
-            <span className="group-label"><span className="live-dot on" />{t.live.title}<time>{t.live.clock(formatTime(time))}</time></span>
-            <div className="group-cells">{liveMetrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
-              <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span></span><strong className="metric-value">{item.value}</strong>
-            </div>)}</div>
-          </div>
-          <div className="metric-group is-final">
-            <span className="group-label"><CircleCheck size={13} aria-hidden="true" />{basis === 'completion' ? t.review.completion : t.live.finalTitle}<time>{basis === 'completion' ? cutoffLabel : t.live.finalClock(cutoffLabel)}</time>{stale && <em>{t.metrics.stale}</em>}</span>
-            <div className="group-cells">{finalMetrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
-              <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span></span><strong className="metric-value">{item.value}</strong><small className="metric-hint">{item.hint}</small>
-            </div>)}</div>
-          </div>
+        {(busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || mode !== 'Build') && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
+        {mode === 'Rehearse' && <div className="metrics-strip two-clocks">
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} />
+          <SummaryStrip title={t.review[basis]} time={cutoffLabel} metrics={finalMetrics} stale={stale} />
         </div>}
-        <div className={cls('canvas-area', comparing && (splitRows ? 'split rows' : 'split cols'))}>
-        {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle}>
-          <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => setShowIssues(false)}>×</button></div>
+        {comparing && <div className="metrics-strip two-clocks comparison-live">
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} planName={`A · ${plan.name}`}
+            queues={longestQueues(run?.request.plan ?? plan, view, previousView).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics.map(item => ({ ...item, value: String(liveSummary(secondView)[item.key === 'flow' ? 'inFlow' : item.key === 'wait' ? 'waiting' : item.key === 'serve' ? 'serving' : 'completed']) }))} available={!!secondRun} planName={`B · ${second?.name ?? ''}`}
+            queues={longestQueues(secondRun?.request.plan ?? second ?? plan, secondView, secondPrevious).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: second!.id }); focusNodes([id]); }} />
+        </div>}
+        <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)}>
+        {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setShowIssues(false); checksTrigger.current?.focus(); } }}>
+          <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" autoFocus className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => { setShowIssues(false); checksTrigger.current?.focus(); }}>×</button></div>
           <p className="checks-plan">{t.workspace.checkingPlan(checksPlan.name)}</p>
           {checksPlan.id !== plan.id && <button type="button" className="btn small" onClick={() => { enterBuild(checksPlan.id); setChecksPlanId(checksPlan.id); setShowIssues(true); }}>{t.workspace.editPlan}</button>}
           {!checksIssues.length ? <p className="checks-ok"><CircleCheck size={15} aria-hidden="true" />{t.stage.noIssues}</p> : checksIssues.map((issue, index) => <button type="button" key={index} className={`check-item ${issue.severity}`} onClick={() => { const id = issue.entityIds.find(entity => checksPlan.graph.nodes.some(node => node.id === entity)); enterBuild(checksPlan.id); setChecksPlanId(checksPlan.id); setShowIssues(true); if (id) { setSelection({ id, kind: 'node', owner: checksPlan.id }); setInspectorOpen(true); } }}>
@@ -672,12 +647,12 @@ export function App() {
             <button type="button" className="icon-btn" aria-label={t.dock.reset} disabled={!run} onClick={() => { setTime(0); setPlaying(false); }}><RotateCcw size={16} /></button>
             <time className="clock-now"><small>{t.live.replay}</small>{formatTime(time)}</time>
             <div className="scrubber-wrap">
-              <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => { setTime(Number(event.target.value)); setPlaying(false); }} />
+              <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} aria-valuetext={t.studioUi.timeline(formatTime(time), formatTime(endTime))} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => { setTime(Number(event.target.value)); setPlaying(false); }} />
               {mode === 'Rehearse' && run && endTime > 0 && <div className="markers" aria-label={t.dock.markers}>{moments.map((item, index) => <button type="button" key={index} className={`marker k-${item.kind}`} style={{ left: `${Math.min(100, item.time / endTime * 100)}%` }}
-                title={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} aria-label={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} onClick={() => jumpTo(item.time, item.nodeId)} />)}</div>}
+                title={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} aria-label={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} onClick={() => jumpTo(item.time, item.nodeId)}><StatusMarker id={item.kind === 'blocked' ? 'blocked' : item.kind === 'queue' ? 'queue' : 'diff'} compact /></button>)}</div>}
             </div>
             <time className="clock-end">{formatTime(endTime)}</time>
-            <label className="select-pill small" title={t.dock.speedHint}><select aria-label={t.dock.speed} value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 2, 4, 8].map(value => <option key={value} value={value}>{value}×</option>)}</select><ChevronDown size={12} aria-hidden="true" /></label>
+            <label className="select-pill small" title={t.dock.speedHint}><select aria-label={t.dock.speed} disabled={!run} value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 2, 4, 8].map(value => <option key={value} value={value}>{value}×</option>)}</select><ChevronDown size={12} aria-hidden="true" /></label>
             <span className="clock-label">{t.dock.clock}</span>
           </div>
           <div className="dock-tabs" role="tablist">
@@ -690,14 +665,15 @@ export function App() {
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => { if (comparing && compareFocus === 'person' && dockOpen) showOverview(); else setDockOpen(value => !value); }}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
           </div>
+          {!dockOpen && run && <p className="dock-summary">{t.studioUi.dockSummary(bottomTab === 'events' ? activeEvents.length : bottomTab === 'journey' ? picks.reduce((sum, group) => sum + group.items.length, 0) : moments.filter(item => item.time <= time).length, tracked ? `${tracked.name} · ${trackedStatus[0]}` : moments.filter(item => item.time <= time).at(-1) ? keyEventText(moments.filter(item => item.time <= time).at(-1)!, run.request.plan, nameOf, t) : '')}</p>}
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
-            {run && bottomTab === 'insights' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <Insights initialEvidence={evidenceTarget} threshold={threshold} key={`${run.inputKey}-${secondRun?.inputKey}-${basis}-${evidenceTarget?.owner}-${evidenceTarget?.id}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />)}
+            {run && bottomTab === 'insights' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <Insights onRerun={rerun} initialEvidence={evidenceTarget} threshold={threshold} key={`${run.inputKey}-${secondRun?.inputKey}-${basis}-${evidenceTarget?.owner}-${evidenceTarget?.id}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />)}
             {run && bottomTab === 'now' && <NowPanel plan={run.request.plan} view={view} previous={previousView} time={time} moments={moments} picks={picks} nameOf={nameOf}
               tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
               onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
             {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
-            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.evidence.unavailable[comparison.status]}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.evidence.unavailable[comparison.status]}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney onEditGuests={() => enterBuild(plan.id, 'scenario')} revealEvidence={evidenceReveal} reducedMotion={reducedMotion} onInspect={(ids, ownerId) => { const id = ids[0]; if (id) { setSelection({ id, kind: 'node', owner: ownerId }); setInspectorOpen(true); focusNodes(ids); } }} onDivergence={(at, nodeA, nodeB) => { jumpTo(at, nodeA ?? nodeB, nodeA ? plan.id : second?.id); focusNodes([nodeA, nodeB].filter((id): id is string => !!id), { [plan.id]: nodeA ? [nodeA] : [], ...(second ? { [second.id]: nodeB ? [nodeB] : [] } : {}) }); }} basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
               picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)}
               group={peopleGroup} onGroupChange={setPeopleGroup} onOverview={comparing ? showOverview : undefined} />)}
             {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
@@ -708,6 +684,7 @@ export function App() {
       <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly && owner.id === plan.id} issues={ownerIssues} run={runs[owner.id]} basis={basis} stale={!!runs[owner.id] && runs[owner.id].inputKey !== inputKey(requestFor(owner))} onRerun={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Build' ? 'Rehearse' : mode)} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [], owner.id)} onResources={() => enterBuild(owner.id, 'resources')} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
     </div>
 
+    <LiveAnnouncer message={busy ? t.runState.computing.description : stale ? t.runState.stale.description : notice?.(t)} error={runState.kind === 'failed' ? notice?.(t) ?? t.runState.failed.description : undefined} />
     <footer className="status-bar">
       <span className="status-state"><i className={busy ? 'pending' : ''} />{busy ? t.status.computing : t.status.local}</span>
       <span className="status-notice" role="status">{notice ? notice(t) : t.status.hint}</span>
@@ -798,6 +775,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {(dialog === 'welcome' || dialog === 'new') && <EventCreator onClose={() => setDialog(null)} onCreate={startNew} onExample={() => startNew(localizeDocument(initialDocument(), 'zh', lang))} onImport={() => fileInput.current?.click()} />}
+    {(dialog === 'welcome' || dialog === 'new') && <EventCreator onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
   </div>;
 }
