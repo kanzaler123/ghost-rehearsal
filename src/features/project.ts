@@ -1,7 +1,7 @@
 import example from '../../examples/open-house.json';
 import { z } from 'zod';
 import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, idSchema, projectDocumentSchema, validateDocument } from '../schemas';
-import type { Node, Plan, ProjectDocument, Scenario } from '../schemas';
+import type { Edge, Node, Plan, ProjectDocument, Scenario } from '../schemas';
 import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
 import { MESSAGES } from '../i18n/messages';
@@ -123,7 +123,7 @@ export function addEvent(project: ProjectDocument, event: ProjectDocument): Proj
   return next;
 }
 
-export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate): { plan: Plan; node: Node } {
+export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate, resources: 'share' | 'copy' = 'share'): { plan: Plan; node: Node } {
   const source = template.document.plans[0];
   const original = source.graph.nodes.find(node => node.id === template.nodeId)!;
   const next = structuredClone(plan);
@@ -137,8 +137,17 @@ export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: Sa
     if (!node.arrivalStreamIds.length) node.arrivalStreamIds = [scenario.arrivalStreams[0]?.id ?? 'arrival-1'];
   }
   if (node.type === 'service') {
+    const canShare = (id: string) => !next.assignments.some(item => item.resourceUnitId === id)
+      || next.assignments.some(item => item.resourceUnitId === id && item.periods.some(period => period.nodeIds.includes(original.id)));
+    const shareAssignment = (id: string) => {
+      const assignment = next.assignments.find(item => item.resourceUnitId === id);
+      assignment?.periods.forEach(period => {
+        if (period.nodeIds.includes(original.id) && !period.nodeIds.includes(node.id)) period.nodeIds.push(node.id);
+      });
+    };
     node.stageKey = newId('stage', next.graph.nodes.flatMap(item => item.type === 'service' ? [item.stageKey] : []));
     const skillIds = new Map<string, string>();
+    const deviceIds = new Map<string, string>();
     for (const requirement of node.requirements) {
       if (requirement.kind === 'staff') {
         const skill = source.skills.find(item => item.id === requirement.skillId);
@@ -147,9 +156,11 @@ export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: Sa
         if (!match) { match = { ...skill, id: newId('skill', next.skills.map(item => item.id)) }; next.skills.push(match); }
         skillIds.set(skill.id, match.id); requirement.skillId = match.id;
       } else {
+        const mapped = deviceIds.get(requirement.deviceTypeId);
+        if (mapped) { requirement.deviceTypeId = mapped; continue; }
         const device = source.deviceTypes.find(item => item.id === requirement.deviceTypeId);
         if (!device) continue;
-        let match = next.deviceTypes.find(item => JSON.stringify(item) === JSON.stringify(device));
+        let match = resources === 'share' ? next.deviceTypes.find(item => JSON.stringify(item) === JSON.stringify(device) && Array.from({ length: item.quantity }, (_, index) => canShare(`${item.id}:${index + 1}`)).every(Boolean)) : undefined;
         if (!match) {
           match = structuredClone(device); match.id = newId('device', next.deviceTypes.map(item => item.id));
           match.unavailability = match.unavailability.map(window => ({ ...window, resourceUnitId: `${match!.id}:${window.resourceUnitId.split(':').at(-1)}` }));
@@ -160,13 +171,13 @@ export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: Sa
               ? assignment.periods.map(period => ({ ...period, nodeIds: period.nodeIds.includes(original.id) ? [node.id] : [] }))
               : [{ from: 0, nodeIds: [node.id] }] });
           }
-        }
-        requirement.deviceTypeId = match.id;
+        } else for (let unit = 1; unit <= match.quantity; unit++) shareAssignment(`${match.id}:${unit}`);
+        deviceIds.set(device.id, match.id); requirement.deviceTypeId = match.id;
       }
     }
     for (const staff of source.staff.filter(item => item.skillIds.some(id => skillIds.has(id)))) {
       const skills = staff.skillIds.flatMap(id => skillIds.has(id) ? [skillIds.get(id)!] : []);
-      if (next.staff.some(item => JSON.stringify(item) === JSON.stringify(staff) && skills.every(id => item.skillIds.includes(id)))) continue;
+      if (resources === 'share' && canShare(staff.id) && next.staff.some(item => JSON.stringify(item) === JSON.stringify(staff) && skills.every(id => item.skillIds.includes(id)))) { shareAssignment(staff.id); continue; }
       const copy = structuredClone(staff); copy.id = newId('staff', next.staff.map(item => item.id));
       copy.skillIds = skills;
       next.staff.push(copy);
@@ -194,17 +205,70 @@ export function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function executionReport(plan: Plan, scenario: Scenario, run?: SimulationRun, stale = false, t: Messages = MESSAGES.zh): string {
+export function durationDescription(duration: Extract<Node, { type: 'service' }>['duration'] | NonNullable<Edge['transferDuration']>, t: Messages): string {
+  const value = duration.kind === 'fixed' ? t.formatWait(duration.value) : duration.kind === 'empirical' ? `${t.inspector.distributions.empirical}: ${duration.samples.map(t.formatWait).join(', ')}`
+    : `${t.inspector.distributions[duration.kind]} ${t.formatWait(duration.min)}–${t.formatWait(duration.max)}${duration.kind === 'triangular' ? ` (${t.inspector.mode}: ${t.formatWait(duration.mode)})` : ''}`;
+  return `${value} [${t.review.sources[duration.provenance.kind]}${duration.provenance.source ? `: ${duration.provenance.source}` : ''}]`;
+}
+
+export function nodeInstructions(node: Node, plan: Plan, t: Messages): string[] {
+  const zh = t.lang === 'zh';
+  const name = (id: string) => plan.graph.nodes.find(item => item.id === id)?.name ?? id;
+  const lines: string[] = [];
+  if (node.type === 'service') {
+    lines.push(`${t.report.duration}: ${durationDescription(node.duration, t)}; ${t.inspector.maxConcurrent}: ${node.maxConcurrent ?? t.common.unlimited}`);
+    lines.push(`${t.report.requirements}: ${node.requirements.map(item => `${item.quantity} × ${item.kind === 'staff' ? plan.skills.find(skill => skill.id === item.skillId)?.name ?? item.skillId : plan.deviceTypes.find(device => device.id === item.deviceTypeId)?.name ?? item.deviceTypeId}`).join(', ') || t.inspector.noRequirements}`);
+    lines.push(`${t.report.windows}: ${node.openWindows.map(window => `${formatTime(window.openAt)}–${formatTime(window.closeAt)} [${t.review.sources[window.provenance.kind]}]`).join(', ') || t.inspector.alwaysOpen}`);
+    const queued = node.closePolicy?.queued, late = node.closePolicy?.late;
+    lines.push(zh ? `关闭时，排队者${queued?.kind === 'dismiss' ? '离开' : queued?.kind === 'redirect' ? `转往 ${name(queued.targetNodeId)}` : '继续接受服务'}；迟到者${late?.kind === 'redirect' ? `转往 ${name(late.targetNodeId)}` : '被拒绝入场'}。`
+      : `At closing, queued guests ${queued?.kind === 'dismiss' ? 'leave' : queued?.kind === 'redirect' ? `go to ${name(queued.targetNodeId)}` : 'continue to be served'}; late arrivals ${late?.kind === 'redirect' ? `go to ${name(late.targetNodeId)}` : 'are turned away'}.`);
+    lines.push(zh ? '人员或设备不可用时等待；服务中遇到下班或不可用时段，先完成当前服务再释放资源。' : 'Wait if staff or equipment is unavailable. Active services finish before resources go off shift or become unavailable.');
+  }
+  if (node.type === 'waiting_area') lines.push(node.release.kind === 'batch'
+    ? zh ? `每批放行 ${node.release.batchSize} 人；${node.release.maxHoldSec === undefined ? '无最长等待，凑满才放行' : `最长等待 ${t.formatWait(node.release.maxHoldSec)}，届时不足一批也放行`}。`
+      : `Release ${node.release.batchSize} guests per batch; ${node.release.maxHoldSec === undefined ? 'wait for a full batch with no time limit' : `hold at most ${t.formatWait(node.release.maxHoldSec)}, then release even a partial batch`}.`
+    : `${t.inspector.releaseAt}: ${formatTime(node.release.releaseAt)}`);
+  if (node.type === 'service' || node.type === 'waiting_area') {
+    const policy = node.fullPolicy;
+    lines.push(`${t.inspector.queueCapacity}: ${node.queueCapacity ?? t.common.unlimited}; ${t.inspector.whenFull}: ${policy?.kind === 'reroute' ? `${t.inspector.fullReroute} → ${name(policy.targetNodeId)}` : policy?.kind === 'reject' ? t.inspector.fullReject : t.inspector.fullBlock}`);
+  }
+  if (node.type === 'decision') {
+    lines.push(zh ? '按以下分支顺序匹配条件；概率分流按列出的权重抽样。' : 'Match conditions in the listed order; probability routes sample the listed weights.');
+    node.routing.branches.forEach(branch => lines.push(`${branch.branchKey}: ${'weight' in branch ? `${(branch.weight * 100).toFixed(1)}%` : branch.condition ? `${branch.condition.attributeId} ∈ ${branch.condition.values.join(', ')}` : t.inspector.defaultBranch} → ${name(plan.graph.edges.find(edge => edge.source === node.id && edge.branchKey === branch.branchKey)?.target ?? '—')}`));
+    if (node.loopGuard) lines.push(`${t.inspector.maxVisits}: ${node.loopGuard.maxVisits} → ${node.loopGuard.exitBranchKey}`);
+  }
+  if (node.type === 'entrance') lines.push(`${t.inspector.streams}: ${node.arrivalStreamIds.join(', ')}`);
+  if (node.type === 'merge') lines.push(`${t.inspector.priority}: ${node.incomingPriority.join(' → ')}`);
+  if (node.type === 'exit') lines.push(node.countsAsCompleted === false ? t.canvas.leaves : t.canvas.completes);
+  return lines;
+}
+
+export function assignmentDescription(assignment: Plan['assignments'][number], plan: Plan, t: Messages): string {
+  return assignment.periods.map(period => `${formatTime(period.from)}–${period.to === undefined ? t.report.end : formatTime(period.to)} → ${period.nodeIds.map(id => plan.graph.nodes.find(node => node.id === id)?.name ?? id).join(', ') || t.report.unposted}; ${t.report.handover} ${t.formatWait(period.handoverSec ?? 0)}`).join('; ');
+}
+
+export function executionReport(plan: Plan, scenario: Scenario, run?: SimulationRun, stale = false, t: Messages = MESSAGES.zh, baseline?: Plan): string {
   const r = t.report;
   const sep = t.lang === 'zh' ? '；' : '; ';
   const lines = [r.title(plan.name), '', r.scenario(scenario.name ?? scenario.id, scenario.id), r.seed(scenario.seed), r.window(scenario.observationCutoff, scenario.horizon), '', r.flow, '',
-    ...plan.graph.nodes.filter(node => node.type !== 'subflow').map(node => `- ${node.name} (${node.id} / ${t.nodeTypes[node.type]})${node.type === 'service' ? `${sep}${r.stage} ${node.stageKey}${sep}${r.duration} ${JSON.stringify(node.duration)}${sep}${r.requirements} ${JSON.stringify(node.requirements)}${sep}${r.windows} ${JSON.stringify(node.openWindows)}${sep}${r.closePolicy} ${JSON.stringify(node.closePolicy ?? { queued: { kind: 'serve' }, late: { kind: 'reject' } })}` : ''}`),
-    '', r.routes, '', ...plan.graph.edges.map(edge => `- ${edge.source} → ${edge.target}${edge.branchKey ? ` (${r.branch} ${edge.branchKey})` : ''}${sep}${r.transfer} ${JSON.stringify(edge.transferDuration ?? { kind: 'fixed', value: 0 })}`),
-    '', r.resources, '', ...plan.staff.map(staff => `- ${staff.name} (${staff.id})${sep}${r.skills} ${staff.skillIds.join(', ')}${sep}${r.shifts} ${JSON.stringify(staff.shifts)}${sep}${r.unavailable} ${JSON.stringify(staff.unavailability)}${sep}${r.source} ${staff.provenance.kind}`),
-    ...plan.deviceTypes.map(device => `- ${device.name} (${device.id}): ${device.quantity} ${r.units}${sep}${r.shifts} ${JSON.stringify(device.shifts)}${sep}${r.unavailable} ${JSON.stringify(device.unavailability)}${sep}${r.source} ${device.provenance.kind}`),
-    '', r.posts, '', ...plan.assignments.map(assignment => `- ${assignment.resourceUnitId}: ${assignment.periods.map(period => `${period.from}–${period.to ?? r.end} s → ${period.nodeIds.join(', ') || r.unposted}, ${r.handover} ${period.handoverSec ?? 0} s`).join(sep)}`),
-    '', r.assumptions, '', '```json', JSON.stringify({ arrivalStreams: scenario.arrivalStreams, assumptionOverrides: scenario.assumptionOverrides }, null, 2), '```', '',
+    t.lang === 'zh' ? '时刻均为活动开始后的 分:秒。' : 'All clock times are minutes:seconds from the event start.', '',
+    ...plan.graph.nodes.filter(node => node.type !== 'subflow').flatMap(node => [`### ${node.name} (${t.nodeTypes[node.type]})`, '', ...nodeInstructions(node, plan, t).map(line => `- ${line}`), '']),
+    '', r.routes, '', ...plan.graph.edges.map(edge => `- ${plan.graph.nodes.find(node => node.id === edge.source)?.name ?? edge.source} → ${plan.graph.nodes.find(node => node.id === edge.target)?.name ?? edge.target}${edge.branchKey ? ` (${r.branch} ${edge.branchKey})` : ''}${sep}${r.transfer} ${edge.transferDuration ? durationDescription(edge.transferDuration, t) : t.formatWait(0)}`),
+    '', r.resources, '', ...plan.staff.map(staff => `- ${staff.name} (${staff.id})${sep}${r.skills} ${staff.skillIds.map(id => plan.skills.find(skill => skill.id === id)?.name ?? id).join(', ')}${sep}${r.shifts} ${staff.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${staff.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${t.review.sources[staff.provenance.kind]} ${staff.provenance.source ?? ''}`),
+    ...plan.deviceTypes.map(device => `- ${device.name} (${device.id}): ${device.quantity} ${r.units}${sep}${r.shifts} ${device.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${device.unavailability.map(window => `${window.resourceUnitId} ${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${t.review.sources[device.provenance.kind]} ${device.provenance.source ?? ''}`),
+    '', r.posts, '', ...plan.assignments.map(assignment => `- ${plan.staff.find(staff => staff.id === assignment.resourceUnitId)?.name ?? assignment.resourceUnitId}: ${assignmentDescription(assignment, plan, t)}`),
+    ...[...plan.staff.map(item => item.id), ...plan.deviceTypes.flatMap(item => Array.from({ length: item.quantity }, (_, i) => `${item.id}:${i + 1}`))].filter(id => !plan.assignments.some(item => item.resourceUnitId === id)).map(id => `- ${id}: ${t.lang === 'zh' ? '班次内可服务所有技能或设备类型匹配的岗位。' : 'May serve any matching skill or device post during its shifts.'}`),
+    '', r.assumptions, '', ...scenario.arrivalStreams.flatMap(stream => {
+      const timing = stream.kind === 'records' ? `${stream.records.length} ${t.metrics.guests}` : stream.kind === 'bucketed' ? stream.buckets.map(bucket => `${formatTime(bucket.start)}–${formatTime(bucket.end)}: ${bucket.count}`).join(sep)
+        : `${stream.count} ${t.metrics.guests}, ${formatTime(stream.start)}–${formatTime(stream.end)}, ${stream.kind === 'total_in_window' ? stream.spacing === 'even' ? t.review.even : t.review.random : stream.profile.kind === 'early_peak' ? t.review.early : stream.profile.kind === 'late_peak' ? t.review.late : stream.profile.kind === 'peak_at' ? `${t.review.peak} ${formatTime(stream.profile.peakAt)}` : t.review.random}`;
+      return [`- ${stream.name ?? stream.id}: ${timing} [${t.review.sources[stream.provenance.kind]}${stream.provenance.source ? `: ${stream.provenance.source}` : ''}]`,
+        ...('attributeDistributions' in stream ? Object.entries(stream.attributeDistributions).map(([id, distribution]) => `  - ${id}: ${distribution.values.map(item => `${item.value} ${(item.probability * 100).toFixed(1)}%`).join(', ')} [${t.review.sources[distribution.provenance.kind]}]`) : [])];
+    }), ...scenario.assumptionOverrides.map(override => override.kind === 'service_multiplier' ? `- ${override.stageKey ?? t.report.duration}: ×${override.factor}` : `- ${override.resource.id}: ${t.report.unavailable} ${formatTime(override.window.start)}–${formatTime(override.window.end)}${override.resource.kind === 'device_type' ? ` (${override.resource.quantity} ${r.units})` : ''}`), '',
   ];
+  if (baseline) lines.push(`## ${t.review.resourceCounts}: ${baseline.name} → ${plan.name}`, '',
+    `${t.review.staff}: ${baseline.staff.length} → ${plan.staff.length}; ${t.review.devices}: ${baseline.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)} → ${plan.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)}`, '',
+    ...plan.staff.filter(item => !baseline.staff.some(original => original.id === item.id)).map(item => `- + ${item.name}`),
+    ...plan.deviceTypes.filter(item => item.quantity !== (baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0)).map(item => `- ${item.name}: ${baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0} → ${item.quantity}`), '');
   if (run?.status === 'succeeded' && run.statistics && !stale) lines.push(r.record, '', r.under, r.model(run.modelVersion, scenario.id),
     r.counts(run.statistics.arrived, run.statistics.outcomes.completed, run.statistics.outcomes.unfinished), r.waits(t.formatWait(run.statistics.averageWaiting), t.formatWait(run.statistics.p90Waiting)), '', r.synthetic, '');
   else lines.push(r.noRun, '');

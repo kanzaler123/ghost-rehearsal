@@ -23,6 +23,45 @@ function fixture(): RunRequest {
 const service = (request: RunRequest) => request.plan.graph.nodes[1] as ServiceNode;
 
 describe('离散事件仿真', () => {
+  it('counts queues after all same-time events and reports passage at every node type', () => {
+    const request = fixture();
+    request.scenario.arrivalStreams = [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: [{ id: 'a', arrivalTime: 0, attributes: {} }] }];
+    const run = simulate(request);
+    expect(run.statistics!.nodes.find(node => node.id === 'service')!.maxQueue).toBe(0);
+    expect(run.statistics!.visitors[0].waiting).toBe(0);
+    const view = playbackAt(run.events, request.plan, 15);
+    expect(view.nodes.entrance.completed).toBe(1);
+    expect(view.nodes.service.completed).toBe(1);
+    expect(view.nodes.exit.completed).toBe(1);
+    expect(view.nodes.service.queued).toEqual([]);
+  });
+  it('records transfer arrival times and leaves no transit state after arrival', () => {
+    const request = fixture(); request.scenario.observationCutoff = 60;
+    request.plan.graph.edges[0].transferDuration = { kind: 'fixed', value: 20, provenance: { kind: 'synthetic' } };
+    const run = simulate(request);
+    const moving = playbackAt(run.events, request.plan, 10).visitors['guests:a'];
+    expect(moving).toMatchObject({ type: 'ROUTE_TRANSITION', edgeId: 'in-service', time: 0, details: { arrivalAt: 20 } });
+    expect(playbackAt(run.events, request.plan, 20).visitors['guests:a'].type).toBe('SERVICE_START');
+  });
+  it.each(['name', 'description', 'notes', 'layout', 'source', 'startClock', 'sourcePlanId', 'sourceScenarioId'])('keeps the legal participant attribute %s in the simulation key', key => {
+    const request = fixture();
+    request.scenario.attributes = [{ id: key, name: key, values: ['a', 'b'] }];
+    const stream = request.scenario.arrivalStreams[0];
+    if (stream.kind !== 'records') throw new Error('fixture');
+    stream.records.forEach(record => { record.attributes = { [key]: 'a' }; });
+    const before = inputKey(request), beforeScenario = scenarioKey(request.scenario);
+    stream.records[0].attributes[key] = 'b';
+    expect(inputKey(request)).not.toBe(before);
+    expect(scenarioKey(request.scenario)).not.toBe(beforeScenario);
+    request.scenario.arrivalStreams = [{ id: 'guests', kind: 'total_in_window', count: 3, start: 0, end: 10, spacing: 'even', provenance: { kind: 'synthetic' }, attributeDistributions: { [key]: { values: [{ value: 'a', probability: 1 }], provenance: { kind: 'synthetic' } } } }];
+    const generatedKey = inputKey(request);
+    const generated = request.scenario.arrivalStreams[0];
+    if (generated.kind === 'records') throw new Error('fixture');
+    generated.attributeDistributions[key].provenance.notes = 'Display-only source note';
+    expect(inputKey(request)).toBe(generatedKey);
+    generated.attributeDistributions[key].values[0].value = 'b';
+    expect(inputKey(request)).not.toBe(generatedKey);
+  });
   it('手算 FIFO、未完成者等待、P90、队列积分和人员利用率', () => {
     const run = simulate(fixture());
     expect(run.status).toBe('succeeded');
@@ -31,7 +70,7 @@ describe('离散事件仿真', () => {
     expect(run.statistics!.visitors.map(visitor => visitor.waiting)).toEqual([0, 10, 15]);
     expect(run.statistics!.averageWaiting).toBeCloseTo(25 / 3);
     expect(run.statistics!.p90Waiting).toBe(15);
-    expect(run.statistics!.nodes.find(node => node.id === 'service')).toMatchObject({ queueSeconds: 25, maxQueue: 3, bottleneckSeconds: 15 });
+    expect(run.statistics!.nodes.find(node => node.id === 'service')).toMatchObject({ queueSeconds: 25, maxQueue: 2, bottleneckSeconds: 15 });
     expect(run.statistics!.resources[0]).toMatchObject({ busy: 15, idle: 0, utilization: 1 });
   });
   it('完成模式具有完全相同的 cutoff 前缀与截止统计', () => {

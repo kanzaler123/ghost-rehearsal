@@ -1,6 +1,9 @@
+import { useMemo, useState } from 'react';
 import { ArrowUpRight, Ghost as GhostIcon, Sparkles } from 'lucide-react';
 import type { Plan } from '../schemas';
-import { formatTime } from '../features/project';
+import { assignmentDescription, durationDescription, formatTime, nodeInstructions } from '../features/project';
+import { nodeEvidence, pairedVisitors, statisticsAt } from '../features/analysis';
+import type { ResultBasis } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { SimulationEvent, SimulationRun } from '../simulation/types';
 import { Ghost } from './Icons';
@@ -26,14 +29,21 @@ export function EmptyResults({ onRun }: { onRun: () => void }) {
 
 interface InsightsProps {
   run: SimulationRun; second?: SimulationRun; compare: boolean; comparisonReady: boolean; changes: PlanChange[];
-  scenarioId: string; overrides: number; onSelectNode: (id: string) => void;
+  scenarioId: string; overrides: number; basis: ResultBasis; onSelectNode: (id: string, owner: string) => void;
+  onChoose: (id: string) => void; onJump: (time: number, nodeId: string, owner: string) => void; onExperiment?: () => void;
 }
 
-export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, onSelectNode }: InsightsProps) {
+export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
-  const stats = run.statistics;
-  const secondStats = compare && comparisonReady ? second?.statistics ?? null : null;
+  const stats = statisticsAt(run, basis);
+  const secondStats = compare && comparisonReady ? statisticsAt(second, basis) : null;
+  const [group, setGroup] = useState<'less' | 'more' | 'same' | null>(null);
+  const [selected, setSelected] = useState<{ id: string; owner: string } | null>(null);
+  const pairs = useMemo(() => second && compare && comparisonReady ? pairedVisitors(run, second, basis) : [], [run, second, compare, comparisonReady, basis]);
+  const groups = { less: pairs.filter(pair => pair.delta < 0), more: pairs.filter(pair => pair.delta > 0), same: pairs.filter(pair => pair.delta === 0) };
+  const transitions = new Map<string, number>();
+  pairs.filter(pair => pair.a.outcome !== pair.b.outcome).forEach(pair => { const key = `${pair.a.outcome}:${pair.b.outcome}`; transitions.set(key, (transitions.get(key) ?? 0) + 1); });
   const nameOf = (id: string) => run.request.plan.graph.nodes.find(node => node.id === id)?.name ?? second?.request.plan.graph.nodes.find(node => node.id === id)?.name ?? id;
   const waits = new Map<string, { a: number; b: number }>();
   stats?.nodes.forEach(item => waits.set(item.id, { a: item.waiting, b: 0 }));
@@ -42,17 +52,36 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
   const peak = Math.max(1, ...rows.map(([, value]) => Math.max(value.a, value.b)));
   const completedDelta = stats && secondStats ? secondStats.outcomes.completed - stats.outcomes.completed : 0;
   const waitDelta = stats?.averageWaiting != null && secondStats?.averageWaiting != null ? secondStats.averageWaiting - stats.averageWaiting : null;
-  return <div className="insights">
+  const evidenceId = selected?.id ?? rows[0]?.[0] ?? '';
+  const evidenceRun = second && secondStats && (selected?.owner === second.request.plan.id || (!selected && !run.request.plan.graph.nodes.some(node => node.id === evidenceId))) ? second : run;
+  const evidence = useMemo(() => nodeEvidence(evidenceRun, evidenceId, basis), [evidenceRun, evidenceId, basis]);
+  const pick = (id: string, owner: string) => { setSelected({ id, owner }); onSelectNode(id, owner); };
+  const changeText = (plan: Plan, change: PlanChange) => {
+    if (change.kind === 'node') { const node = plan.graph.nodes.find(item => item.id === change.id); return node ? nodeInstructions(node, plan, t).join(' · ') : '—'; }
+    if (change.kind === 'assignment') { const assignment = plan.assignments.find(item => item.resourceUnitId === change.id); return assignment ? assignmentDescription(assignment, plan, t) : '—'; }
+    if (change.kind === 'edge') { const edge = plan.graph.edges.find(item => item.id === change.id); return edge ? `${edge.source} → ${edge.target}; ${edge.branchKey ?? ''}; ${edge.transferDuration ? durationDescription(edge.transferDuration, t) : t.formatWait(0)}` : '—'; }
+    const resource = change.kind === 'staff' ? plan.staff.find(item => item.id === change.id) : plan.deviceTypes.find(item => item.id === change.id);
+    return resource ? `${resource.name}: ${'quantity' in resource ? resource.quantity : resource.skillIds.join(', ')}; ${resource.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ')}; ${t.report.unavailable}: ${resource.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}` : '—';
+  };
+  return <div className="analysis-panel">
+    {pairs.length > 0 && <section className="paired-summary">
+      <h3>{t.review.paired}</h3>
+      <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{groups[key].length}</b> {t.review[key]}</button>)}</div>
+      <p className="subtle">{t.review.caveat}</p>
+      <p>{t.review.transitions}: {[...transitions].map(([key, count]) => { const [a, b] = key.split(':'); return <span className="chip" key={key}>{count} · {t.outcomes[a]} → {t.outcomes[b]}</span>; })}</p>
+      {group && <div className="paired-list"><table><thead><tr><th>{t.review.guest}</th><th>A</th><th>B</th><th>{t.review.delta}</th></tr></thead><tbody>{[...groups[group]].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(pair => <tr key={pair.id}><td><button type="button" className="text-btn" onClick={() => onChoose(pair.id)}>{pair.id}</button></td><td>{t.formatWait(pair.a.waiting)} · {t.outcomes[pair.a.outcome]}</td><td>{t.formatWait(pair.b.waiting)} · {t.outcomes[pair.b.outcome]}</td><td>{pair.delta > 0 ? '+' : ''}{t.formatWait(pair.delta)}</td></tr>)}</tbody></table></div>}
+    </section>}
+    <div className="insights">
     <div className="bottleneck-chart">
-      <div className="insight-title"><span>{i.title}</span><small>{i.basis}</small></div>
-      {rows.length ? rows.map(([id, value], index) => <button type="button" key={id} className={cls('bar-row', index === 0 && 'is-top')} onClick={() => onSelectNode(id)}>
+      <div className="insight-title"><span>{i.title}</span><small>{t.review[basis]}</small></div>
+      {rows.length ? rows.map(([id, value], index) => <div key={id} className={cls('bar-row', index === 0 && 'is-top')}>
         <span className="bar-name">{nameOf(id)}</span>
         <span className="bar-tracks">
-          <span className="bar-track"><i style={{ width: `${value.a / peak * 100}%` }} /></span>
-          {secondStats && <span className="bar-track alt"><i style={{ width: `${value.b / peak * 100}%` }} /></span>}
+          <button type="button" className="bar-track" disabled={!run.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`A · ${nameOf(id)}`} onClick={() => pick(id, run.request.plan.id)}><i style={{ width: `${value.a / peak * 100}%` }} /></button>
+          {secondStats && second && <button type="button" className="bar-track alt" disabled={!second.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`B · ${nameOf(id)}`} onClick={() => pick(id, second.request.plan.id)}><i style={{ width: `${value.b / peak * 100}%` }} /></button>}
         </span>
         <span className="bar-values"><b>{t.formatWait(value.a)}</b>{secondStats && <b className="alt">{t.formatWait(value.b)}</b>}</span>
-      </button>) : <p className="subtle">{stats ? i.none : i.incomplete}</p>}
+      </div>) : <p className="subtle">{stats ? i.none : i.incomplete}</p>}
       {secondStats && rows.length > 0 && <div className="bar-legend"><span><i />A</span><span className="alt"><i />B</span></div>}
     </div>
     <div className="insight-note">
@@ -60,12 +89,27 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
       {compare ? <>
         <h3>{comparisonReady ? i.compareTitle : i.staleTitle}</h3>
         <p>{comparisonReady && stats && secondStats ? i.compareSummary(`${completedDelta >= 0 ? '+' : ''}${completedDelta}`, waitDelta === null ? i.noData : `${waitDelta > 0 ? '+' : ''}${t.formatWait(waitDelta)}`) : i.needFresh}</p>
-        {changes.length > 0 && <div className="change-chips">{changes.slice(0, 6).map(change => <span key={`${change.kind}-${change.id}`} className={`chip ${change.label}`}>{i.kinds[change.kind]} <code>{change.id}</code> {i.changeLabels[change.label]}</span>)}{changes.length > 6 && <span className="chip">+{changes.length - 6}</span>}</div>}
+        {comparisonReady && second && changes.length > 0 && <details><summary>{t.review.changes}</summary>{changes.map(change => <div className="parameter-change" key={`${change.kind}-${change.id}`}><b>{i.kinds[change.kind]} {nameOf(change.id)} · {i.changeLabels[change.label]}</b><p>A: {changeText(run.request.plan, change)}</p><p>B: {changeText(second.request.plan, change)}</p></div>)}</details>}
+        {onExperiment && comparisonReady && <div className="demo-next"><p>{t.review.demoHint}</p><button type="button" className="btn accent" onClick={onExperiment}>{t.review.demo}</button></div>}
       </> : <>
         <h3>{i.rehearseTitle}</h3><p>{i.rehearseText1}</p><p>{i.rehearseText2}</p>
       </>}
       <small>{i.footnote(scenarioId, overrides)}</small>
     </div>
+    </div>
+    <section className="evidence-card">
+      <h3>{t.review.evidence} · {evidenceRun.request.plan.name} · {evidence?.node.name ?? nameOf(evidenceId)}</h3>
+      {evidence ? <>
+        <p><b>{t.review.observed}</b>: {formatTime(evidence.from)}–{formatTime(evidence.to)} · {evidence.queued} {t.review.queued}, {evidence.blocked} {t.review.blocked}, {evidence.holding} {t.review.holding}, {evidence.serving} {t.review.serving}</p>
+        <button type="button" className="btn small" onClick={() => onJump(evidence.from, evidence.node.id, evidenceRun.request.plan.id)}>{t.review.jump}</button>
+        <h4>{t.review.constraints}</h4>
+        {nodeInstructions(evidence.node, evidenceRun.request.plan, t).map((line, index) => <p key={index}>{line}</p>)}
+        <ul>{evidence.resources.map(resource => <li key={resource.id}>{resource.id}: {t.review.states[resource.state] ?? resource.state}{resource.busyAt ? ` → ${nameOf(resource.busyAt)}` : ''}{!resource.posted && resource.state !== 'unposted' ? ` · ${t.review.states.unposted}` : ''}</li>)}</ul>
+        <p className="subtle">{t.review.hypothesis}</p>
+        <details><summary>{t.review.affected} ({evidence.visitors.length})</summary><div className="evidence-guests">{[...evidence.visitors].sort((a, b) => Math.abs(pairs.find(pair => pair.id === b)?.delta ?? 0) - Math.abs(pairs.find(pair => pair.id === a)?.delta ?? 0)).map(id => <button type="button" className="text-btn" key={id} onClick={() => onChoose(id)}>{id}{pairs.length > 0 ? ` · Δ ${t.formatWait(pairs.find(pair => pair.id === id)?.delta)}` : ''}</button>)}</div></details>
+        <details><summary>{t.review.records}</summary><EventLog plan={evidenceRun.request.plan} events={[...new Map([...evidence.resources.flatMap(unit => unit.records.slice(-3)), ...evidence.events].map(event => [event.seq, event])).values()].sort((a, b) => a.seq - b.seq)} onPick={event => { onJump(event.time, event.nodeId ?? evidence.node.id, evidenceRun.request.plan.id); if (event.participantId) onChoose(event.participantId); }} /></details>
+      </> : <p className="subtle">{t.review.noEvidence}</p>}
+    </section>
   </div>;
 }
 
@@ -76,18 +120,18 @@ export function EventLog({ events, plan, onPick }: { events: SimulationEvent[]; 
     {events.length ? events.map(event => <button type="button" role="row" key={event.seq} onClick={() => onPick(event)}>
       <time>{formatTime(event.time)}</time>
       <span><em className={`tone t-${EVENT_TONES[event.type] ?? 'system'}`}>{t.eventTypes[event.type] ?? event.type}</em></span>
-      <code>{event.participantId ?? event.resourceUnitIds?.join(', ') ?? '—'}</code>
+      <code>{event.participantId ?? event.resourceUnitIds?.join(', ') ?? '—'}{event.participantId && !!event.resourceUnitIds?.length && <small>{event.resourceUnitIds.join(', ')}</small>}{event.type === 'RESOURCE_CHANGE' && <small>{t.review.states[String(event.details?.from)] ?? event.details?.from} → {t.review.states[String(event.details?.to)] ?? event.details?.to}</small>}</code>
       <span>{plan.graph.nodes.find(node => node.id === event.nodeId)?.name ?? '—'}</span>
     </button>) : <p className="subtle">{t.events.empty}</p>}
   </div>;
 }
 
 interface JourneyProps {
-  runs: (SimulationRun | undefined)[]; compare: boolean; visitorId: string; population: string[];
+  runs: (SimulationRun | undefined)[]; compare: boolean; visitorId: string; population: string[]; basis: ResultBasis;
   onChoose: (id: string) => void; onJumpDifference: () => void; onJump: (event: SimulationEvent, planId: string) => void;
 }
 
-export function Journey({ runs, compare, visitorId, population, onChoose, onJumpDifference, onJump }: JourneyProps) {
+export function Journey({ runs, compare, visitorId, population, basis, onChoose, onJumpDifference, onJump }: JourneyProps) {
   const { t } = useI18n();
   return <div className="journey-panel">
     <div className="journey-picker">
@@ -99,25 +143,44 @@ export function Journey({ runs, compare, visitorId, population, onChoose, onJump
       <div className="journey-heading">
         {compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}
         <b>{result.request.plan.name}</b>
-        <span className="journey-outcome">{t.journey.atCutoff(t.outcomes[result.statistics?.visitors.find(person => person.id === visitorId)?.outcome ?? 'unfinished'], t.formatWait(result.statistics?.visitors.find(person => person.id === visitorId)?.waiting))}</span>
+        <span className="journey-outcome">{t.review[basis]}: {t.outcomes[statisticsAt(result, basis)?.visitors.find(person => person.id === visitorId)?.outcome ?? 'unfinished']} · {t.formatWait(statisticsAt(result, basis)?.visitors.find(person => person.id === visitorId)?.waiting)}</span>
       </div>
-      <ol className="journey-events">{result.events.filter(event => event.participantId === visitorId).map(event => <li key={event.seq}><button type="button" onClick={() => onJump(event, result.request.plan.id)}>
+      <div className="journey-waits"><b>{t.review.nodeWait}</b>{Object.entries(statisticsAt(result, basis)?.visitors.find(person => person.id === visitorId)?.nodeWaiting ?? {}).map(([id, wait]) => <p key={id}>{result.request.plan.graph.nodes.find(node => node.id === id)?.name ?? id}: {t.formatWait(wait)}</p>)}</div>
+      <ol className="journey-events">{result.events.filter(event => event.participantId === visitorId && event.time <= (statisticsAt(result, basis)?.until ?? result.coveredUntil)).map(event => <li key={event.seq}><button type="button" onClick={() => onJump(event, result.request.plan.id)}>
         <time>{formatTime(event.time)}</time><i className={`dot t-${EVENT_TONES[event.type] ?? 'system'}`} /><span>{t.eventTypes[event.type] ?? event.type}</span><small>{result.request.plan.graph.nodes.find(node => node.id === event.nodeId)?.name}</small>
       </button></li>)}</ol>
     </div>)}</div> : <p className="journey-hint"><GhostIcon size={16} aria-hidden="true" />{t.journey.hint}</p>}
   </div>;
 }
 
-export function ResourceUse({ run }: { run: SimulationRun }) {
+export function ResourceUse({ run, second, basis, limits, onLimits }: { run: SimulationRun; second?: SimulationRun; basis: ResultBasis; limits: { staff: string; devices: string }; onLimits: (limits: { staff: string; devices: string }) => void }) {
   const { t } = useI18n();
-  const stats = run.statistics;
+  const { staff: maxStaff, devices: maxDevices } = limits;
+  const stats = statisticsAt(run, basis);
+  const right = statisticsAt(second, basis);
   if (!stats) return <p className="subtle">{t.resources.incomplete}</p>;
-  return <div className="resource-results">{stats.resources.map(resource => {
-    const value = resource.utilization ?? 0;
-    return <div key={resource.id} className={cls('resource-card', value > 0.85 && 'hot')}>
-      <div className="resource-top"><code>{resource.id}</code><b>{resource.utilization === null ? t.resources.none : `${(value * 100).toFixed(1)}%`}</b></div>
-      <div className="util-bar"><i style={{ width: `${value * 100}%` }} /></div>
-      <small>{t.resources.detail(t.formatWait(resource.busy), t.formatWait(resource.handover), t.formatWait(resource.overtime))}</small>
-    </div>;
-  })}</div>;
+  const totals = (result: SimulationRun, kind: 'staff' | 'devices') => {
+    const plan = result.request.plan, selected = statisticsAt(result, basis)!;
+    const staffIds = new Set(plan.staff.map(item => item.id));
+    const resources = selected.resources.filter(item => kind === 'staff' ? staffIds.has(item.id) : !staffIds.has(item.id));
+    const units = kind === 'staff' ? plan.staff.map(item => ({ ...item, quantity: 1 })) : plan.deviceTypes;
+    return { count: units.reduce((sum, item) => sum + item.quantity, 0), scheduled: units.reduce((sum, item) => sum + item.quantity * item.shifts.reduce((hours, window) => hours + Math.max(0, Math.min(window.end, selected.until) - window.start) / 3600, 0), 0),
+      busy: resources.reduce((sum, item) => sum + item.busy / 3600, 0), overtime: resources.reduce((sum, item) => sum + item.overtime / 3600, 0) };
+  };
+  const ids = [...new Set([...stats.resources, ...(right?.resources ?? [])].map(item => item.id))];
+  const utilization = (value: number | null | undefined) => value == null ? '—' : `${(value * 100).toFixed(1)}%`;
+  return <div className="resource-comparison">
+    <h3>{t.review.resourceCounts}</h3>
+    <p className="subtle">{t.review.hoursHint}</p>
+    <table><thead><tr><th>{t.review.resourceCounts}</th><th>A · {formatTime(stats.until)}</th>{right && <><th>B · {formatTime(right.until)}</th><th>{t.review.delta}</th></>}</tr></thead><tbody>
+      {(['staff', 'devices'] as const).flatMap(kind => { const a = totals(run, kind), b = right && second ? totals(second, kind) : null; return (['count', 'scheduled', 'busy', 'overtime'] as const).map(key => <tr key={`${kind}-${key}`}><th>{t.review[kind]} · {key === 'count' ? t.review.resourceCounts : t.review[key]}</th><td>{a[key].toFixed(key === 'count' ? 0 : 2)}</td>{b && <><td>{b[key].toFixed(key === 'count' ? 0 : 2)}</td><td>{Math.round((b[key] - a[key]) * 100) > 0 ? '+' : ''}{(Math.round((b[key] - a[key]) * 100) / 100).toFixed(key === 'count' ? 0 : 2)}</td></>}</tr>); })}
+    </tbody></table>
+    <div className="resource-limits"><b>{t.review.budget}</b><label>{t.review.maxStaff}<input type="number" min={0} value={maxStaff} onChange={event => onLimits({ ...limits, staff: event.target.value })} /></label><label>{t.review.maxDevices}<input type="number" min={0} value={maxDevices} onChange={event => onLimits({ ...limits, devices: event.target.value })} /></label>
+      {!maxStaff && !maxDevices ? <p>{t.review.noBudget}</p> : [run, ...(right && second ? [second] : [])].map((result, index) => <p key={index}>{index ? 'B' : 'A'}: {(maxStaff !== '' && totals(result, 'staff').count > Number(maxStaff)) || (maxDevices !== '' && totals(result, 'devices').count > Number(maxDevices)) ? t.review.exceeds : t.review.within}</p>)}
+    </div>
+    <table><thead><tr><th>{t.review.resourceCounts}</th><th>A</th>{right && <><th>B</th><th>{t.review.delta}</th></>}</tr></thead><tbody>{ids.map(id => {
+      const a = stats.resources.find(item => item.id === id), b = right?.resources.find(item => item.id === id);
+      return <tr key={id}><th>{id}</th><td>{utilization(a?.utilization)}{a && <small>{t.resources.detail(t.formatWait(a.busy), t.formatWait(a.handover), t.formatWait(a.overtime))}</small>}</td>{right && <><td>{utilization(b?.utilization)}{b && <small>{t.resources.detail(t.formatWait(b.busy), t.formatWait(b.handover), t.formatWait(b.overtime))}</small>}</td><td>{a && b ? t.resources.detail(t.formatWait(b.busy - a.busy), t.formatWait(b.handover - a.handover), t.formatWait(b.overtime - a.overtime)) : '—'}</td></>}</tr>;
+    })}</tbody></table>
+  </div>;
 }

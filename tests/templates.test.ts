@@ -5,6 +5,44 @@ import { MESSAGES } from '../src/i18n/messages';
 import { planSchema, projectDocumentSchema, validateGraph } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 
+it('copies a device pool once when multiple requirements reference it', () => {
+  const document = initialDocument(); document.plans = [document.plans[0]];
+  const plan = document.plans[0], node = plan.graph.nodes.find(item => item.id === 'checkin')!;
+  if (node.type !== 'service') throw new Error('fixture');
+  plan.deviceTypes[0].quantity = 2;
+  node.requirements.push({ kind: 'device', deviceTypeId: 'scanner', quantity: 1 });
+  const result = addNodeFromTemplate(plan, document.scenarios[0], { id: 'template', name: 'Copy', nodeId: node.id, document }, 'copy');
+  expect(result.plan.deviceTypes).toHaveLength(2);
+  if (result.node.type !== 'service') throw new Error('fixture');
+  expect(new Set(result.node.requirements.flatMap(item => item.kind === 'device' ? [item.deviceTypeId] : [])).size).toBe(1);
+  expect(result.plan.deviceTypes.at(-1)!.quantity).toBe(2);
+});
+
+it.each(['share', 'copy'] as const)('reapplies a service template with %s resources and complete posts', mode => {
+  const document = initialDocument(); document.plans = [document.plans[0]];
+  const plan = document.plans[0], scenario = document.scenarios[0];
+  plan.assignments.push({ resourceUnitId: 'scanner:1', periods: [{ from: 0, nodeIds: ['checkin'] }] });
+  const template: SavedTemplate = { id: 'check-template', name: 'Check copy', nodeId: 'checkin', document };
+  const before = JSON.stringify(document);
+  const result = addNodeFromTemplate(plan, scenario, template, mode);
+  const insufficient = validateGraph(scenario, result.plan).filter(issue => ['insufficient_resources', 'unknown_assignment_resource', 'invalid_assignment_node'].includes(issue.code));
+  expect(insufficient).toEqual([]);
+  expect(JSON.stringify(document)).toBe(before);
+  if (mode === 'share') {
+    expect(result.plan.staff).toHaveLength(plan.staff.length);
+    expect(result.plan.deviceTypes).toHaveLength(plan.deviceTypes.length);
+    expect(result.plan.assignments.find(item => item.resourceUnitId === 'check-staff')!.periods[0].nodeIds).toEqual(['checkin', result.node.id]);
+    expect(result.plan.assignments.find(item => item.resourceUnitId === 'scanner:1')!.periods[0].nodeIds).toEqual(['checkin', result.node.id]);
+    expect(result.plan.assignments.find(item => item.resourceUnitId === 'floater')!.periods[0].nodeIds).not.toContain(result.node.id);
+    expect(result.plan.assignments.find(item => item.resourceUnitId === 'floater')!.periods[1].nodeIds).toContain(result.node.id);
+  } else {
+    expect(result.plan.staff.length).toBeGreaterThan(plan.staff.length);
+    expect(result.plan.deviceTypes).toHaveLength(plan.deviceTypes.length + 1);
+    expect(result.plan.assignments.slice(0, plan.assignments.length)).toEqual(plan.assignments);
+    expect(result.plan.assignments.slice(plan.assignments.length).some(item => item.periods.some(period => period.nodeIds.includes(result.node.id)))).toBe(true);
+  }
+});
+
 describe.each(['en', 'zh'] as const)('Halloween presets (%s)', lang => {
   it.each(['haunted', 'candy'] as const)('%s has a runnable flow', kind => {
     const document = halloweenProject(kind, MESSAGES[lang]);

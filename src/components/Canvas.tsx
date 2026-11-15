@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Background, BackgroundVariant, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, useReactFlow, useStore } from '@xyflow/react';
-import type { Connection, Edge as FlowEdge, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
 import { NODE_TYPES } from '../features/project';
@@ -81,12 +81,25 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
   </div>;
 }
 const nodeTypes = { workflow: FlowCard };
+type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void };
+function RouteEdge(props: EdgeProps<FlowEdge<RouteData>>) {
+  const { t } = useI18n();
+  const [path, labelX, labelY] = getBezierPath({ ...props, curvature: 0.4 });
+  return <>
+    <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} label={props.label} labelX={labelX} labelY={labelY}
+      labelStyle={props.labelStyle} labelBgStyle={props.labelBgStyle} labelBgPadding={props.labelBgPadding} labelBgBorderRadius={props.labelBgBorderRadius} />
+    {props.data?.travelers.map(visitor => <circle key={visitor.id} r={visitor.selected ? 7 : 5} fill={visitor.selected ? '#ffc46b' : '#8ef5d0'} stroke="#1d1833" strokeWidth={2}
+      role="button" tabIndex={0} aria-label={t.canvas.follow(visitor.id)} style={{ offsetPath: `path('${path}')`, offsetDistance: `${visitor.progress * 100}%`, cursor: 'pointer' }}
+      onClick={event => { event.stopPropagation(); props.data?.chooseVisitor(visitor.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); props.data?.chooseVisitor(visitor.id); } }}><title>{visitor.id}</title></circle>)}
+  </>;
+}
+const edgeTypes = { route: RouteEdge };
 
 interface Props {
   plan: Plan; selected: string; onSelect: (id: string, kind: 'node' | 'edge') => void; onMove: (positions: { id: string; x: number; y: number }[]) => void;
   onConnect: (connection: Connection) => void; onDelete: (ids: string[], edgeIds: string[]) => void;
   onAdd: (type: Node['type'], position: { x: number; y: number }) => void;
-  editable: boolean; issues: ValidationIssue[]; view: PlaybackState; run?: SimulationRun; stale: boolean;
+  editable: boolean; issues: ValidationIssue[]; view: PlaybackState; run?: SimulationRun; time: number; stale: boolean;
   selectedVisitor: string; chooseVisitor: (id: string) => void; changed?: Set<string>; fitToken: number;
   label?: { badge: string; name: string; note?: string };
   compact?: boolean;
@@ -139,18 +152,19 @@ function CanvasInner(props: Props) {
     return () => clearTimeout(timer);
   }, [instance, plan.id, props.fitToken, fit, fitSize]);
   const edges = useMemo<FlowEdge[]>(() => plan.graph.edges.map(edge => {
-    const target = view.nodes[edge.target];
-    const active = running && !!target && target.queued.length + target.serving.length + target.holding.length + target.blocked.length > 0;
+    const travelers = running ? Object.values(view.visitors).filter(event => event.type === 'ROUTE_TRANSITION' && event.edgeId === edge.id && Number(event.details?.arrivalAt) > props.time)
+      .map(event => ({ id: event.participantId!, progress: (props.time - event.time) / (Number(event.details!.arrivalAt) - event.time), selected: event.participantId === props.selectedVisitor })) : [];
+    const active = travelers.length > 0;
     const isSelected = props.selected === edge.id;
     const changed = props.changed?.has(edge.id) ?? false;
     const color = isSelected ? '#8ef5d0' : changed ? '#ff9a4d' : active ? '#8cc8ff' : '#84709b';
-    return { ...edge, sourceHandle: edge.branchKey, type: 'default', pathOptions: { curvature: 0.4 }, label: edge.branchKey, animated: active,
+    return { ...edge, sourceHandle: edge.branchKey, type: 'route', data: { travelers, chooseVisitor: props.chooseVisitor }, label: edge.branchKey,
       selected: isSelected, className: cls(active && 'is-active', changed && 'is-changed'),
       markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
       style: { stroke: color, strokeWidth: isSelected ? 2.4 : active ? 2 : 1.6 },
       labelStyle: { fill: '#d9d1ee', fontSize: 11, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
     };
-  }), [plan.graph.edges, view, running, props.selected, props.changed]);
+  }), [plan.graph.edges, view, running, props.time, props.selectedVisitor, props.chooseVisitor, props.selected, props.changed]);
   return <div ref={shell} className={cls('canvas-shell', props.compact && 'compact-canvas')} onDoubleClick={event => {
     if (props.editable && (event.target as HTMLElement).classList.contains('react-flow__pane')) openMenu(event.clientX, event.clientY);
   }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={event => {
@@ -158,7 +172,7 @@ function CanvasInner(props: Props) {
     if (props.editable && NODE_TYPES.includes(type)) props.onAdd(type, api.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
   }}>
     <HauntedBackdrop />
-    <ReactFlow<CardNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} colorMode="dark" onInit={setInstance}
+    <ReactFlow<CardNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode="dark" onInit={setInstance}
       onNodesChange={changes => {
         setFlowNodes(nodes => applyNodeChanges(changes, nodes));
         const positions = changes.flatMap(change => change.type === 'position' && change.position && !change.dragging ? [{ id: change.id, ...change.position }] : []);
