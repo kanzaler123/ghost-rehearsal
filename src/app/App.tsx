@@ -551,7 +551,7 @@ export function App() {
   }, [unsaved, draftSaved]);
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
-      if (dialog) return;
+      if (dialog || event.defaultPrevented) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
