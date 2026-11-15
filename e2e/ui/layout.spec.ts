@@ -39,9 +39,19 @@ for (const motion of ['no-preference', 'reduce'] as const) {
     await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).click();
     await expect(page.locator('.diff-note')).toContainText('03:30');
     await check('journey');
-    const replayLabel = await page.locator('.replay-label').boundingBox();
-    const differenceLabel = await page.locator('.lane-diff .lane-marker-label').boundingBox();
-    expect(replayLabel!.y + replayLabel!.height <= differenceLabel!.y || differenceLabel!.y + differenceLabel!.height <= replayLabel!.y).toBe(true);
+    await expect(page.locator('.replay-label')).toBeVisible();
+    await expect(page.locator('.lane-diff .lane-marker-label')).toBeVisible();
+    // Smooth scrolling can advance between two Playwright calls. Read both
+    // viewport rectangles in one browser task so they describe the same frame.
+    const { replayLabel, differenceLabel } = await page.evaluate(() => {
+      const replay = document.querySelector('.replay-label')!.getBoundingClientRect();
+      const difference = document.querySelector('.lane-diff .lane-marker-label')!.getBoundingClientRect();
+      return {
+        replayLabel: { top: replay.top, bottom: replay.bottom },
+        differenceLabel: { top: difference.top, bottom: difference.bottom },
+      };
+    });
+    expect(replayLabel.bottom <= differenceLabel.top || differenceLabel.bottom <= replayLabel.top).toBe(true);
     await guide.getByRole('button', { name: t.guide.actions[2], exact: true }).click();
     await expect(page.locator('.evidence-card')).toContainText('check-staff');
     await check('evidence');
