@@ -13,6 +13,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run tests --environment node",
     "test:browser": "playwright test",
+    "test:browser:webkit": "playwright test --config=playwright.webkit.config.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.schemas.json",
     "check": "npm run typecheck && npm test"
   },
