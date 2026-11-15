@@ -555,6 +555,7 @@ export function App() {
     {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
+    {comparing && <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>}
     {comparing && <div className="comparison-settings">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
       <label>{t.evidence.threshold}<select aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>

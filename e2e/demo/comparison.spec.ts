@@ -83,9 +83,14 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await outcome('left').scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('bc-outcomes.png'), fullPage: true });
   await expect(guide).toContainText(t.guide.mapping);
+  const identities = page.locator('.comparison-identities');
+  const names = await page.locator('.report-plans b').allTextContents();
+  await expect(identities).toHaveText(`A · ${names[0]}B · ${names[1]}`);
   await guide.getByRole('button', { name: t.guide.resources, exact: true }).click();
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').first().locator('td')).toHaveText(['3', '4', '+1']);
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').nth(1).locator('td')).toHaveText(['1.50', '2.00', '+0.50']);
+  await page.locator('.resource-comparison table').last().scrollIntoViewIfNeeded();
+  await expect(identities).toBeInViewport();
   await guide.getByRole('button', { name: t.guide.actions[4], exact: true }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('bc-comparison.png'), fullPage: true });

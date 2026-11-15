@@ -223,6 +223,7 @@ fieldset:disabled { opacity: 0.82; }
 
 .workspace { flex: 1; display: flex; min-height: 0; }
 .mobile-compare-nav { display: none; }
+.comparison-identities { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 4px 20px; padding: 6px 14px; flex-shrink: 0; background: var(--bg-1); border-bottom: 1px solid var(--line); font-size: 12px; overflow-wrap: anywhere; }
 .comparison-settings { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .comparison-settings label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
 .comparison-settings small { color: var(--text-2); font-size: 11px; }
