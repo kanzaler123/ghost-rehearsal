@@ -20,7 +20,7 @@ export function StatisticsScope({ runs, basis, threshold = THRESHOLD }: { runs: 
     <details><summary>{t.evidence.completed}</summary>
       <p>{t.evidence.subgroupNote}</p>
       {stats.map((item, index) => { const completed = completedWaiting(item!); return <p key={index}>
-        <b>{runs[index].request.plan.name}</b> · {t.evidence.sample}={completed.n} · {t.compare.rows.average}: {t.formatWait(completed.average)} · {t.compare.rows.p90}: {t.formatWait(completed.p90)}
+        <b>{runs[index].request.plan.name}</b> · {t.evidence.sample}={completed.n} · {completed.n ? <>{t.compare.rows.average}: {t.formatWait(completed.average)} · {t.compare.rows.p90}: {t.formatWait(completed.p90)}</> : t.reportUi.noCompleted}
       </p>; })}
     </details>
   </div>;

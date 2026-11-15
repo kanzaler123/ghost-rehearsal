@@ -297,8 +297,8 @@
 .sidebar.plan-navigator.is-collapsed { width: var(--nav-rail-w); }
 .plan-navigator.is-collapsed .plan-badge { flex-shrink: 0; }
 .arrangement-control { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--fs-xs); }
-.arrangement-control select { max-width: var(--card-w); }
-.arrangement-control small { flex-basis: 100%; color: var(--text-muted); }
+.arrangement-control button { min-height: var(--control-sm); padding: var(--space-1) var(--space-2); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-primary); font-size: var(--fs-xs); }
+.arrangement-control button[aria-pressed=true] { border-color: var(--focus-ring); background: var(--hover-bg); text-decoration: underline; text-underline-offset: var(--space-1); }
 .m-completed, .m-guests {
   --m: var(--tone-done);
 }

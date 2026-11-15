@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { ArrowLeft, ArrowUpRight, Crosshair, Search, Star } from 'lucide-react';
+import { Crosshair, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
 import { comparisonContext, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
@@ -10,7 +10,12 @@ import type { Messages } from '../i18n';
 import type { SimulationRun } from '../simulation/types';
 import { Ghost } from './Icons';
 import { EVENT_TONES } from './Results';
-import { StatisticsScope } from './StatisticsScope';
+import { JourneyContext } from './shell/JourneyContext';
+import { DivergenceCard } from './shell/DivergenceCard';
+import { DeltaBadge } from './shell/DeltaBadge';
+import { RunStateCard } from './shell/RunStateCard';
+import { deriveEmptyState } from './shell/runState';
+import { labelFits, segmentExtent } from './timelineGeometry';
 
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 const nodeName = (plan: Plan, id?: string) => plan.graph.nodes.find(node => node.id === id)?.name ?? '—';
@@ -56,17 +61,26 @@ interface Props {
   group?: AffectedFilter; basis?: ResultBasis; threshold?: WaitThreshold;
   onGroupChange?: (filter: AffectedFilter | undefined) => void;
   onOverview?: () => void;
+  onInspect?: (nodeIds: string[], planId: string) => void;
+  onDivergence?: (time: number, nodeA?: string, nodeB?: string) => void;
+  reducedMotion?: boolean;
+  revealEvidence?: number;
+  onEditGuests?: () => void;
 }
 
 const PAGE_SIZE = 20;
 const FILTERS: AffectedFilter[] = ['less', 'more', 'same', 'rescued', 'lost'];
 
-export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview, basis = 'cutoff', threshold = THRESHOLD }: Props) {
+export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview, onInspect, onDivergence, reducedMotion = false, revealEvidence = 0, onEditGuests, basis = 'cutoff', threshold = THRESHOLD }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
   const [localGroup, setLocalGroup] = useState<AffectedFilter>();
   const detailRef = useRef<HTMLElement>(null);
+  const lanesRef = useRef<HTMLDivElement>(null);
+  const evidenceRef = useRef<HTMLDetailsElement>(null);
+  const [laneWidth, setLaneWidth] = useState(0);
+  const [segmentDetail, setSegmentDetail] = useState<{ key: string; text: string } | null>(null);
   const activeGroup = onGroupChange ? group : localGroup;
   const population = runs[0]?.population ?? [];
   const context = useMemo(() => comparisonContext(runs[0], runs[1], basis, threshold), [runs[0], runs[1], basis, threshold]);
@@ -82,20 +96,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const span = Math.max(1, cutoff);
   const pct = (value: number) => `${Math.max(0, Math.min(100, value / span * 100))}%`;
   const difference = compare && journeys.length === 2 ? firstDifference(journeys[0], journeys[1], plans[0], plans[1]) : null;
-  const text = t.lang === 'zh' ? {
-    back: '返回比较总览', title: '访客旅程', everyone: '全部', people: '参与者名单', search: '搜索本组姓名或编号',
-    noResults: '没有匹配的参与者。请调整搜索或群体筛选。', clear: '清除搜索', previous: '上一页', next: '下一页',
-    basis: basis === 'completion' ? '时间带、结局与逐站等待采用各方案的最终记录。' : `时间带、结局与逐站等待均截至 ${formatTime(cutoff)}`,
-    afterCutoff: '回放已越过观察截止，此处保持显示截止时刻的记录。',
-    cutoffStatus: '截止时刻状态', groups: { less: '少等 ≥1 分钟', more: '多等 ≥1 分钟', same: '变化不足 1 分钟', rescued: '只在 B 完成', lost: '只在 A 完成' },
-  } : {
-    back: 'Back to comparison', title: 'Guest journey', everyone: 'Everyone', people: 'Guest list', search: 'Search this group by name or number',
-    noResults: 'No matching guests. Try another search or group.', clear: 'Clear search', previous: 'Previous', next: 'Next',
-    basis: basis === 'completion' ? 'Lanes, outcomes and station waits use each plan’s final record.' : `Lanes, outcomes and station waits all end at ${formatTime(cutoff)}`,
-    afterCutoff: 'Replay is beyond the cutoff. This panel stays at the observation cutoff.',
-    cutoffStatus: 'Status at cutoff', groups: { less: 'Waited ≥1 min less', more: 'Waited ≥1 min more', same: 'Changed by <1 min', rescued: 'Finished only in B', lost: 'Finished only in A' },
-  };
-  Object.assign(text.groups, threshold ? t.evidence.groups : t.evidence.anyGroups);
+  const text = { ...t.reportUi, basis: basis === 'completion' ? t.reportUi.finalBasis : t.reportUi.cutoffBasis(formatTime(cutoff)), groups: { ...(threshold ? t.evidence.groups : t.evidence.anyGroups), rescued: t.journey.picks.rescued, lost: t.journey.picks.lost } };
   const groupCounts: Record<AffectedFilter, number> = { less: counts?.better ?? 0, more: counts?.worse ?? 0, same: counts?.same ?? 0, rescued: counts?.rescued ?? 0, lost: counts?.lost ?? 0 };
   const eligibleIds = paired ? new Set(paired.map(item => item.id)) : null;
   const names = population.filter(item => !eligibleIds || eligibleIds.has(item.id)).map(item => ({ id: item.id, name: nameOf(item.id) }));
@@ -105,6 +106,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const emptyState = deriveEmptyState({ rosterEmpty: !visible.length, filterActive: !!query || !!activeGroup, noDifference: false, evidenceCount: runs.reduce((sum, run) => sum + run.events.length, 0) });
   const pairMap = new Map(paired?.map(item => [item.id, item]));
   const outcomes = new Map(a?.visitors.map(item => [item.id, item]));
   const currentInGroup = !eligibleIds || eligibleIds.has(visitorId);
@@ -113,6 +115,23 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   useEffect(() => {
     if (compare && nextVisitor !== visitorId) onChoose(nextVisitor);
   }, [compare, nextVisitor, visitorId, onChoose]);
+  useEffect(() => {
+    setSegmentDetail(null);
+    const track = lanesRef.current?.querySelector<HTMLElement>('.lane-track');
+    if (!track) return;
+    const measure = () => setLaneWidth(track.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [visitorId, basis, runs[0]?.inputKey, runs[1]?.inputKey]);
+  const openEvidence = () => {
+    if (!evidenceRef.current) return;
+    evidenceRef.current.open = true;
+    detailRef.current?.querySelector('.station-table-wrap')?.scrollIntoView?.({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+  };
+  useEffect(() => { if (revealEvidence > 0) openEvidence(); }, [revealEvidence]);
   function selectGroup(filter: AffectedFilter | undefined) {
     if (onGroupChange) onGroupChange(filter); else setLocalGroup(filter);
     setPage(0); setQuery('');
@@ -142,12 +161,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const stories = groupPicks(picks);
   if (compare && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   return <div className="ghost-journey">
-    <header className="journey-header">
-      <div>{onOverview && <button type="button" className="text-btn" onClick={onOverview}><ArrowLeft size={14} aria-hidden="true" />{text.back}</button>}<h3>{text.title}</h3></div>
-      <StatisticsScope runs={runs} basis={basis} threshold={threshold} />
-      <p className="journey-basis">{t.review[basis]} · {text.basis}</p>
-      {basis === 'cutoff' && time > cutoff && <p className="journey-basis">{text.afterCutoff}</p>}
-    </header>
+    <JourneyContext runs={runs} basis={basis} threshold={threshold} cutoff={cutoff} time={time} onOverview={onOverview} onEvidence={openEvidence} />
     <aside className="ghost-stories">
       {compare && counts && <label className="people-filter"><span>{text.people}</span><select aria-label={text.people} value={activeGroup ?? 'all'} onChange={event => selectGroup(event.target.value === 'all' ? undefined : event.target.value as AffectedFilter)}>
         <option value="all">{text.everyone} · {counts.total}</option>
@@ -158,7 +172,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           onChange={event => { setQuery(event.target.value); setPage(0); }}
           onKeyDown={event => { if (event.key === 'Enter' && filtered[0]) chooseAndReveal(filtered[0].id); }} />
       </label>
-      <p className="people-count" aria-live="polite">{t.lang === 'zh' ? `${filtered.length} 位参与者${activeGroup ? ` · ${text.groups[activeGroup]}` : ''}` : `${filtered.length} guests${activeGroup ? ` · ${text.groups[activeGroup]}` : ''}`}</p>
+      <p className="people-count" aria-live="polite">{text.peopleCount(filtered.length, activeGroup ? text.groups[activeGroup] : '')}</p>
       <div className="people-list" aria-label={text.people}>
         {visible.map(item => {
           const pair = pairMap.get(item.id), outcome = outcomes.get(item.id);
@@ -167,7 +181,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
             {pair ? <small className="people-delta">{pair.delta === 0 ? '0' : `${pair.delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(pair.delta))}`}</small> : outcome && <small className="people-delta">{t.formatWait(outcome.waiting)}</small>}
           </button>;
         })}
-        {!visible.length && <p className="subtle">{text.noResults}{query && <button type="button" className="text-btn" onClick={() => setQuery('')}>{text.clear}</button>}</p>}
+        {!visible.length && emptyState && <RunStateCard kind="empty-roster" action={emptyState.action} detail={`${text.noResults} · ${activeGroup ? text.groups[activeGroup] : text.everyone} · ${query || text.none}`} onAction={() => { if (emptyState.action === 'clear-filter') { setQuery(''); selectGroup(undefined); } else onEditGuests?.(); }} />}
       </div>
       {pageCount > 1 && <nav className="people-pagination" aria-label={text.people}>
         <button type="button" className="text-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>{text.previous}</button>
@@ -189,7 +203,19 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         <button type="button" className="btn small ghost locate" onClick={onLocate}><Crosshair size={14} aria-hidden="true" />{t.journey.locate}</button>
       </div>
 
-      <div className="lanes" style={{ '--now': Math.max(0, Math.min(1, replayTime / span)) } as CSSProperties} aria-label={`${t.journey.lanes} · ${t.review[basis]} · ${text.basis}`}>
+      <div className="ghost-futures">{journeys.map((journey, column) => {
+        const outcome = statisticsAt(runs[column], basis)?.visitors.find(item => item.id === visitorId);
+        return <div className="future-row" key={column}>
+          {compare ? <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span> : <span />}
+          <span><small>{text.replayState} · {formatTime(Math.min(replayTime, journey.until))}</small>{journey.events.length ? describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t) : text.noData}</span>
+          <span><small>{basis === 'completion' ? text.finalOutcome : text.cutoffOutcome} · {formatTime(journey.until)}</small>{journey.events.length && outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : text.noData}</span>
+        </div>;
+      })}</div>
+
+      {compare && journeys.length === 2 && <DivergenceCard journeys={journeys} plans={plans} onInspect={onInspect} onEvidence={openEvidence}
+        onJump={(at, nodeA, nodeB) => onDivergence ? onDivergence(at, nodeA, nodeB) : onJump(at, nodeA ?? nodeB, plans[nodeA ? 0 : 1].id)} />}
+
+      <div className="lanes" ref={lanesRef} style={{ '--now': Math.max(0, Math.min(1, replayTime / span)) } as CSSProperties} aria-label={`${t.journey.lanes} · ${t.review[basis]} · ${text.basis}`}>
         <div className="lane-axis" aria-hidden="true"><span className="lane-label" />{<div className="lane-ticks">{ticks.map(tick => <i key={tick} style={{ left: pct(tick) }}>{formatTime(tick)}</i>)}</div>}</div>
         {journeys.map((journey, column) => {
           const status = statusAt(journey, Math.min(replayTime, journey.until));
@@ -197,10 +223,24 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           return <div className="lane" key={column}>
             <span className={cls('lane-label', compare && (column ? 'is-b' : 'is-a'))}>{compare ? (column ? 'B' : 'A') : ''}</span>
             <div className="lane-track">
-              {journey.segments.map((segment, index) => <button type="button" key={index} className={cls('seg', `seg-${segment.kind}`, segment.open && 'open')}
-                style={{ left: pct(segment.start), width: pct(segment.end - segment.start) }}
-                title={`${t.journey.segments[segment.kind]} · ${nodeName(plans[column], segment.nodeId)} · ${formatTime(segment.start)}–${formatTime(segment.end)}`}
-                onClick={() => onJump(segment.start, segment.nodeId, plans[column].id)}><span>{nodeName(plans[column], segment.nodeId)}</span></button>)}
+              {!journey.events.length && <span className="lane-no-data">{text.noData}</span>}
+              {journey.segments.map((segment, index) => {
+                const extent = segmentExtent(segment.start, segment.end, span);
+                const label = nodeName(plans[column], segment.nodeId);
+                const key = `${column}-${index}`;
+                const description = t.reportUi.segment(label, t.journey.segments[segment.kind], formatTime(segment.start), formatTime(segment.end), t.formatWait(segment.end - segment.start));
+                const detail = `${description}${segment.open ? ` · ${basis === 'cutoff' ? text.continues : text.continuesFinal}` : ''}`;
+                return <button type="button" key={index} className={cls('seg', `seg-${segment.kind}`, segment.open && 'open', extent.width === 0 && 'seg-mark')}
+                  style={{ left: `${extent.left}%`, width: `${extent.width}%` }} aria-label={detail}
+                  aria-describedby={segmentDetail?.key === key ? 'journey-segment-detail' : undefined}
+                  onMouseEnter={() => setSegmentDetail({ key, text: detail })} onMouseLeave={() => setSegmentDetail(null)}
+                  onFocus={() => setSegmentDetail({ key, text: detail })} onBlur={() => setSegmentDetail(null)}
+                  onKeyDown={event => { if (event.key === 'Escape') setSegmentDetail(null); }}
+                  onClick={() => { setSegmentDetail({ key, text: detail }); onJump(segment.start, segment.nodeId, plans[column].id); }}>
+                  {labelFits(label, extent.width / 100 * laneWidth) && <span>{label}</span>}
+                </button>;
+              })}
+              {journey.events.filter((event, index) => event.type === 'ROUTE_TRANSITION' && journey.events[index + 1]?.time === event.time).map(event => <i key={`transition-${event.seq}`} className="seg-mark" style={{ left: pct(event.time), width: 0 }} aria-label={`${t.eventTypes.ROUTE_TRANSITION} · ${formatTime(event.time)}`} />)}
               {journey.end && <i className={cls('lane-end', journey.end.kind)} style={{ left: pct(journey.end.time) }} />}
               <i className="lane-window-end" style={{ left: pct(journey.until) }} title={`${t.evidence.ends}: ${formatTime(journey.until)}`} />
               {at !== undefined && <span className={cls('lane-ghost', `tone-${statusTone(status)}`)} style={{ left: pct(at) }}><Ghost size={18} /></span>}
@@ -208,34 +248,21 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           </div>;
         })}
         <i className="lane-cutoff" title={`${basis === 'completion' ? t.review.completion : t.journey.cutoff} · ${formatTime(cutoff)}`} aria-label={`${basis === 'completion' ? t.review.completion : t.journey.cutoff} · ${formatTime(cutoff)}`} />
-        {difference && Number.isFinite(difference.time) && <i className="lane-diff" style={{ left: `calc(var(--lane-label) + (100% - var(--lane-label)) * ${Math.min(1, difference.time / span)})` }} />}
+        <span className="lane-marker-label replay-label">{text.replayMarker} · {formatTime(replayTime)}</span>
+        {difference && Number.isFinite(difference.time) && <i className="lane-diff" style={{ left: `calc(var(--lane-label) + (100% - var(--lane-label)) * ${Math.min(1, difference.time / span)})` }}><span className="lane-marker-label">{t.journey.firstDiff} · {formatTime(difference.time)}</span></i>}
+        {journeys.some(journey => journey.segments.some(segment => segment.open)) && <p className="lane-continuation">{basis === 'cutoff' ? text.continues : text.continuesFinal}</p>}
+        {segmentDetail && <p className="segment-tooltip" id="journey-segment-detail" role="tooltip">{segmentDetail.text}</p>}
+        <div className="lane-text-alternative">{journeys.map((journey, column) => <ol key={column} aria-label={plans[column].name}>{journey.segments.map((segment, index) => <li key={index}>{t.reportUi.segment(nodeName(plans[column], segment.nodeId), t.journey.segments[segment.kind], formatTime(segment.start), formatTime(segment.end), t.formatWait(segment.end - segment.start))}</li>)}</ol>)}</div>
         <div className="lane-legend">{(['queue', 'hold', 'blocked', 'service'] as const).map(kind => <span key={kind}><i className={`seg-${kind}`} />{t.journey.segments[kind]}</span>)}</div>
       </div>
 
-      <div className="ghost-futures">{journeys.map((journey, column) => {
-        const outcome = statisticsAt(runs[column], basis)?.visitors.find(item => item.id === visitorId);
-        return <div className="future-row" key={column}>
-          {compare ? <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span> : <span />}
-          <span><small>{time > cutoff ? (basis === 'completion' ? t.review.completion : text.cutoffStatus) : t.journey.now}</small>{describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t)}</span>
-          <span><small>{basis === 'completion' ? `${t.review.completion} · ${formatTime(journey.until)}` : t.journey.cutoff}</small>{outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : '—'}</span>
-        </div>;
-      })}</div>
+      <StationTable journeys={journeys} plans={plans} compare={compare} cutoff={cutoff} onInspect={onInspect} />
 
-      {compare && journeys.length === 2 && <div className="diff-note">
-        {difference ? <>
-          <b>{t.journey.firstDiff}</b>
-          <span>{formatTime(difference.time)}</span>
-          <span>A · {describeStatus(statusAt(journeys[0], difference.time), plans[0], difference.time, t)} / B · {describeStatus(statusAt(journeys[1], difference.time), plans[1], difference.time, t)}</span>
-          <button type="button" className="btn small accent" onClick={() => onJump(difference.time, difference.a?.nodeId ?? difference.b?.nodeId, plans[difference.a ? 0 : 1].id)}>{t.journey.jump}<ArrowUpRight size={14} aria-hidden="true" /></button>
-        </> : <span>{t.journey.noDiff}</span>}
-      </div>}
-
-      <StationTable journeys={journeys} plans={plans} compare={compare} cutoff={cutoff} />
-
-      <details className="evidence">
+      <details className="evidence" ref={evidenceRef}>
         <summary>{t.journey.evidence(journeys.reduce((sum, journey) => sum + journey.events.length, 0))}</summary>
         <div className={cls('journey-columns', compare && 'two')}>{journeys.map((journey, column) => <div key={column} className="journey-column">
           <div className="journey-heading">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}<b>{plans[column].name}</b></div>
+          {!journey.events.length && <p>{text.noData}</p>}
           <ol className="journey-events">{journey.events.map(event => <li key={event.seq}><button type="button" onClick={() => onJump(event.time, event.nodeId, plans[column].id)}>
             <time>{formatTime(event.time)}</time><i className={`dot t-${EVENT_TONES[event.type] ?? 'system'}`} /><span>{t.eventTypes[event.type] ?? event.type}</span><small>{nodeName(plans[column], event.nodeId)}</small>
           </button></li>)}</ol>
@@ -245,7 +272,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   </div>;
 }
 
-function StationTable({ journeys, plans, compare, cutoff }: { journeys: Journey[]; plans: Plan[]; compare: boolean; cutoff: number }) {
+function StationTable({ journeys, plans, compare, cutoff, onInspect }: { journeys: Journey[]; plans: Plan[]; compare: boolean; cutoff: number; onInspect?: (nodeIds: string[], planId: string) => void }) {
   const { t } = useI18n();
   type LogicalStation = { key: string; nodeIds: string[]; queue: number; service: number };
   const grouped = (journey: Journey, plan: Plan): LogicalStation[] => {
@@ -261,10 +288,10 @@ function StationTable({ journeys, plans, compare, cutoff }: { journeys: Journey[
   };
   const a = grouped(journeys[0], plans[0]);
   const unmatched = new Set(journeys[1] ? grouped(journeys[1], plans[1]) : []);
-  const namesOf = (left?: LogicalStation, right?: LogicalStation) => [...new Set([
+  const namesOf = (left?: LogicalStation, right?: LogicalStation) => t.list.stations([...new Set([
     ...(left?.nodeIds.map(id => nodeName(plans[0], id)) ?? []),
     ...(right?.nodeIds.map(id => nodeName(plans[1], id)) ?? []),
-  ])].join(t.lang === 'zh' ? '、' : ' / ');
+  ])]);
   const rows: { name: string; a?: LogicalStation; b?: LogicalStation }[] = a.map(station => {
     // Match a shared logical stage first, preserving the existing ID correspondence as a fallback.
     // Each B group is consumed once, so parallel/revisited nodes cannot duplicate its time.
@@ -274,19 +301,19 @@ function StationTable({ journeys, plans, compare, cutoff }: { journeys: Journey[
     return { name: namesOf(station, match), a: station, b: match };
   });
   unmatched.forEach(station => rows.push({ name: namesOf(undefined, station), b: station }));
-  if (!rows.length) return null;
-  const cell = (value?: number) => value === undefined ? <span className="muted">{t.journey.notVisited}</span> : t.formatWait(value);
+  if (!rows.length) return <p className="station-table-wrap">{t.reportUi.noData}</p>;
+  const cell = (value: number | undefined, column = 0) => value === undefined ? <span className="muted">{journeys[column]?.events.length ? t.journey.notVisited : t.reportUi.noData}</span> : t.formatWait(value);
   return <div className="station-table-wrap"><table className="station-table">
-    <caption>{t.lang === 'zh' ? `逐站用时 · 截至 ${formatTime(cutoff)}` : `Time by station · through ${formatTime(cutoff)}`}{compare && journeys[0].until !== journeys[1]?.until ? ` · A ${formatTime(journeys[0].until)} / B ${formatTime(journeys[1].until)}` : ''}</caption>
+    <caption>{t.reportUi.stationCaption(formatTime(cutoff))}{compare && journeys[0].until !== journeys[1]?.until ? ` · A ${formatTime(journeys[0].until)} / B ${formatTime(journeys[1].until)}` : ''}</caption>
     <thead><tr><th>{t.journey.station}</th>{compare ? <><th>A · {t.journey.wait}</th><th>B · {t.journey.wait}</th><th>{t.journey.delta}</th><th>A · {t.journey.service}</th><th>B · {t.journey.service}</th></> : <><th>{t.journey.wait}</th><th>{t.journey.service}</th></>}</tr></thead>
     <tbody>{rows.map((row, index) => {
       const delta = row.a && row.b ? row.b.queue - row.a.queue : undefined;
       return <tr key={index} className={cls(delta !== undefined && Math.abs(delta) > 0.5 && 'differs', (!row.a || !row.b) && compare && 'differs')}>
-        <td>{row.name}</td>
+        <td>{row.name}{onInspect && <span className="station-actions">{[row.a, row.b].map((station, column) => station && <button type="button" className="text-btn" key={column} onClick={() => onInspect(station.nodeIds, plans[column].id)}>{column ? 'B' : 'A'} · {t.reportUi.inspect}</button>)}</span>}</td>
         {compare ? <>
-          <td>{cell(row.a?.queue)}</td><td>{cell(row.b?.queue)}</td>
-          <td className={cls(delta !== undefined && delta < -0.5 && 'good', delta !== undefined && delta > 0.5 && 'bad')}>{delta === undefined ? '—' : Math.abs(delta) <= 0.5 ? '0' : `${delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(delta))}`}</td>
-          <td>{cell(row.a?.service)}</td><td>{cell(row.b?.service)}</td>
+          <td>{cell(row.a?.queue)}</td><td>{cell(row.b?.queue, 1)}</td>
+          <td><DeltaBadge metric="avgWait" a={row.a?.queue} b={row.b?.queue} format={t.formatWait} /></td>
+          <td>{cell(row.a?.service)}</td><td>{cell(row.b?.service, 1)}</td>
         </> : <><td>{cell(row.a?.queue)}</td><td>{cell(row.a?.service)}</td></>}
       </tr>;
     })}</tbody>

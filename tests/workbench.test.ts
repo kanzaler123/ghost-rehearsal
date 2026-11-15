@@ -72,6 +72,7 @@ vi.mock('react', async importOriginal => ({
 }));
 
 import { App } from '../src/app/App';
+import { SHELL_COMPONENTS } from '../src/components/shell';
 import { Canvas } from '../src/components/Canvas';
 import { CompareReport } from '../src/components/CompareReport';
 import { Inspector } from '../src/components/Inspector';
@@ -90,7 +91,10 @@ let originalGraphA: Plan['graph'];
 function flatten(value: unknown, output: Element[] = []): Element[] {
   if (Array.isArray(value)) { value.forEach(item => flatten(item, output)); return output; }
   if (value && typeof value === 'object' && 'props' in value) {
-    output.push(value as Element); flatten((value as Element).props.children, output);
+    const element = value as Element;
+    output.push(element);
+    if (typeof element.type === 'function' && SHELL_COMPONENTS.has(element.type)) flatten((element.type as (props: Record<string, unknown>) => unknown)(element.props), output);
+    else flatten(element.props.children, output);
   }
   return output;
 }
