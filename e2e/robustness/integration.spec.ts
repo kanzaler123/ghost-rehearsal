@@ -83,6 +83,18 @@ test('selected comparison plans run at cutoff and group export reproduces in the
 
 test('cancel, rerun and closing the lab release its Worker and restore normal rehearsal', async ({ page }, info) => {
   const t = await openExample(page, info), lab = labels[t.lang];
+  const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
+  if (await expand.isVisible()) await expand.click();
+  await page.locator('.event-picker summary').click();
+  await page.getByRole('button', { name: t.eventSetup.settings, exact: true }).click();
+  const settings = page.getByRole('dialog', { name: t.dialogs.scenarioTitle, exact: true });
+  const counts = settings.getByLabel(t.dialogs.count, { exact: true });
+  await expect(counts).toHaveCount(3);
+  for (const count of await counts.all()) {
+    await count.fill(String(Number(await count.inputValue()) * 10));
+    await count.press('Tab');
+  }
+  await settings.getByRole('button', { name: t.dialogs.applyShared(2), exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   const entry = page.getByRole('button', { name: lab.title, exact: true });
   await entry.click();
