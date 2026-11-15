@@ -1,6 +1,6 @@
 import example from '../../examples/open-house.json';
 import { z } from 'zod';
-import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
+import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, duplicatePlan, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
 import type { Edge, Node, Plan, ProjectDocument, Scenario, ValidationIssue } from '../schemas';
 import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
@@ -25,6 +25,20 @@ export function newId(prefix: string, used: string[]) {
   let index = 1;
   while (used.includes(`${prefix}-${index}`)) index++;
   return `${prefix}-${index}`;
+}
+
+export function createPackingExperiment(source: Plan, usedIds: Set<string>, t: Messages): Plan | null {
+  const original = source.staff.find(item => item.id === 'pack-staff');
+  if (!original || !source.graph.nodes.some(node => node.id === 'packing' && node.type === 'service')) return null;
+  const result = duplicatePlan(source, usedIds);
+  if (!result.ok) return null;
+  const target = result.plan;
+  target.name = t.review.demoName;
+  const staff = structuredClone(original);
+  staff.id = newId('packing-support', target.staff.map(item => item.id)); staff.name = t.review.demoStaff;
+  target.staff.push(staff);
+  target.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+  return target;
 }
 
 export function createNode(type: Node['type'], plan: Plan, scenario: Scenario, position: { x: number; y: number }, label: string = MESSAGES.zh.nodeTypes[type]): Node {

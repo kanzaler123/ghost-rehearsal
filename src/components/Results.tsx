@@ -41,16 +41,16 @@ interface InsightsProps {
   run: SimulationRun; second?: SimulationRun; compare: boolean; comparisonReady: boolean; changes: PlanChange[];
   scenarioId: string; overrides: number; basis: ResultBasis; onSelectNode: (id: string, owner: string) => void;
   onChoose: (id: string) => void; onJump: (time: number, nodeId: string, owner: string) => void; onExperiment?: () => void;
-  threshold?: WaitThreshold;
+  threshold?: WaitThreshold; initialEvidence?: { id: string; owner: string };
 }
 
-export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD }: InsightsProps) {
+export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD, initialEvidence }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
   const stats = statisticsAt(run, basis);
   const secondStats = compare && comparisonReady ? statisticsAt(second, basis) : null;
   const [group, setGroup] = useState<'less' | 'more' | 'same' | null>(null);
-  const [selected, setSelected] = useState<{ id: string; owner: string } | null>(null);
+  const [selected, setSelected] = useState<{ id: string; owner: string } | null>(initialEvidence ?? null);
   const pairs = useMemo(() => second && compare && comparisonReady ? pairedVisitors(run, second, basis) : [], [run, second, compare, comparisonReady, basis]);
   const groups = Object.fromEntries((['less', 'more', 'same'] as const).map(key => [key, stats && secondStats ? affectedVisitors(stats, secondStats, key, threshold) : []]));
   const groupLabels = threshold ? t.evidence.groups : t.evidence.anyGroups;
@@ -76,7 +76,7 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
     return resource ? `${resource.name}: ${'quantity' in resource ? resource.quantity : resource.skillIds.join(', ')}; ${resource.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ')}; ${t.report.unavailable}: ${resource.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}` : '—';
   };
   if (compare && (!stats || !secondStats)) return <p role="status">{t.evidence.missing}</p>;
-  return <div className="analysis-panel">
+  return <div className={cls('analysis-panel', !!initialEvidence && 'has-target')}>
     <StatisticsScope runs={secondStats && second ? [run, second] : [run]} basis={basis} />
     {compare && secondStats && <section className="paired-summary">
       <h3>{t.review.paired}</h3>

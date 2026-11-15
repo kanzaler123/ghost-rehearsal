@@ -229,7 +229,14 @@ fieldset:disabled { opacity: 0.82; }
 .statistics-scope { font-size: 12px; color: var(--text-2); line-height: 1.5; }
 .statistics-scope p { margin: 6px 0; }
 .statistics-scope summary { cursor: pointer; }
+.journey-header > .statistics-scope { display: block; }
 .lane-window-end { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--text-2); }
+.guided-demo { flex-shrink: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--bg-1); font-size: 12px; }
+.guide-heading, .guide-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 14px; }
+.guide-actions { justify-content: flex-start; }
+.guided-demo p { margin: 6px 0; line-height: 1.5; color: var(--text-2); }
+.analysis-panel.has-target { display: flex; flex-direction: column; }
+.analysis-panel.has-target .evidence-card { order: -1; }
 
 /* ---------- Sidebar ---------- */
 
@@ -1577,6 +1584,8 @@ fieldset:disabled { opacity: 0.82; }
   .mobile-compare-nav button { flex: 1; min-height: 36px; padding: 6px 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-2); font-size: 13px; }
   .mobile-compare-nav button[aria-pressed=true] { color: var(--text-0); background: #2b233c; border-color: var(--line-2); }
   .mode-compare .workspace { display: block; overflow-y: auto; min-height: 0; }
+  .mode-compare:has(.guided-demo) { height: auto; min-height: 100dvh; overflow: visible; }
+  .mode-compare:has(.guided-demo) .workspace { flex: none; overflow: visible; }
   .mode-compare .sidebar, .mode-compare.focus-person .sidebar.is-report { width: 100%; max-height: none; overflow: visible; }
   .mode-compare .comparison-focus { display: none; }
   .mode-compare .stage { min-height: 0; }
@@ -1589,6 +1598,8 @@ fieldset:disabled { opacity: 0.82; }
   .mode-compare.mobile-canvas .inspector.collapsed { display: none; }
   .mode-compare.mobile-person .stage-head, .mode-compare.mobile-person .canvas-area, .mode-compare.mobile-person .inspector, .mode-compare.mobile-person .dock-tabs { display: none; }
   .mode-compare.mobile-person .dock .dock-body { height: auto; max-height: none; overflow: visible; }
+  .mode-compare.mobile-evidence .sidebar, .mode-compare.mobile-evidence .stage-head, .mode-compare.mobile-evidence .canvas-area, .mode-compare.mobile-evidence .inspector { display: none; }
+  .mode-compare.mobile-evidence .dock .dock-body { height: auto; max-height: none; overflow: visible; }
   .mode-compare.mobile-person .dock { border-top: 0; }
   .mode-compare .ghost-journey, .mode-compare.focus-person .ghost-journey { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .mode-compare .people-list, .mode-compare.focus-person .people-list { max-height: 210px; }

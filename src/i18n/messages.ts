@@ -15,6 +15,22 @@ const zhPersonTime = (seconds: number | null | undefined) =>
 
 const en = {
   lang: 'en' as Lang,
+  guide: {
+    title: 'A/B/C decision guide', start: 'Start the A/B/C guide', exit: 'Exit guide', reset: 'Reset guide', rerun: 'Rerun this comparison',
+    steps: ['Compare A/B', 'The same guest', 'First difference', 'Posts and resources', 'Compare B/C', 'Export the arrangement'],
+    hints: [
+      'Synthetic Open House: read completions, unfinished guests, departures, waiting and costs together. B changes several arrangements at once.',
+      'Follow one ID in both plans. The outcome and waiting belong to the selected statistics basis; explore the station table and event record.',
+      'This is the first difference in recorded states, after simultaneous events settle. It is evidence to inspect, not proof of a single cause.',
+      'Inspect the extra check-in lane’s staff posts and availability, then the packing station. Test adding one packing worker while keeping other inputs.',
+      'C adds one packing worker with the original worker’s shifts and unavailable periods. Compare every outcome and the extra resource time; a shorter wait can also accompany more departures.',
+      'Export C’s actionable rules, posts, sources and the B/C evidence using the current statistics basis and waiting threshold.',
+    ],
+    actions: ['Follow the same guest', 'Jump to first difference', 'Inspect posts and resources', 'Create C and compare', 'Prepare C export', 'Download C arrangement'],
+    packing: 'Inspect packing evidence', resources: 'View resource costs', mapping: 'Here the left A pane is original B; the right B pane is C. Plan names and IDs are preserved.',
+    exported: 'C arrangement and B/C comparison evidence downloaded. You can keep editing or rerun the experiment.',
+    needRun: 'This step needs fresh results for both plans at the selected basis. Rerun, or reset to A/B.',
+  },
   evidence: {
     threshold: 'Waiting change rule', minute: 'At least 60 seconds', any: 'Any change',
     groups: { less: 'Waited ≥60 s less', more: 'Waited ≥60 s more', same: 'Changed by <60 s' },
@@ -412,6 +428,22 @@ export type Messages = typeof en;
 
 const zh: Messages = {
   lang: 'zh',
+  guide: {
+    title: 'A/B/C 决策引导', start: '开始 A/B/C 引导演示', exit: '退出引导', reset: '重置引导', rerun: '重跑当前比较',
+    steps: ['比较 A/B', '同一位访客', '首次差异', '岗位与资源', '比较 B/C', '导出安排'],
+    hints: [
+      '合成开放日示例：一起查看完成、未完成、提前离开、等待和成本。B 同时改变了多项安排。',
+      '在两个方案中追踪同一个 ID。结局与等待采用当前统计口径，可继续查看逐站用时和事件记录。',
+      '这是同一时刻事件处理完毕后的首次可见状态差异，可据此追查，但不能断言只有一个原因。',
+      '先查看第二核验通道的人员岗位与可用状态，再看资料发放。保持其他输入，试验增配一位资料人员。',
+      'C 增加一位资料人员，沿用原人员的班次和不可用时段。查看每项结局与额外资源用时；少等也可能伴随更多提前离开。',
+      '按当前统计口径和等待阈值，导出 C 的执行规则、岗位、来源及 B/C 比较证据。',
+    ],
+    actions: ['追踪同一位访客', '跳到首次差异', '查看岗位与资源', '创建 C 并比较', '准备导出 C', '下载 C 执行安排'],
+    packing: '查看资料发放证据', resources: '查看资源代价', mapping: '当前左侧 A 栏代表原方案 B，右侧 B 栏代表 C；保留方案名称与 ID。',
+    exported: '已下载 C 执行安排与 B/C 比较证据。可以继续编辑或重跑试验。',
+    needRun: '此步骤需要所选口径下两侧的最新结果。请重跑，或重置回 A/B。',
+  },
   evidence: {
     threshold: '等待变化规则', minute: '至少相差 60 秒', any: '查看任何变化',
     groups: { less: '少等 ≥60 秒', more: '多等 ≥60 秒', same: '变化不足 60 秒' },

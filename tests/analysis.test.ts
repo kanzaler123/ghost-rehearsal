@@ -1,4 +1,4 @@
-import { comparisonReport, executionReport, halloweenProject, initialDocument } from '../src/features/project';
+import { comparisonReport, createPackingExperiment, executionReport, halloweenProject, initialDocument } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { describe, expect, it } from 'vitest';
 import example from '../examples/open-house.json';
@@ -349,10 +349,7 @@ describe('rehearsal evidence and execution reports', () => {
       expect(pairedVisitors(a, { ...b, status: 'aborted' }, 'cutoff')).toEqual([]);
     });
     it('tests additional packing capacity with its explicit extra staffing cost', () => {
-      const plan = structuredClone(document.plans[1]);
-      const staff = structuredClone(plan.staff.find(item => item.id === 'pack-staff')!);
-      staff.id = 'packing-support-1'; plan.staff.push(staff);
-      plan.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+      const plan = createPackingExperiment(document.plans[1], new Set(document.plans.map(item => item.id)), MESSAGES.en)!;
       const run = simulate({ schemaVersion: 1, plan, scenario: document.scenarios[0], runMode: 'cutoff' });
       expect(plan.staff).toHaveLength(4);
       expect(run.statistics!.outcomes).toMatchObject({ completed: 72, unfinished: 218, diverted: 10 });
@@ -364,6 +361,23 @@ describe('rehearsal evidence and execution reports', () => {
         expect(report).toContain(`${t.outcomes.unfinished}: 218`);
         expect(report).toContain(`${t.outcomes.diverted}: 10`);
       }
+    });
+    it('constructs C once from the same reusable builder without mutating B or changing the experiment', () => {
+      const original = structuredClone(document.plans[1]);
+      const c = createPackingExperiment(original, new Set(document.plans.map(plan => plan.id)), MESSAGES.en)!;
+      expect(original).toEqual(document.plans[1]);
+      expect(c.graph).toEqual(original.graph);
+      expect(c.graph).not.toBe(original.graph);
+      expect(c.deviceTypes).toEqual(original.deviceTypes);
+      expect(c.staff.slice(0, -1)).toEqual(original.staff);
+      expect(c.assignments.slice(0, -1)).toEqual(original.assignments);
+      const worker = c.staff.at(-1)!;
+      expect(worker).toEqual({ ...original.staff.find(item => item.id === 'pack-staff'), id: 'packing-support-1', name: MESSAGES.en.review.demoStaff });
+      expect(c.assignments.at(-1)).toEqual({ resourceUnitId: worker.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+      expect(c.scenarioId).toBe(original.scenarioId);
+      expect(c.sourcePlanId).toBe(original.id);
+      expect(createPackingExperiment(original, new Set([...document.plans.map(plan => plan.id), c.id]), MESSAGES.zh)!.id).not.toBe(c.id);
+      expect(createPackingExperiment({ ...original, staff: [] }, new Set(), MESSAGES.en)).toBeNull();
     });
   });
 

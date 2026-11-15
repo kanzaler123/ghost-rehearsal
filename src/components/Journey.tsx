@@ -139,7 +139,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= 6) ?? Math.ceil(span / 21600) * 3600;
   const ticks = [...new Set([...Array.from({ length: Math.floor(span / tickStep) + 1 }, (_, index) => index * tickStep), cutoff])];
   const stories = groupPicks(picks);
-  if (!a || (compare && !b)) return <p role="status">{t.evidence.missing}</p>;
+  if (compare && (!a || !b)) return <p role="status">{t.evidence.missing}</p>;
   return <div className="ghost-journey">
     <header className="journey-header">
       <div>{onOverview && <button type="button" className="text-btn" onClick={onOverview}><ArrowLeft size={14} aria-hidden="true" />{text.back}</button>}<h3>{text.title}</h3></div>

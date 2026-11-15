@@ -33,13 +33,13 @@ interface Props {
   planA: Plan; planB: Plan; runA?: SimulationRun; runB?: SimulationRun; scenario: Scenario; ready: boolean; changes: ChangeItem[];
   visitorId: string; featured?: string; nameOf: (id: string) => string;
   onFocus: (nodeIds: string[]) => void; onChoose: (id: string) => void;
-  compact?: boolean; basis?: ResultBasis; threshold?: WaitThreshold;
+  compact?: boolean; guided?: boolean; basis?: ResultBasis; threshold?: WaitThreshold;
   onBrowsePeople?: (filter: AffectedFilter) => void;
   onInspect?: (nodeIds: string[], planId: string) => void;
   onMoment?: (nodeIds: string[]) => void;
 }
 
-export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, basis = 'cutoff', threshold = THRESHOLD, onBrowsePeople, onInspect, onMoment }: Props) {
+export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, guided = false, basis = 'cutoff', threshold = THRESHOLD, onBrowsePeople, onInspect, onMoment }: Props) {
   const { t } = useI18n();
   const c = t.compare;
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups;
@@ -99,7 +99,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
     </Step>
 
     {data && a && b && <>
-      <Step key={`outcomes-${compact}`} index={2} title={c.steps.outcomes} icon={<Crosshair size={15} aria-hidden="true" />}>
+      <Step key={`outcomes-${compact}`} index={2} title={c.steps.outcomes} initiallyOpen={guided} icon={<Crosshair size={15} aria-hidden="true" />}>
         <Outcomes a={a} b={b} />
         <p className="report-note">{text.waitNote}</p>
       </Step>
@@ -156,7 +156,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
         </> : <p className="subtle">{c.whyNone}</p>}
       </Step>
 
-      <Step key={`cost-${compact}`} index={5} title={c.steps.cost} icon={<Coins size={15} aria-hidden="true" />}>
+      <Step key={`cost-${compact}`} index={5} title={c.steps.cost} initiallyOpen={guided} icon={<Coins size={15} aria-hidden="true" />}>
         <dl className="cost-list">
           {data.cost.devices.filter(item => item.a !== item.b).map(item => <div key={item.id} className="cost-row changed"><dt>{item.name}</dt><dd>{c.value(String(item.a), String(item.b))}<b className="cost-delta">{signed(item.b - item.a, String)}</b></dd></div>)}
           <div className={cls('cost-row', data.cost.staff[0] !== data.cost.staff[1] && 'changed')}><dt>{c.costStaff}</dt><dd>{c.value(String(data.cost.staff[0]), String(data.cost.staff[1]))}</dd></div>
