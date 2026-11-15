@@ -151,6 +151,9 @@ export function App() {
   const [documentIssues, setDocumentIssues] = useState<ValidationIssue[]>([]);
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
+  const projectRead = useRef(0);
+  const currentProject = useRef(project);
+  currentProject.current = project;
   const thresholdInput = useRef<HTMLSelectElement>(null);
   const checksTrigger = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -207,9 +210,30 @@ export function App() {
     : rehearsePicks(run, view, time), [run, comparing, comparison, view, time]);
   const unsaved = JSON.stringify(project) !== savedText;
 
-  function commit(next: ProjectDocument) {
-    if (JSON.stringify(next) === JSON.stringify(project)) return;
-    setPast(items => [...items, project].slice(-100)); setFuture([]); setProject(next);
+  function commit(next: ProjectDocument, previous = project) {
+    if (JSON.stringify(next) === JSON.stringify(previous)) return;
+    setPast(items => [...items, previous].slice(-100)); setFuture([]); setProject(next);
+  }
+  async function importProject(file: File) {
+    const request = ++projectRead.current;
+    let text: string;
+    try { text = await file.text(); }
+    catch {
+      if (request === projectRead.current) say(tr => tr.notices.fileReadFailed);
+      return;
+    }
+    if (request !== projectRead.current) return;
+    const result = readProject(text, lang);
+    setDocumentIssues(result.issues);
+    if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); }
+    else if (result.document) {
+      // Reading can outlive an edit; Undo must restore the latest project.
+      commit(result.document, currentProject.current);
+      setPlanId(result.document.plans[0].id);
+      setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id });
+      setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build');
+      setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported);
+    }
   }
   function changePlan(next: Plan) { commit({ ...project, plans: project.plans.map(item => item.id === next.id ? next : item) }); }
   function undo() { if (!past.length) return; setProject(past.at(-1)!); setPast(past.slice(0, -1)); setFuture([project, ...future]); setPlaying(false); }
@@ -460,6 +484,7 @@ export function App() {
     commit(next); setPlanId(copies[0].id); setSecondId(copies[1].id); setDialog(null); launch(copies, 'Compare', next);
   }
   function startNew(event: ProjectDocument) {
+    projectRead.current += 1;
     const next = dialog === 'welcome' ? event : addEvent(project, event);
     const first = next.plans[dialog === 'welcome' ? 0 : project.plans.length];
     commit(next); setPlanId(first.id); setSecondId(next.plans.find(item => item.id !== first.id && item.scenarioId === first.scenarioId)?.id ?? ''); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
@@ -504,7 +529,7 @@ export function App() {
   // Two Futures opens on a ghost whose futures differ, so the story is visible without searching.
   useEffect(() => { if (mode === 'Compare' && !busy && !interrupted) setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup, busy, interrupted]);
   useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
-  useEffect(() => () => worker.current?.terminate(), []);
+  useEffect(() => () => { worker.current?.terminate(); projectRead.current += 1; }, []);
   useEffect(() => {
     if (!unsaved) { try { localStorage.removeItem(DRAFT_KEY); } catch {} setDraftSaved(false); return; }
     if (dialog === 'welcome') { setDraftSaved(false); return; }
@@ -715,7 +740,12 @@ export function App() {
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
-    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); setDocumentIssues(result.issues); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id }); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={event => {
+      const file = event.target.files?.[0];
+      // Clear before awaiting so a failed read can retry the same file.
+      event.target.value = '';
+      if (file) void importProject(file);
+    }} />
     {!!documentIssues.length && <Modal title={t.stage.checksTitle} onClose={() => setDocumentIssues([])} wide>
       <div className="modal-body">{documentIssues.map((issue, index) => <div key={index} className={`check-item ${issue.severity}`}>
         <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
