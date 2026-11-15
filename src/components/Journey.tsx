@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 import { ArrowLeft, ArrowUpRight, Crosshair, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
+import { comparisonContext, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
 import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
@@ -69,9 +69,10 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const detailRef = useRef<HTMLElement>(null);
   const activeGroup = onGroupChange ? group : localGroup;
   const population = runs[0]?.population ?? [];
-  const a = statisticsAt(runs[0], basis), b = compare ? statisticsAt(runs[1], basis) : undefined;
-  const paired = useMemo(() => a && b ? affectedVisitors(a, b, activeGroup, threshold) : null, [a, b, activeGroup, threshold]);
-  const counts = useMemo(() => a && b ? affected(a, b, threshold) : null, [a, b, threshold]);
+  const context = useMemo(() => comparisonContext(runs[0], runs[1], basis, threshold), [runs[0], runs[1], basis, threshold]);
+  const a = compare ? context.a : statisticsAt(runs[0], basis), b = compare ? context.b : undefined;
+  const paired = compare ? context.select(activeGroup) : null;
+  const counts = compare ? context.counts : null;
   // Keep old evidence internally consistent while the surrounding workspace marks a run stale.
   const cutoff = basis === 'completion' ? Math.max(...runs.map(run => statisticsAt(run, basis)?.until ?? 0)) : a?.until ?? runs[0]?.request.scenario.observationCutoff ?? scenario.observationCutoff;
   const replayTime = Math.min(time, cutoff);
@@ -107,17 +108,17 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const pairMap = new Map(paired?.map(item => [item.id, item]));
   const outcomes = new Map(a?.visitors.map(item => [item.id, item]));
   const currentInGroup = !eligibleIds || eligibleIds.has(visitorId);
-  const firstInGroup = paired?.[0]?.id;
-  useEffect(() => { setPage(0); setQuery(''); }, [activeGroup, threshold, basis]);
+  const nextVisitor = context.selectedVisitor(visitorId, activeGroup);
+  useEffect(() => { setPage(0); setQuery(''); }, [activeGroup, threshold, basis, runs[0]?.inputKey, runs[1]?.inputKey]);
   useEffect(() => {
-    if (activeGroup && firstInGroup && !currentInGroup) onChoose(firstInGroup);
-  }, [activeGroup, firstInGroup, currentInGroup, onChoose]);
+    if (compare && nextVisitor !== visitorId) onChoose(nextVisitor);
+  }, [compare, nextVisitor, visitorId, onChoose]);
   function selectGroup(filter: AffectedFilter | undefined) {
     if (onGroupChange) onGroupChange(filter); else setLocalGroup(filter);
     setPage(0); setQuery('');
     if (a && b) {
-      const next = affectedVisitors(a, b, filter, threshold);
-      if (next.length && !next.some(item => item.id === visitorId)) onChoose(next[0].id);
+      const next = context.selectedVisitor(visitorId, filter);
+      if (next !== visitorId) onChoose(next);
     }
   }
   function chooseAndReveal(id: string) {
@@ -139,11 +140,11 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= 6) ?? Math.ceil(span / 21600) * 3600;
   const ticks = [...new Set([...Array.from({ length: Math.floor(span / tickStep) + 1 }, (_, index) => index * tickStep), cutoff])];
   const stories = groupPicks(picks);
-  if (compare && (!a || !b)) return <p role="status">{t.evidence.missing}</p>;
+  if (compare && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   return <div className="ghost-journey">
     <header className="journey-header">
       <div>{onOverview && <button type="button" className="text-btn" onClick={onOverview}><ArrowLeft size={14} aria-hidden="true" />{text.back}</button>}<h3>{text.title}</h3></div>
-      <StatisticsScope runs={runs} basis={basis} />
+      <StatisticsScope runs={runs} basis={basis} threshold={threshold} />
       <p className="journey-basis">{t.review[basis]} · {text.basis}</p>
       {basis === 'cutoff' && time > cutoff && <p className="journey-basis">{text.afterCutoff}</p>}
     </header>

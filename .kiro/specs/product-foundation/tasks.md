@@ -68,3 +68,7 @@
 提交：盘点与 Spec 为 `aef3baf`，比较实现为 `1da5495`，引导实现为 `a38917d`；最终测试、CI、中文措辞和记录在本段所在提交。最终 `npm run check` 为 12 文件、272 项及两组 TypeScript 检查通过；Pages 生产构建通过；浏览器 8/8 通过、75.972 秒、无重试或跳过。完整记录及中间失败见 [验证记录](../../../docs/validation-2026-11-15.md)。
 
 原先未勾选的完整输出契约、仿真语义/完整金标准、工作台正式键盘与恢复验收、原 Requirement 46 七场景分镜，以及实际 Kiro 会话证据仍未完成；没有把本轮 Codex 工作计入 Kiro 贡献。
+
+## 2026-11-15 并行发布 A 续作映射（Codex）
+
+比较任务继续沿用 `comparison-evidence-contract`（requirements 4、34–40）与 `guided-decision-demo`（44、46 的本次引导范围）。新增共享比较上下文与无效人物清理规则，修订 First_Divergence 定义及 4.8，保留同刻收敛和 210 秒回归。引导入口现位于比较总览与搭建侧栏；历史欢迎页入口已移除，Dialogs/Inspector 由 B 独占。A0 测试基础设施独立提交 `9462cc9` / Draft PR #4。历史 159、263、272 项记录原样保留；本次验证及集成需求见 `docs/reviews/comparison-demo.md`，独立 review 仍待完成。

@@ -23,7 +23,9 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   page.on('worker', worker => workers.push(worker.url()));
   await page.addInitScript(value => localStorage.setItem('ghost-rehearsal.lang', value), lang);
   await page.goto('./');
-  await page.getByRole('dialog').getByRole('button', { name: t.guide.start, exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: t.common.closeDialog, exact: true }).click();
+  const originalProject = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
+  await page.getByRole('button', { name: t.guide.start, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   const outcome = (key: keyof Messages['compare']['rows']) => page.locator('.outcome-table').getByRole('row').filter({ has: page.getByRole('rowheader', { name: t.compare.rows[key], exact: true }) });
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
@@ -58,6 +60,8 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   expect(report).toContain(`${t.evidence.anyGroups.less}: 66`);
   expect(report).toContain(`${t.evidence.completed}: n=43`);
   await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('60');
+  await page.locator('.people-stats button').first().click();
+  await expect(page.locator('.ghost-id code')).toHaveText('main-stream:20');
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
   await expect(page.locator('.ghost-id code')).toHaveText('side-stream:10');
   await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).click();
@@ -76,6 +80,8 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(outcome('completed').locator('td').nth(1)).toHaveText('72');
   await expect(outcome('unfinished').locator('td').nth(1)).toHaveText('218');
   await expect(outcome('left').locator('td').nth(1)).toHaveText('10');
+  await outcome('left').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('bc-outcomes.png'), fullPage: true });
   await expect(guide).toContainText(t.guide.mapping);
   await guide.getByRole('button', { name: t.guide.resources, exact: true }).click();
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').first().locator('td')).toHaveText(['3', '4', '+1']);
@@ -97,6 +103,8 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   const projectText = await exportFromMenu(page, t, t.dialogs.exportProject);
   const project = JSON.parse(projectText) as ProjectDocument;
   expect(project.plans).toHaveLength(4);
+  expect(project.plans.slice(0, originalProject.plans.length)).toEqual(originalProject.plans);
+  expect(project.scenarios.slice(0, originalProject.scenarios.length)).toEqual(originalProject.scenarios);
   const c = project.plans.find(plan => plan.staff.length === 4)!;
   const b = project.plans.find(plan => plan.id === c.sourcePlanId)!;
   expect(c.graph).toEqual(b.graph);
@@ -116,6 +124,13 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   expect(repeated.plans).toHaveLength(4);
   await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
   await expect(guide).toHaveCount(0);
+  await page.locator('.is-report').getByRole('button', { name: t.guide.start, exact: true }).click();
+  await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
+  const restarted = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
+  expect(restarted.plans.slice(0, repeated.plans.length)).toEqual(repeated.plans);
+  expect(restarted.scenarios.slice(0, repeated.scenarios.length)).toEqual(repeated.scenarios);
+  expect(new Set(restarted.plans.map(plan => plan.id)).size).toBe(restarted.plans.length);
+  await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
   await page.locator('input[type=file]').first().setInputFiles({ name: 'roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(projectText) });
   expect(await exportFromMenu(page, t, t.dialogs.exportProject)).toBe(projectText);
@@ -131,6 +146,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
 });
 
 test('real Worker: not-arrived guests, empty completed sample, stale and missing final results', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   const scenario: Scenario = { id: 'scope', seed: 42, observationCutoff: 5, horizon: 25, attributes: [], assumptionOverrides: [],
     arrivalStreams: [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: [0, 0, 100].map((arrivalTime, index) => ({ id: `p${index}`, arrivalTime, attributes: {} })) }] };
@@ -141,7 +157,10 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
         duration: { kind: 'fixed', value: 10, provenance: { kind: 'synthetic' } }, openWindows: [] },
       { id: 'exit', type: 'exit', name: 'Exit', layout: { x: 600, y: 0 } },
     ], edges: [{ id: 'in-service', source: 'entrance', target: 'service' }, { id: 'service-out', source: 'service', target: 'exit' }] } };
-  const document: ProjectDocument = { format: 'ghost-rehearsal', schemaVersion: 1, scenarios: [scenario], plans: [plan, { ...structuredClone(plan), id: 'b', name: 'B' }] };
+  const alternative = { ...structuredClone(plan), id: 'b', name: 'B' };
+  const service = alternative.graph.nodes[1];
+  if (service.type === 'service' && service.duration.kind === 'fixed') service.duration.value = 9;
+  const document: ProjectDocument = { format: 'ghost-rehearsal', schemaVersion: 1, scenarios: [scenario], plans: [plan, alternative] };
   const errors: string[] = [], workers: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -161,6 +180,13 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await page.locator('.people-stats button').last().click();
   await expect(page.locator('.people-list .people-result')).toHaveCount(2);
   await expect(page.locator('.people-list')).not.toContainText('p2');
+  await page.locator('.people-filter select').selectOption('less');
+  await expect(page.locator('.people-list .people-result')).toHaveCount(0);
+  await expect(page.locator('.ghost-id')).toHaveCount(0);
+  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('0');
+  await expect(page.locator('.ghost-id')).toHaveCount(0);
+  await page.locator('.people-filter select').selectOption('all');
+  await expect(page.locator('.ghost-id code')).toHaveText('guests:p0');
   await page.locator('.journey-header button').first().click();
 
   await page.locator('.workspace-menu > summary').click();
@@ -177,6 +203,12 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await page.getByLabel(t.review.basis, { exact: true }).selectOption('completion');
   await expect(scope).toContainText(t.evidence.side('00:25', 2, 1, 0));
   await expect(scope).toContainText(t.evidence.limit);
+  await page.locator('.people-stats button').first().click();
+  await expect(page.locator('.ghost-id code')).toHaveText('guests:p1');
+  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('60');
+  await expect(page.locator('.people-list .people-result')).toHaveCount(0);
+  await expect(page.locator('.ghost-id')).toHaveCount(0);
+  await page.locator('.journey-header button').first().click();
   const final = await exportFromMenu(page, t, t.evidence.comparison);
   expect(final).toContain(`${t.outcomes.completed}: 2`);
   expect(final).toContain(`${t.outcomes.not_arrived}: 1`);
@@ -195,5 +227,14 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await expect(scope).toContainText(t.evidence.side('00:05', 2, 1, 0));
   expect(workers).toHaveLength(3);
   expect(workers.every(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
+  const preserved = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
+  await page.locator('.is-report').getByRole('button', { name: t.guide.start, exact: true }).click();
+  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  const retained = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
+  for (const plan of preserved.plans) expect(retained.plans.find(item => item.id === plan.id)).toEqual(plan);
+  for (const scenario of preserved.scenarios) expect(retained.scenarios.find(item => item.id === scenario.id)).toEqual(scenario);
+  expect(retained.plans).toHaveLength(preserved.plans.length + 2);
+  expect(retained.scenarios).toHaveLength(preserved.scenarios.length + 1);
+  await page.getByRole('region', { name: t.guide.title }).getByRole('button', { name: t.guide.exit, exact: true }).click();
   expect([...new Set(errors)]).toEqual([]);
 });

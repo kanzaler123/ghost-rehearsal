@@ -46,7 +46,7 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onImport, onClose, onDemo }: { onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void; onDemo?: () => void }) {
+export function EventCreator({ onCreate, onExample, onImport, onClose }: { onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
@@ -77,7 +77,7 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, onDemo }:
           <option value="blank">{t.templates.blank}</option><option value="haunted">{t.templates.haunted.name}</option><option value="candy">{t.templates.candy.name}</option>
         </select></Field>
         <p className="form-error" role="alert">{error}</p>
-        <div className="event-start-options">{onDemo && <button type="button" className="btn accent" onClick={onDemo}>{t.guide.start}</button>}<button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" onClick={onImport}>{t.eventSetup.import}</button></div>
+        <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" onClick={onImport}>{t.eventSetup.import}</button></div>
       </div>
       <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>

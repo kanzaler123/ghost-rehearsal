@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import type { Plan } from '../schemas';
 import { assignmentDescription, durationDescription, formatTime, nodeInstructions } from '../features/project';
-import { affectedVisitors, nodeEvidence, pairedVisitors, statisticsAt, THRESHOLD, visitorName } from '../features/analysis';
+import { comparisonContext, nodeEvidence, statisticsAt, THRESHOLD, visitorName } from '../features/analysis';
 import type { ResultBasis, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { SimulationEvent, SimulationRun } from '../simulation/types';
@@ -47,12 +47,13 @@ interface InsightsProps {
 export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD, initialEvidence }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
-  const stats = statisticsAt(run, basis);
-  const secondStats = compare && comparisonReady ? statisticsAt(second, basis) : null;
+  const context = useMemo(() => comparisonContext(run, second, basis, threshold, comparisonReady), [run, second, basis, threshold, comparisonReady]);
+  const stats = compare ? context.a : statisticsAt(run, basis);
+  const secondStats = compare ? context.b : null;
   const [group, setGroup] = useState<'less' | 'more' | 'same' | null>(null);
   const [selected, setSelected] = useState<{ id: string; owner: string } | null>(initialEvidence ?? null);
-  const pairs = useMemo(() => second && compare && comparisonReady ? pairedVisitors(run, second, basis) : [], [run, second, compare, comparisonReady, basis]);
-  const groups = Object.fromEntries((['less', 'more', 'same'] as const).map(key => [key, stats && secondStats ? affectedVisitors(stats, secondStats, key, threshold) : []]));
+  const pairs = compare ? context.visitors : [];
+  const groups = Object.fromEntries((['less', 'more', 'same'] as const).map(key => [key, context.select(key)]));
   const groupLabels = threshold ? t.evidence.groups : t.evidence.anyGroups;
   const transitions = new Map<string, number>();
   pairs.filter(pair => pair.a.outcome !== pair.b.outcome).forEach(pair => { const key = `${pair.a.outcome}:${pair.b.outcome}`; transitions.set(key, (transitions.get(key) ?? 0) + 1); });
@@ -75,9 +76,9 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
     const resource = change.kind === 'staff' ? plan.staff.find(item => item.id === change.id) : plan.deviceTypes.find(item => item.id === change.id);
     return resource ? `${resource.name}: ${'quantity' in resource ? resource.quantity : resource.skillIds.join(', ')}; ${resource.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ')}; ${t.report.unavailable}: ${resource.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}` : '—';
   };
-  if (compare && (!stats || !secondStats)) return <p role="status">{t.evidence.missing}</p>;
+  if (compare && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   return <div className={cls('analysis-panel', !!initialEvidence && 'has-target')}>
-    <StatisticsScope runs={secondStats && second ? [run, second] : [run]} basis={basis} />
+    <StatisticsScope runs={secondStats && second ? [run, second] : [run]} basis={basis} threshold={threshold} />
     {compare && secondStats && <section className="paired-summary">
       <h3>{t.review.paired}</h3>
       <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{groups[key].length}</b> {groupLabels[key]}</button>)}</div>

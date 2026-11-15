@@ -437,12 +437,37 @@ export function compatibleRuns(a: SimulationRun, b: SimulationRun): boolean {
     && a.modelVersion === b.modelVersion && a.request.runMode === b.request.runMode;
 }
 
+export function comparisonContext(a: SimulationRun | undefined, b: SimulationRun | undefined, basis: ResultBasis, threshold: WaitThreshold = THRESHOLD, fresh = true) {
+  const left = statisticsAt(a, basis), right = statisticsAt(b, basis);
+  const status: 'missing-run' | 'incompatible' | 'stale' | 'missing-final' | 'ready' = !a || !b ? 'missing-run' : !compatibleRuns(a, b) ? 'incompatible' : !fresh ? 'stale'
+    : !left || !right ? basis === 'completion' ? 'missing-final' : 'missing-run' : 'ready';
+  const select = (filter?: AffectedFilter) => status === 'ready' ? affectedVisitors(left!, right!, filter, threshold) : [];
+  const visitors = select();
+  const featured = status === 'ready' ? featuredGhost(left!, right!) : undefined;
+  return {
+    status, basis, threshold, rule: threshold === 60 ? 'at-least-one-minute' as const : 'any-change' as const,
+    population: 'paired-arrived' as const, sampleSize: visitors.length,
+    sides: [a, b].map((run, index) => {
+      const stats = index ? right : left;
+      return run ? { planId: run.request.plan.id, name: run.request.plan.name, inputKey: run.inputKey, scenarioKey: run.scenarioKey, modelVersion: run.modelVersion,
+        until: stats?.until ?? null, arrived: stats?.arrived ?? null, notArrived: stats?.outcomes.not_arrived ?? null,
+        unpaired: status === 'ready' ? stats!.arrived - visitors.length : null,
+        runLimit: basis === 'completion' && !!stats && stats.until >= run.request.scenario.horizon && stats.outcomes.unfinished + stats.outcomes.not_arrived > 0 } : null;
+    }),
+    a: status === 'ready' ? left : null, b: status === 'ready' ? right : null,
+    visitors, select, featured,
+    counts: status === 'ready' ? affected(left!, right!, threshold) : null,
+    picks: (size = 3) => status === 'ready' ? comparePicks(left!, right!, size, threshold) : [],
+    selectedVisitor: (id: string, filter?: AffectedFilter) => {
+      const eligible = select(filter);
+      return eligible.some(item => item.id === id) ? id : (!filter && featured) || eligible[0]?.id || '';
+    },
+  };
+}
+
 export interface VisitorPair { id: string; a: VisitorMetrics; b: VisitorMetrics; delta: number }
 export function pairedVisitors(a: SimulationRun, b: SimulationRun, basis: ResultBasis): VisitorPair[] {
-  if (!compatibleRuns(a, b)) return [];
-  const left = statisticsAt(a, basis), right = statisticsAt(b, basis);
-  if (!left || !right) return [];
-  return pairs(left, right);
+  return comparisonContext(a, b, basis).visitors;
 }
 
 export function nodeEvidence(run: SimulationRun, nodeId: string, basis: ResultBasis) {

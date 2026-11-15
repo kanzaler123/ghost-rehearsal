@@ -6,7 +6,7 @@ import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
 import { MESSAGES } from '../i18n/messages';
 import type { Lang, Messages } from '../i18n/messages';
-import { affected, compatibleRuns, completedWaiting, costOf, statisticsAt } from './analysis';
+import { comparisonContext, completedWaiting, costOf, statisticsAt } from './analysis';
 import type { ResultBasis, WaitThreshold } from './analysis';
 
 export const NODE_TYPES: Node['type'][] = ['entrance', 'service', 'decision', 'waiting_area', 'merge', 'exit', 'subflow'];
@@ -302,9 +302,9 @@ export function executionReport(plan: Plan, scenario: Scenario, run?: Simulation
 }
 
 export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun | undefined, ready: boolean, t: Messages, basis: ResultBasis, threshold: WaitThreshold): string {
-  const left = statisticsAt(a, basis), right = statisticsAt(b, basis);
-  if (!ready || !a || !b || !compatibleRuns(a, b) || !left || !right) return t.report.noRun;
-  const people = affected(left, right, threshold), costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
+  const context = comparisonContext(a, b, basis, threshold, ready), { a: left, b: right, counts: people } = context;
+  if (!a || !b || !left || !right || !people) return t.report.noRun;
+  const costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups, bins = threshold ? t.evidence.bins : t.evidence.anyBins;
   return [`## ${t.evidence.comparison}`, '', `A: ${a.request.plan.name} (${a.request.plan.id})`, `B: ${b.request.plan.name} (${b.request.plan.id})`,
     `${t.review.basis}: ${t.review[basis]}`, `${t.evidence.threshold}: ${threshold ? t.evidence.minute : t.evidence.any}`, t.evidence.rule,
@@ -312,7 +312,7 @@ export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun 
     ...[left, right].flatMap((stats, index) => {
       const completed = completedWaiting(stats), run = index ? b : a;
       return [`${index ? 'B' : 'A'}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
-        t.report.model(run.modelVersion, run.request.scenario.id, t.review[basis]), `Input SHA-256: ${run.inputKey}`,
+        t.report.model(run.modelVersion, run.request.scenario.id, t.review[basis]), `Input SHA-256: ${run.inputKey}`, `Scenario SHA-256: ${run.scenarioKey}`,
         t.report.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join('; ')),
         t.report.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)),
         `${t.evidence.completed}: n=${completed.n}`, t.report.waits(t.formatWait(completed.average), t.formatWait(completed.p90)),

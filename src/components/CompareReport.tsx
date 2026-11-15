@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { ArrowRight, CircleMinus, CirclePlus, Coins, Crosshair, PencilLine, Route, Star, Users } from 'lucide-react';
 import type { Node, Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, comparePicks, costOf, stationWaits, statisticsAt, totalWait, THRESHOLD } from '../features/analysis';
+import { comparisonContext, costOf, stationWaits, totalWait, THRESHOLD } from '../features/analysis';
 import type { ResultBasis, AffectedFilter, ChangeItem, StationRow, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
@@ -44,13 +44,13 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   const c = t.compare;
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups;
   const bins = threshold ? t.evidence.bins : t.evidence.anyBins;
-  const a = ready ? statisticsAt(runA, basis) : null;
-  const b = ready ? statisticsAt(runB, basis) : null;
+  const context = useMemo(() => comparisonContext(runA, runB, basis, threshold, ready), [runA, runB, basis, threshold, ready]);
+  const { a, b } = context;
   const routes = changes.filter(item => item.kind === 'edge');
   const main = changes.filter(item => item.kind !== 'edge');
   const data = useMemo(() => a && b ? {
-    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: affected(a, b, threshold), cost: costOf(planA, planB, scenario, a, b, basis), picks: groupPicks(comparePicks(a, b, 1, threshold)),
-  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis, threshold]);
+    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: context.counts!, cost: costOf(planA, planB, scenario, a, b, basis), picks: groupPicks(context.picks(1)),
+  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis, context]);
   const stationName = (row: StationRow) => list([...new Set([...row.a.map(id => nameIn([planA], id)), ...row.b.map(id => nameIn([planB], id))])], t);
   const signed = (value: number, format: (value: number) => string) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`;
   const cutoff = formatTime(scenario.observationCutoff);
@@ -63,7 +63,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   };
   function browse(filter: AffectedFilter) {
     if (!a || !b) return;
-    const people = affectedVisitors(a, b, filter, threshold);
+    const people = context.select(filter);
     if (people.length && !people.some(person => person.id === visitorId)) onChoose(people[0].id);
     // Choosing a person may clear an earlier group; the requested group is the final state.
     onBrowsePeople?.(filter);
@@ -75,10 +75,10 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
       <div className="report-plans"><span className="ab-badge">A</span><b>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b>{planB.name}</b></div>
       <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : t.review.completion}</p>
     </header>
-    {ready && runA && runB && <StatisticsScope runs={[runA, runB]} basis={basis} />}
+    {ready && runA && runB && <StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} />}
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && !compact && <Verdict a={a} b={b} data={data} stationName={stationName} />}
-    {!ready && <p className="report-stale">{c.stale}</p>}
+    {!ready && <p className="report-stale">{t.evidence.unavailable[context.status]}</p>}
 
     <Step key={`changes-${compact}`} index={1} title={`${c.steps.changed} · ${changes.length}`} icon={<PencilLine size={15} aria-hidden="true" />}>
       {!changes.length && <p className="subtle">{c.noChanges}</p>}

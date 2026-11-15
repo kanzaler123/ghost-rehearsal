@@ -45,6 +45,11 @@ const en = {
     subgroupNote: 'Each side selects its own completed guests; these are not necessarily the same people.',
     limit: 'Run limit reached with unfinished or not-arrived guests.',
     missing: 'No usable result for this statistics basis. Run both plans to completion to view final results.',
+    unavailable: {
+      ready: '', 'missing-run': 'Run both plans to compare their results.', stale: 'Run both plans again for a fresh comparison.',
+      'missing-final': 'No usable result for this statistics basis. Run both plans to completion to view final results.',
+      incompatible: 'These runs use different scenarios, model versions or run scopes, or did not finish successfully. Rerun a compatible pair.',
+    },
     comparison: 'Comparison evidence', ends: 'Actual statistics ends',
   },
   review: {
@@ -458,6 +463,11 @@ const zh: Messages = {
     subgroupNote: '两侧分别取各自已完成者，不保证是同一批人。',
     limit: '达到运行上限，仍有未完成或未到达者。',
     missing: '此统计口径暂无可用结果；查看最终统计需要将两个方案运行到完成。',
+    unavailable: {
+      ready: '', 'missing-run': '请运行两个方案后比较结果。', stale: '请重新运行两个方案，获得最新比较。',
+      'missing-final': '此统计口径暂无可用结果；查看最终统计需要将两个方案运行到完成。',
+      incompatible: '两次运行的场景、模型版本或运行范围不一致，或未成功结束。请重跑兼容的两个方案。',
+    },
     comparison: '比较证据', ends: '实际统计结束时间',
   },
   review: {

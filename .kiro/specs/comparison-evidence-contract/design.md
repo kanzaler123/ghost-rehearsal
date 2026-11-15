@@ -6,3 +6,4 @@
 - Select each side's Statistics without fallback. Display per-side sample/ends and completed-only n/average/P90. Resource schedules are clipped to the corresponding `Statistics.until`.
 - The comparison export reuses the same analysis functions as the UI. Freshness and run compatibility are checked before adding evidence; no fabricated zeroes for missing results.
 - Unit coverage: exact boundaries, empty/unmatched/not-arrived populations, early leaving, run limits, unequal final ends, missing final/stale/incompatible results. Real Worker/browser acceptance is recorded in the demo Spec and shared validation report.
+- `comparisonContext` in `analysis.ts` is the shared selector for App, overview, Journey, Insights, sample labels and export. It reuses the existing pairing/classification functions, includes identities and explicit unavailable states, and supplies one selection replacement/clearing rule.
