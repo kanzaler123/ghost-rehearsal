@@ -41,3 +41,25 @@ not fix it (43762701062: 5 failures in 12 runs). That experiment and the
 instrumentation were removed, and the full focused WebKit command restored.
 The callback sequence narrows the investigation but does not establish the
 root cause. These experiments are not successful validation of the candidate.
+
+Follow-up isolation (43763283149, temporary candidate 5238897) ran desktop
+smoke in both languages, twice per variant, retaining strict error assertions:
+
+| Diagnostic variant | Passed | Failed |
+| --- | ---: | ---: |
+| Native observers | 2 | 2 |
+| Defer only node callbacks | 0 | 4 |
+| Defer only renderer callbacks | 4 | 0 |
+| Defer all callbacks | 4 | 0 |
+
+These small samples implicate the renderer notification path; they do not prove
+that a global observer wrapper is safe. No such wrapper is included in the
+application. A narrower application experiment deferred card detail changes
+caused by zoom (43763687359, candidate 9c1e81a); native WebKit still failed
+3 of 12 smoke runs. Its local 452 unit and 4 Chromium smoke passes do not
+resolve those WebKit failures. This experiment was also removed.
+
+The next investigation should minimize the renderer resize reproduction and
+separate React Flow's container-size store update from its pane-extent cache
+update. Root cause and a reliable production fix remain unconfirmed. Original
+error assertions and the full focused WebKit command remain in place.
