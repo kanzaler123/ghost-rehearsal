@@ -1,0 +1,18 @@
+body:has(.data-sources-lab) { margin: 0; background: #f6f4ee; color: #232d2d; font-family: system-ui, sans-serif; }
+.data-sources-lab { max-width: 1320px; margin: auto; padding: 24px; line-height: 1.55; }
+.data-sources-lab h1 { margin: 4px 0 16px; }
+.data-sources-lab header > p { max-width: 900px; }
+.data-sources-lab-targets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+.data-sources-lab-targets label { display: grid; gap: 8px; min-width: 0; }
+.data-sources-lab select, .data-sources-lab button { font: inherit; max-width: 100%; min-height: 44px; }
+.data-sources-lab-editors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.data-sources-lab-project { margin-top: 24px; padding: 20px; border: 1px solid #b7c8c1; border-radius: 12px; background: white; }
+.data-sources-lab-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.data-sources-lab-project pre { overflow: auto; max-height: 360px; padding: 16px; background: #f1f5f3; font-size: 12px; }
+.data-sources-lab summary { cursor: pointer; padding: 12px 0; }
+.data-sources-lab :focus-visible { outline: 3px solid #237b67; outline-offset: 3px; }
+@media (max-width: 760px) {
+  .data-sources-lab { padding: 14px; }
+  .data-sources-lab-targets, .data-sources-lab-editors { grid-template-columns: minmax(0, 1fr); }
+  .data-sources-lab-project { padding: 14px; }
+}
