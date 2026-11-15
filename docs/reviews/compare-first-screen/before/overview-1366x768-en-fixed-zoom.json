@@ -1,0 +1,278 @@
+{
+  "phase": "before",
+  "lang": "en",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "scrollPolicy": "first-screen zero scroll",
+  "case": "A/B/C guide synthetic Open House A/B",
+  "seed": 20261114,
+  "replayTime": 210,
+  "basis": "cutoff",
+  "waitingThreshold": 60,
+  "guest": null,
+  "guideStep": 0,
+  "arrangement": "auto",
+  "runMode": "run_to_completion",
+  "requestedCanvasZoom": 0.6,
+  "pointerPosition": [
+    0,
+    0
+  ],
+  "canvasZoomPolicy": "native mouse wheel to 0.5 then 0.6 per canvas",
+  "pageZoom": 1,
+  "reducedMotion": "reduce",
+  "projectSha256": "4d5670c10ae679d2792f93147d0e707399cfcd75897323f59168f6e543f96660",
+  "scenarios": [
+    {
+      "id": "open-house",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    },
+    {
+      "id": "scenario-1",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    }
+  ],
+  "workers": [
+    "http://127.0.0.1:4180/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": [],
+  "geometry": {
+    "innerWidth": 1366,
+    "innerHeight": 768,
+    "documentWidth": 1366,
+    "devicePixelRatio": 1,
+    "zoom": "1",
+    "scrollY": 0,
+    "canvases": [
+      {
+        "pane": {
+          "x": 336,
+          "y": 456.546875,
+          "width": 982,
+          "height": 99.5,
+          "right": 1318,
+          "bottom": 556.046875
+        },
+        "flow": {
+          "x": 336,
+          "y": 496.546875,
+          "width": 982,
+          "height": 59.5,
+          "right": 1318,
+          "bottom": 556.046875
+        },
+        "viewport": "transform: translate(67.8px, 106.8px) scale(0.6);",
+        "zoom": 0.6,
+        "stages": [
+          {
+            "name": "Arrival",
+            "rect": {
+              "x": 403.79998779296875,
+              "y": 544.546875,
+              "width": 141.60003662109375,
+              "height": 132.1500244140625,
+              "right": 545.4000244140625,
+              "bottom": 676.6968994140625
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Check & recheck",
+            "rect": {
+              "x": 583.7999877929688,
+              "y": 544.546875,
+              "width": 141.60003662109375,
+              "height": 132.1500244140625,
+              "right": 725.4000244140625,
+              "bottom": 676.6968994140625
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Activities",
+            "rect": {
+              "x": 1080.60009765625,
+              "y": 544.546875,
+              "width": 141.599853515625,
+              "height": 132.1500244140625,
+              "right": 1222.199951171875,
+              "bottom": 676.6968994140625
+            },
+            "fullyVisible": false
+          }
+        ]
+      },
+      {
+        "pane": {
+          "x": 336,
+          "y": 556.046875,
+          "width": 982,
+          "height": 100.5,
+          "right": 1318,
+          "bottom": 656.546875
+        },
+        "flow": {
+          "x": 336,
+          "y": 597.046875,
+          "width": 982,
+          "height": 59.5,
+          "right": 1318,
+          "bottom": 656.546875
+        },
+        "viewport": "transform: translate(67.8px, 106.8px) scale(0.6);",
+        "zoom": 0.6,
+        "stages": [
+          {
+            "name": "Arrival",
+            "rect": {
+              "x": 403.79998779296875,
+              "y": 645.046875,
+              "width": 141.60003662109375,
+              "height": 132.1500244140625,
+              "right": 545.4000244140625,
+              "bottom": 777.1968994140625
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Check & recheck",
+            "rect": {
+              "x": 583.7999877929688,
+              "y": 645.046875,
+              "width": 141.60003662109375,
+              "height": 132.1500244140625,
+              "right": 725.4000244140625,
+              "bottom": 777.1968994140625
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Activities",
+            "rect": {
+              "x": 1080.60009765625,
+              "y": 645.046875,
+              "width": 141.599853515625,
+              "height": 132.1500244140625,
+              "right": 1222.199951171875,
+              "bottom": 777.1968994140625
+            },
+            "fullyVisible": false
+          }
+        ]
+      }
+    ],
+    "elements": {
+      ".topbar": {
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1366,
+          "height": 64,
+          "right": 1366,
+          "bottom": 64
+        },
+        "fullyVisible": true,
+        "text": "Ghost Rehearsal\nTwo-Entrance Open House · Plan A · Baseline\nBuild\nRehearse\nTwo Futures\nRun rehearsal\nDraft saved\nEN\n中文"
+      },
+      ".guided-demo": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 1366,
+          "height": 114.1875,
+          "right": 1366,
+          "bottom": 178.1875
+        },
+        "fullyVisible": true,
+        "text": "A/B/C decision guide · 1/6 · Compare A/B\nExit guide\n\nSynthetic Open House: read completions, unfinished guests, departures, waiting and costs together. B changes several arrangements at once.\n\nFollow the same guest\nRerun this comparison\nReset guide"
+      },
+      ".comparison-identities": {
+        "rect": {
+          "x": 0,
+          "y": 178.1875,
+          "width": 1366,
+          "height": 31.84375,
+          "right": 1366,
+          "bottom": 210.03125
+        },
+        "fullyVisible": true,
+        "text": "A · Plan A · Baseline\nB · Plan B · Two check-in lanes"
+      },
+      ".comparison-settings": {
+        "rect": {
+          "x": 0,
+          "y": 210.03125,
+          "width": 1366,
+          "height": 51,
+          "right": 1366,
+          "bottom": 261.03125
+        },
+        "fullyVisible": true,
+        "text": "Statistics basis\nObservation cutoff\nFinal / run limit\nWaiting change rule\nAt least 60 seconds\nAny change\nRun to completion to enable final statistics. Final can still include unfinished guests at the run limit."
+      },
+      ".stage-head": {
+        "rect": {
+          "x": 336,
+          "y": 261.03125,
+          "width": 982,
+          "height": 40,
+          "right": 1318,
+          "bottom": 301.03125
+        },
+        "fullyVisible": true,
+        "text": "Same guests · two arrangements\nAuto\nTop-bottom\nLeft-right\nOverview\nGuest journey\nStages\nFull map"
+      },
+      ".comparison-live": {
+        "rect": {
+          "x": 336,
+          "y": 351.71875,
+          "width": 982,
+          "height": 104.828125,
+          "right": 1318,
+          "bottom": 456.546875
+        },
+        "fullyVisible": true,
+        "text": "A · Plan A · Baseline\nReplay 03:30\nIn the flow\n54\nWaiting\n50\nBeing served\n4\nFinished\n2\nLongest queues nowID check · 35 waiting\nB · Plan B · Two check-in lanes\nReplay 03:30\nIn the flow\n53\nWaiting\n50\nBeing served\n3\nFinished\n3\nLongest queues nowSecond check lane · 21 waiting"
+      },
+      ".run-state-card": {
+        "rect": {
+          "x": 336,
+          "y": 301.03125,
+          "width": 982,
+          "height": 50.6875,
+          "right": 1318,
+          "bottom": 351.71875
+        },
+        "fullyVisible": true,
+        "text": "Run complete\n\nRecorded results are ready to inspect at the selected statistics basis.\n\nPlay replay"
+      },
+      ".dock": {
+        "rect": {
+          "x": 336,
+          "y": 656.546875,
+          "width": 982,
+          "height": 101.296875,
+          "right": 1318,
+          "bottom": 757.84375
+        },
+        "fullyVisible": false,
+        "text": "REPLAY\n03:30\n120:00\n0.5×\n1×\n2×\n4×\n8×\n1× = 30 s/s\nOne ghost, two futures\nWaits and evidence\nResource use\nEvent log\nBeing served\nWaiting\nChange an assumption\n\n12 items · Side entrance #10 · Queuing at ID check for 2.2 min"
+      },
+      ".dock-body": null,
+      ".ghost-card": null,
+      ".ghost-futures": null,
+      ".diff-note": null,
+      ".lanes": null,
+      ".ghost-stories": null
+    },
+    "lanes": [],
+    "report": "TWO FUTURES\nRead the two futures\nA\nPlan A · Baseline\nB\nPlan B · Two check-in lanes\n\nBoth plans use the same group of guests · B relative to A\n\nResults at cutoff 30:00. The canvases replay earlier moments.\n\nFinished\n−2\nRegression\nA 43 → B 41\nAverage wait per guest\n−2.4 s\nGain\nDiffers below display precision\nA 17.6 min → B 17.6 min\nLeft early or turned away\n+2\nRegression\nA 4 → B 6\nNot finished\n0\nNo change\nA 253 → B 253\nResource cost\nID scanner · A 1 → B 2 \n+1\nCost\nDevice time in the window · A 0.5 h → B 1.0 h \n+0.5 h\nCost\nCounts, schedules and overtime in the selected statistics window\nInspect the evidence\nGains\nAverage wait per guest \n−2.4 s\nGain\nDiffers below display precision\nTotal waiting, all guests \n−11.9 person-min\nGain\nRegressions\nFinished \n−2\nRegression\nLeft early or turned away \n+2\nRegression\nCosts\nID scanner \n+1\nCost\nDevice time in the window \n+0.5 h\nCost\nObservation cutoff · A 30:00 / B 30:00 · Sample n 300\n\nPrimary waiting: all arrived guests, including unfinished and early departures.\n\nPaired waiting sample: n=300, arrived on both sides with the same ID.\n\nPlan A · Baseline · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0\n\nPlan B · Two check-in lanes · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0\n\nCompleted only · secondary waiting sample\n1\nWhat changed · 13\n2\nWhat the results did\nMeasure\t\nA\n\t\nB\n\tB − A\nFinished\t43\t41\t\n−2\nRegression\n\nNot finished\t253\t253\t\n0\nNo change\n\nLeft early or turned away\t4\t6\t\n+2\nRegression\n\nAverage wait per guest\t17.6 min\t17.6 min\t\n−2.4 s\nGain\nDiffers below display precision\n\nP90 wait\t25.8 min\t25.8 min\t\n0.0 s\nNo change\n\nTotal waiting, all guests\t5,288.6 person-min\t5,276.7 person-min\t\n−11.9 person-min\nGain\n\nRead waiting alongside completions and departures; leaving early can also shorten a wait.\n\n3\nWho was affected\n\n300 arrived guests in both futures\n\n12\nWaited ≥60 s less\n9\nWaited ≥60 s more\n279\nChanged by <60 s\n\nB − A waiting, at millisecond resolution; bins are in minutes. Negative means less waiting, not necessarily a better outcome.\n\nChange in each guest’s wait, B − A (minutes)\n7 finished only in B\n9 finished only in A\n\nFollow one of them:\n\nSide entrance #10\nFinished only in B · 10:55\nWaited less in B · −19.6 min\nSide entrance #2\nWaited more in B · +24.6 min\nFinished only in A · 06:40\n4\nWhere waiting changed\n5\nWhat it costs\nStaff\n3 → 3\n0\nNo change\nID scanner\n1 → 2\n+1\nCost\nStaffed time in the window\n1.5 h → 1.5 h\n0.0 h\nNo change\nDevice time in the window\n0.5 h → 1.0 h\n+0.5 h\nCost\nOvertime\n0.0 s → 0.0 s\n0.0 s\nNo change\nBusy share of available time\nCheck-in staff\n73% → 100%\nFloater\n78% → 98%\nKit staff\n94% → 94%\nID scanner 1\n100% → 82%\nID scanner 2\n— → 80%\nStaffed and device time come from shifts inside the selected statistics window.",
+    "scope": "Primary waiting: all arrived guests, including unfinished and early departures.Paired waiting sample: n=300, arrived on both sides with the same ID.Plan A · Baseline · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Plan B · Two check-in lanes · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Completed only · secondary waiting sampleEach side selects its own completed guests; these are not necessarily the same people.Plan A · Baseline · Sample n=43 · Average wait per guest: 10.4 min · P90 wait: 19.1 minPlan B · Two check-in lanes · Sample n=41 · Average wait per guest: 10.4 min · P90 wait: 20.1 min"
+  }
+}

@@ -1,0 +1,340 @@
+{
+  "phase": "after",
+  "lang": "en",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "scrollPolicy": "first-screen zero scroll",
+  "case": "A/B/C guide synthetic Open House A/B",
+  "seed": 20261114,
+  "replayTime": 210,
+  "basis": "cutoff",
+  "waitingThreshold": 60,
+  "guest": "side-stream:10",
+  "guideStep": 2,
+  "arrangement": "auto",
+  "runMode": "run_to_completion",
+  "requestedCanvasZoom": null,
+  "pointerPosition": null,
+  "canvasZoomPolicy": "default automatic fit after layout",
+  "pageZoom": 1,
+  "reducedMotion": "reduce",
+  "projectSha256": "4d5670c10ae679d2792f93147d0e707399cfcd75897323f59168f6e543f96660",
+  "scenarios": [
+    {
+      "id": "open-house",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    },
+    {
+      "id": "scenario-1",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    }
+  ],
+  "workers": [
+    "http://127.0.0.1:4181/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": [],
+  "geometry": {
+    "innerWidth": 1366,
+    "innerHeight": 768,
+    "documentWidth": 1366,
+    "devicePixelRatio": 1,
+    "zoom": "1",
+    "scrollY": 0,
+    "canvases": [
+      {
+        "pane": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "flow": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "viewport": "transform: translate(36px, 113.24px) scale(0.646628);",
+        "zoom": 0.646628,
+        "stages": [
+          {
+            "name": "Arrival",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "right": 0,
+              "bottom": 0
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Activities",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "right": 0,
+              "bottom": 0
+            },
+            "fullyVisible": false
+          }
+        ]
+      },
+      {
+        "pane": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "flow": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "viewport": "transform: translate(36px, 113.24px) scale(0.646628);",
+        "zoom": 0.646628,
+        "stages": [
+          {
+            "name": "Arrival",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "right": 0,
+              "bottom": 0
+            },
+            "fullyVisible": false
+          },
+          {
+            "name": "Activities",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 0,
+              "height": 0,
+              "right": 0,
+              "bottom": 0
+            },
+            "fullyVisible": false
+          }
+        ]
+      }
+    ],
+    "elements": {
+      ".topbar": {
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1366,
+          "height": 64,
+          "right": 1366,
+          "bottom": 64
+        },
+        "fullyVisible": true,
+        "text": "Ghost Rehearsal\nTwo-Entrance Open House · Plan A · Baseline\nBuild\nRehearse\nTwo Futures\nRun rehearsal\nDraft saved\nEN\n中文"
+      },
+      ".guided-demo": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 1366,
+          "height": 47.34375,
+          "right": 1366,
+          "bottom": 111.34375
+        },
+        "fullyVisible": true,
+        "text": "3/6 · First difference\n\nInspect the first visible change; it does not establish a cause.\n\nInspect posts and resources\nMore options\nExit guide"
+      },
+      ".comparison-identities": {
+        "rect": {
+          "x": 14,
+          "y": 121.34375,
+          "width": 963.625,
+          "height": 18.84375,
+          "right": 977.625,
+          "bottom": 140.1875
+        },
+        "fullyVisible": true,
+        "text": "A · Plan A · Baseline\nB · Plan B · Two check-in lanes"
+      },
+      ".comparison-settings": {
+        "rect": {
+          "x": 0,
+          "y": 111.34375,
+          "width": 1366,
+          "height": 39.84375,
+          "right": 1366,
+          "bottom": 151.1875
+        },
+        "fullyVisible": true,
+        "text": "A · Plan A · Baseline\nB · Plan B · Two check-in lanes\nObservation cutoff · A 30:00 / B 30:00\nNow · 03:30"
+      },
+      ".stage-head": {
+        "rect": {
+          "x": 0,
+          "y": 151.1875,
+          "width": 1366,
+          "height": 40,
+          "right": 1366,
+          "bottom": 191.1875
+        },
+        "fullyVisible": true,
+        "text": "Same guests · two arrangements\nRun complete\nOverview\nGuest journey"
+      },
+      ".comparison-live": {
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "fullyVisible": false,
+        "text": "A · Plan A · BaselineReplay 03:30In the flow54Waiting50Being served4Finished2Longest queues nowID check · 35 waitingID check35waitingKit pickup14waitingManual recheck1waitingB · Plan B · Two check-in lanesReplay 03:30In the flow53Waiting50Being served3Finished3Longest queues nowSecond check lane · 21 waitingSecond check lane21waitingID check14waitingKit pickup13waitingManual recheck2waiting"
+      },
+      ".run-state-card": {
+        "rect": {
+          "x": 294.796875,
+          "y": 159.6875,
+          "width": 101.75,
+          "height": 22,
+          "right": 396.546875,
+          "bottom": 181.6875
+        },
+        "fullyVisible": true,
+        "text": "Run complete"
+      },
+      ".dock": {
+        "rect": {
+          "x": 0,
+          "y": 191.1875,
+          "width": 1366,
+          "height": 546.8125,
+          "right": 1366,
+          "bottom": 738
+        },
+        "fullyVisible": true,
+        "text": "REPLAY\n03:30\n120:00\n0.5×\n1×\n2×\n4×\n8×\n1× = 30 s/s\nOne ghost, two futures\nWaits and evidence\nResource use\nEvent log\nBeing served\nWaiting\nChange an assumption\nBack to comparison\nInspect the evidence\nComparison evidence\nSide entrance #10\nside-stream:10\n\nArrived at Side entrance at 01:17\n\nTicket type\nregular\nVisit type\nfull\nShow on canvas\nA\nPlan A · Baseline\nReplay state · 03:30\nQueuing at ID check for 2.2 min\nOutcome at cutoff · 30:00\nunfinished · waited 27.6 min in total\nB\nPlan B · Two check-in lanes\nReplay state · 03:30\nBeing served at ID check\nOutcome at cutoff · 30:00\ncompleted · waited 8.0 min in total\nFirst difference · 03:30\nJump to first difference\nInspect the evidence\nA\nID check\n01:17\n\nQueuing at ID check for 2.2 min\n\nB\nID check\n03:30\n\nBeing served at ID check\n\n00:00\n05:00\n10:00\n15:00\n20:00\n25:00\n30:00\nA\nID check\nKit pickup\nB\nKit pickup\nReplay · 03:30\nFirst difference · 03:30\n\nContinues after the cutoff\n\nID check · Waiting · 01:17–08:00 · 6.7 min\nID check · Service · 08:00–08:30 · 30.0 s\nBatch holding · Holding · 08:30–09:30 · 1.0 min\nKit pickup · Waiting · 09:30–29:25 · 19.9 min\nKit pickup · Service · 29:25–30:00 · 35.0 s\nID check · Waiting · 01:17–03:30 · 2.2 min\nID check · Service · 03:30–04:00 · 30.0 s\nBatch holding · Holding · 04:00–04:40 · 40.0 s\nKit pickup · Waiting · 04:40–09:50 · 5.2 min\nKit pickup · Service · 09:50–10:35 · 45.0 s\nSelf-guided briefing · Waiting · 10:35–10:35 · 0.0 s\nSelf-guided briefing · Service · 10:35–10:55 · 20.0 s\nWaiting\nHolding\nBlocked\nService\nObservation cutoff · Station · Raw event log · 39 events\nGuest list\nGuest list\nEveryone · 300\nWaited ≥60 s less · 12\nWaited ≥60 s more · 9\nChanged by <60 s · 279\nFinished only in B · 7\nFinished only in A · 9\n\n300 guests\n\nMain entrance #1\nA: completed · B: completed\n0\nSide entrance #1\nA: left early · B: left early\n0\nMain entrance #2\nA: completed · B: completed\n0\nSide entrance #2\nA: completed · B: unfinished\n+24.6 min\nMain entrance #3\nA: completed · B: unfinished\n+23.5 min\nSide entrance #3\nA: completed · B: completed\n0\nMain entrance #4\nA: completed · B: unfinished\n+22.0 min\nSide entrance #4\nA: completed · B: unfinished\n+20.8 min\nMain entrance #5\nA: completed · B: completed\n−4.5 min\nMain entrance #6\nA: completed · B: completed\n0\nSide entrance #5\nA: completed · B: unfinished\n+16.3 min\nMain entrance #7\nA: completed · B: unfinished\n+11.8 min\nSide entrance #6\nA: left early · B: left early\n0\nMain entrance #8\nA: completed · B: unfinished\n+11.1 min\nSide entrance #7\nA: completed · B: unfinished\n+9.6 min\nMain entrance #9\nA: left early · B: left early\n−17.3 min\nMain entrance #10\nA: unfinished · B: completed\n−8.1 min\nSide entrance #8\nA: completed · B: completed\n−18.1 min\nMain entrance #11\nA: completed · B: completed\n0\nSide entrance #9\nA: completed · B: unfinished\n+1.3 min\nPrevious\n1 / 15\nNext\nStart from a story"
+      },
+      ".dock-body": {
+        "rect": {
+          "x": 0,
+          "y": 272.1875,
+          "width": 1366,
+          "height": 465.8125,
+          "right": 1366,
+          "bottom": 738
+        },
+        "fullyVisible": true,
+        "text": "Back to comparison\nInspect the evidence\nComparison evidence\nSide entrance #10\nside-stream:10\n\nArrived at Side entrance at 01:17\n\nTicket type\nregular\nVisit type\nfull\nShow on canvas\nA\nPlan A · Baseline\nReplay state · 03:30\nQueuing at ID check for 2.2 min\nOutcome at cutoff · 30:00\nunfinished · waited 27.6 min in total\nB\nPlan B · Two check-in lanes\nReplay state · 03:30\nBeing served at ID check\nOutcome at cutoff · 30:00\ncompleted · waited 8.0 min in total\nFirst difference · 03:30\nJump to first difference\nInspect the evidence\nA\nID check\n01:17\n\nQueuing at ID check for 2.2 min\n\nB\nID check\n03:30\n\nBeing served at ID check\n\n00:00\n05:00\n10:00\n15:00\n20:00\n25:00\n30:00\nA\nID check\nKit pickup\nB\nKit pickup\nReplay · 03:30\nFirst difference · 03:30\n\nContinues after the cutoff\n\nID check · Waiting · 01:17–08:00 · 6.7 min\nID check · Service · 08:00–08:30 · 30.0 s\nBatch holding · Holding · 08:30–09:30 · 1.0 min\nKit pickup · Waiting · 09:30–29:25 · 19.9 min\nKit pickup · Service · 29:25–30:00 · 35.0 s\nID check · Waiting · 01:17–03:30 · 2.2 min\nID check · Service · 03:30–04:00 · 30.0 s\nBatch holding · Holding · 04:00–04:40 · 40.0 s\nKit pickup · Waiting · 04:40–09:50 · 5.2 min\nKit pickup · Service · 09:50–10:35 · 45.0 s\nSelf-guided briefing · Waiting · 10:35–10:35 · 0.0 s\nSelf-guided briefing · Service · 10:35–10:55 · 20.0 s\nWaiting\nHolding\nBlocked\nService\nObservation cutoff · Station · Raw event log · 39 events\nGuest list\nGuest list\nEveryone · 300\nWaited ≥60 s less · 12\nWaited ≥60 s more · 9\nChanged by <60 s · 279\nFinished only in B · 7\nFinished only in A · 9\n\n300 guests\n\nMain entrance #1\nA: completed · B: completed\n0\nSide entrance #1\nA: left early · B: left early\n0\nMain entrance #2\nA: completed · B: completed\n0\nSide entrance #2\nA: completed · B: unfinished\n+24.6 min\nMain entrance #3\nA: completed · B: unfinished\n+23.5 min\nSide entrance #3\nA: completed · B: completed\n0\nMain entrance #4\nA: completed · B: unfinished\n+22.0 min\nSide entrance #4\nA: completed · B: unfinished\n+20.8 min\nMain entrance #5\nA: completed · B: completed\n−4.5 min\nMain entrance #6\nA: completed · B: completed\n0\nSide entrance #5\nA: completed · B: unfinished\n+16.3 min\nMain entrance #7\nA: completed · B: unfinished\n+11.8 min\nSide entrance #6\nA: left early · B: left early\n0\nMain entrance #8\nA: completed · B: unfinished\n+11.1 min\nSide entrance #7\nA: completed · B: unfinished\n+9.6 min\nMain entrance #9\nA: left early · B: left early\n−17.3 min\nMain entrance #10\nA: unfinished · B: completed\n−8.1 min\nSide entrance #8\nA: completed · B: completed\n−18.1 min\nMain entrance #11\nA: completed · B: completed\n0\nSide entrance #9\nA: completed · B: unfinished\n+1.3 min\nPrevious\n1 / 15\nNext\nStart from a story"
+      },
+      ".ghost-card": {
+        "rect": {
+          "x": 274,
+          "y": 316.578125,
+          "width": 1074,
+          "height": 46,
+          "right": 1348,
+          "bottom": 362.578125
+        },
+        "fullyVisible": true,
+        "text": "Side entrance #10\nside-stream:10\n\nArrived at Side entrance at 01:17\n\nTicket type\nregular\nVisit type\nfull\nShow on canvas"
+      },
+      ".ghost-futures": {
+        "rect": {
+          "x": 274,
+          "y": 370.578125,
+          "width": 1074,
+          "height": 70.234375,
+          "right": 1348,
+          "bottom": 440.8125
+        },
+        "fullyVisible": true,
+        "text": "A\nPlan A · Baseline\nReplay state · 03:30\nQueuing at ID check for 2.2 min\nOutcome at cutoff · 30:00\nunfinished · waited 27.6 min in total\nB\nPlan B · Two check-in lanes\nReplay state · 03:30\nBeing served at ID check\nOutcome at cutoff · 30:00\ncompleted · waited 8.0 min in total"
+      },
+      ".diff-note": {
+        "rect": {
+          "x": 274,
+          "y": 448.8125,
+          "width": 1074,
+          "height": 96.53125,
+          "right": 1348,
+          "bottom": 545.34375
+        },
+        "fullyVisible": true,
+        "text": "First difference · 03:30\nJump to first difference\nInspect the evidence\nA\nID check\n01:17\n\nQueuing at ID check for 2.2 min\n\nB\nID check\n03:30\n\nBeing served at ID check"
+      },
+      ".lanes": {
+        "rect": {
+          "x": 274,
+          "y": 553.34375,
+          "width": 1074,
+          "height": 204.234375,
+          "right": 1348,
+          "bottom": 757.578125
+        },
+        "fullyVisible": false,
+        "text": "00:00\n05:00\n10:00\n15:00\n20:00\n25:00\n30:00\nA\nID check\nKit pickup\nB\nKit pickup\nReplay · 03:30\nFirst difference · 03:30\n\nContinues after the cutoff\n\nID check · Waiting · 01:17–08:00 · 6.7 min\nID check · Service · 08:00–08:30 · 30.0 s\nBatch holding · Holding · 08:30–09:30 · 1.0 min\nKit pickup · Waiting · 09:30–29:25 · 19.9 min\nKit pickup · Service · 29:25–30:00 · 35.0 s\nID check · Waiting · 01:17–03:30 · 2.2 min\nID check · Service · 03:30–04:00 · 30.0 s\nBatch holding · Holding · 04:00–04:40 · 40.0 s\nKit pickup · Waiting · 04:40–09:50 · 5.2 min\nKit pickup · Service · 09:50–10:35 · 45.0 s\nSelf-guided briefing · Waiting · 10:35–10:35 · 0.0 s\nSelf-guided briefing · Service · 10:35–10:55 · 20.0 s\nWaiting\nHolding\nBlocked\nService"
+      },
+      ".ghost-stories": {
+        "rect": {
+          "x": 18,
+          "y": 316.578125,
+          "width": 236,
+          "height": 623.84375,
+          "right": 254,
+          "bottom": 940.421875
+        },
+        "fullyVisible": false,
+        "text": "Guest list\nGuest list\nEveryone · 300\nWaited ≥60 s less · 12\nWaited ≥60 s more · 9\nChanged by <60 s · 279\nFinished only in B · 7\nFinished only in A · 9\n\n300 guests\n\nMain entrance #1\nA: completed · B: completed\n0\nSide entrance #1\nA: left early · B: left early\n0\nMain entrance #2\nA: completed · B: completed\n0\nSide entrance #2\nA: completed · B: unfinished\n+24.6 min\nMain entrance #3\nA: completed · B: unfinished\n+23.5 min\nSide entrance #3\nA: completed · B: completed\n0\nMain entrance #4\nA: completed · B: unfinished\n+22.0 min\nSide entrance #4\nA: completed · B: unfinished\n+20.8 min\nMain entrance #5\nA: completed · B: completed\n−4.5 min\nMain entrance #6\nA: completed · B: completed\n0\nSide entrance #5\nA: completed · B: unfinished\n+16.3 min\nMain entrance #7\nA: completed · B: unfinished\n+11.8 min\nSide entrance #6\nA: left early · B: left early\n0\nMain entrance #8\nA: completed · B: unfinished\n+11.1 min\nSide entrance #7\nA: completed · B: unfinished\n+9.6 min\nMain entrance #9\nA: left early · B: left early\n−17.3 min\nMain entrance #10\nA: unfinished · B: completed\n−8.1 min\nSide entrance #8\nA: completed · B: completed\n−18.1 min\nMain entrance #11\nA: completed · B: completed\n0\nSide entrance #9\nA: completed · B: unfinished\n+1.3 min\nPrevious\n1 / 15\nNext\nStart from a story"
+      }
+    },
+    "lanes": [
+      {
+        "rect": {
+          "x": 274,
+          "y": 623.34375,
+          "width": 1074,
+          "height": 36,
+          "right": 1348,
+          "bottom": 659.34375
+        },
+        "fullyVisible": true
+      },
+      {
+        "rect": {
+          "x": 274,
+          "y": 667.34375,
+          "width": 1074,
+          "height": 36,
+          "right": 1348,
+          "bottom": 703.34375
+        },
+        "fullyVisible": true
+      }
+    ],
+    "report": "Read the two futuresBoth plans use the same group of guests · B relative to AFinished−2RegressionA 43 → B 41Average wait per guest−2.4 sGainDiffers below display precisionA 17.6 min → B 17.6 minLeft early or turned away+2RegressionA 4 → B 6Not finished0No changeA 253 → B 253P90 wait0.0 sNo changeA 25.8 min → B 25.8 minTotal waiting, all guests−11.9 person-minGainA 5,288.6 person-min → B 5,276.7 person-minResource costStaffA 3 → B 3ID scannerA 1 → B 2 +1CostStaffed time in the windowA 1.5 h → B 1.5 hDevice time in the windowA 0.5 h → B 1.0 h +0.5 hCostOvertimeA 0.0 s → B 0.0 sInspect the evidenceGains / Regressions / CostsGainsAverage wait per guest −2.4 sGainDiffers below display precisionTotal waiting, all guests −11.9 person-minGainRegressionsFinished −2RegressionLeft early or turned away +2RegressionCostsID scanner +1CostDevice time in the window +0.5 hCostSample n 300 · Observation cutoff · A 30:00 / B 30:00APlan A · BaselineBPlan B · Two check-in lanesPrimary waiting: all arrived guests, including unfinished and early departures.Paired waiting sample: n=300, arrived on both sides with the same ID.Plan A · Baseline · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Plan B · Two check-in lanes · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Completed only · secondary waiting sampleEach side selects its own completed guests; these are not necessarily the same people.Plan A · Baseline · Sample n=43 · Average wait per guest: 10.4 min · P90 wait: 19.1 minPlan B · Two check-in lanes · Sample n=41 · Average wait per guest: 10.4 min · P90 wait: 20.1 minCounts, schedules and overtime in the selected statistics window1What changed · 13Removed service “Guided tour”Added decision “Pick a check lane”Added service “Second check lane”Added service “Self-guided briefing”“ID scanner”: quantity 1 → 2 changedFloater: 00:00–10:00: Kit pickup, Manual recheck; 10:00–onward: ID check, Manual recheck (handover 30.0 s) → 00:00–10:00: Kit pickup, Manual recheck; 10:00–onward: ID check, Manual recheck, Second check lane (handover 30.0 s)7 route changesRoute Split by ticket → Pick a check lane: destination ID check → Pick a check lane changedRoute Visit choice → Self-guided briefing: destination Guided tour → Self-guided briefing changedRemoved route Guided tour → CompletedNew route Pick a check lane → ID checkNew route Pick a check lane → Second check laneNew route Second check lane → After-check mergeNew route Self-guided briefing → Completed2What the results didMeasureABB − AFinished4341−2RegressionNot finished2532530No changeLeft early or turned away46+2RegressionAverage wait per guest17.6 min17.6 min−2.4 sGainDiffers below display precisionP90 wait25.8 min25.8 min0.0 sNo changeTotal waiting, all guests5,288.6 person-min5,276.7 person-min−11.9 person-minGainRead waiting alongside completions and departures; leaving early can also shorten a wait.3Who was affected300 arrived guests in both futures12Waited ≥60 s less9Waited ≥60 s more279Changed by <60 sB − A waiting, at millisecond resolution; bins are in minutes. Negative means less waiting, not necessarily a better outcome.Change in each guest’s wait, B − A (minutes)7≤ −102(−10, −5]3(−5, −1]279(−1, +1)1[1, 5)1[5, 10)7≥ 10Change in each guest’s wait, B − A (minutes)7 finished only in B9 finished only in AFollow one of them:Side entrance #10Finished only in B · 10:55Waited less in B · −19.6 minSide entrance #2Waited more in B · +24.6 minFinished only in A · 06:404Where waiting changedWaiting fell most at ID check, Second check lane and grew most at Manual recheck.Total waiting by stationABID check, Second check lane−363.3 person-minpeak waiting 189 → 171View key momentA · Inspect rulesB · Inspect rulesManual recheck+207.2 person-minpeak waiting 5 → 17View key momentA · Inspect rulesB · Inspect rulesKit pickup+123.5 person-minpeak waiting 82 → 101View key momentA · Inspect rulesB · Inspect rulesBatch holding+20.7 person-minpeak waiting 9 → 9View key momentA · Inspect rulesB · Inspect rules5What it costsStaff3 → 3 0No changeID scanner1 → 2 +1CostStaffed time in the window1.5 h → 1.5 h 0.0 hNo changeDevice time in the window0.5 h → 1.0 h +0.5 hCostOvertime0.0 s → 0.0 s 0.0 sNo changeBusy share of available timeCheck-in staff73% → 100%Floater78% → 98%Kit staff94% → 94%ID scanner 1100% → 82%ID scanner 2— → 80%Staffed and device time come from shifts inside the selected statistics window.",
+    "scope": "Primary waiting: all arrived guests, including unfinished and early departures.Paired waiting sample: n=300, arrived on both sides with the same ID.Plan A · Baseline · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Plan B · Two check-in lanes · Actual end 30:00 · all arrived n=300 · not arrived 0 · arrived outside paired sample 0Completed only · secondary waiting sampleEach side selects its own completed guests; these are not necessarily the same people.Plan A · Baseline · Sample n=43 · Average wait per guest: 10.4 min · P90 wait: 19.1 minPlan B · Two check-in lanes · Sample n=41 · Average wait per guest: 10.4 min · P90 wait: 20.1 min"
+  }
+}
