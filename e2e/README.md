@@ -19,3 +19,11 @@ Ownership: `e2e/smoke.spec.ts` and common configuration belong to A/E; A adds ca
 HTML reports: `playwright-report/index.html` (`npx playwright show-report`). Machine-readable results and per-case screenshots: `test-results/`. Failures automatically retain `test-failed-1.png` and `trace.zip` (`npx playwright show-trace <path>`). To retain successful traces too, add `--trace=on`. Both output directories are ignored by Git. Preserve review evidence outside them before a later run overwrites it.
 
 This increment changes no CI/deployment permissions. B/C/D can merge the integration branch after A0 passes independent review and is integrated. E owns the final deployment gate.
+
+## CI Chromium shards
+
+The Pages workflow runs the full Chromium suite in two file-level [Playwright shards](https://playwright.dev/docs/test-sharding). Both jobs keep the same production build, unit/type checks, two browser workers, zero retries, and browser timeout. Run either partition locally with `npm run test:browser -- --shard=1/2` or `--shard=2/2`; omit the option for the full suite.
+
+The stable `build` check succeeds only when both Chromium jobs succeed. Deployment still requires `build`; only shard 1 uploads the Pages artifact, preventing duplicate artifact names. Each failed shard retains its own HTML report and `test-results/` under a distinct artifact name for 14 days. The other shard continues after failure so its diagnostics are retained too.
+
+The separate WebKit workflow covers project import and route keyboard tests only. The broader WebKit validation proposal remains draft PR #19; it must be rebased and its additional deployment dependency preserved if that proposal is later completed.
