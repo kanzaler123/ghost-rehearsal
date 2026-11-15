@@ -186,9 +186,11 @@
  .stage-head { height: auto; min-height: var(--control-lg); }
 }
 @media (max-width: 980px) {
- .topbar button, .topbar summary, .sidebar button, .sidebar summary, .live-queues summary, .live-queue, .mobile-compare-nav button, .dock button, .dock select, .plan-main, .plan-node, .nav-item, .people-result, .modal button, .modal summary, .canvas-tools button, .react-flow__controls-button, .stage-tools button, .stage-tools select { min-height: var(--touch-min); min-width: var(--touch-min); }
+ .topbar button, .topbar summary, .sidebar button, .sidebar summary, .live-queues summary, .live-queue, .mobile-compare-nav button, .dock button:not(.seg), .dock select, .plan-main, .plan-node, .nav-item, .people-result, .modal button, .modal summary, .canvas-tools button, .react-flow__controls-button, .stage-tools button, .stage-tools select { min-height: var(--touch-min); min-width: var(--touch-min); }
  .topbar, .command-group, .file-group, .lang-switch, .mode-switch, .mobile-compare-nav, .dock-tabs, .timeline, .stage-tools, .modal-footer { gap: var(--space-2); }
  .topbar .btn.run { height: var(--touch-min); }
+ .play-btn, .mode-switch button { position: relative; overflow: visible; }
+ .play-btn::after, .mode-switch button::after { content: ''; position: absolute; inset: 0; }
  .mode-switch button { padding-left: var(--space-2); padding-right: var(--space-2); }
  .mode-switch .mode-index { display: none; }
  .context-chip { order: 6; flex: 1 0 100%; max-width: 100%; overflow: visible; white-space: normal; overflow-wrap: anywhere; }

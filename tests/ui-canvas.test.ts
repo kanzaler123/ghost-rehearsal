@@ -121,10 +121,21 @@ beforeEach(() => {
     editable: true, time: 0, issues: [], view: playbackAt([], planA, 0), stale: false, chooseVisitor: noop, visitorName: id => id,
     request: { token: 0, target: 'default' }, stageView: false, expanded: new Set(), onStage: noop };
 });
-afterEach(() => { hooks.unmount(); vi.useRealTimers(); });
+afterEach(() => { hooks.unmount(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
 
 describe('studio viewport controls', () => {
+  it('Escape closes the add-node menu and restores its trigger focus', () => {
+    mount();
+    const focus = vi.fn(), stopPropagation = vi.fn(), preventDefault = vi.fn();
+    vi.stubGlobal('document', { activeElement: { focus } });
+    tree[0].props.ref.current.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1050, height: 750 });
+    tree.find(item => item.type === 'button' && item.props['aria-label'] === MESSAGES.en.sidebar.addNode)!.props.onClick(); render();
+    const menu = tree.find(item => item.props.className === 'canvas-menu nodrag nopan')!;
+    menu.props.onKeyDown({ key: 'Escape', stopPropagation, preventDefault }); render();
+    expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(false);
+    expect(focus).toHaveBeenCalledOnce(); expect(stopPropagation).toHaveBeenCalledOnce(); expect(preventDefault).toHaveBeenCalledOnce();
+  });
   it('reports manual gestures and prevents a resize from undoing them', () => {
     props = { ...props, onManual: vi.fn() }; mount(); vi.advanceTimersByTime(1000); setViewport.mockClear();
     flow().onMoveStart({ type: 'pointerdown' }); expect(props.onManual).toHaveBeenCalledOnce();

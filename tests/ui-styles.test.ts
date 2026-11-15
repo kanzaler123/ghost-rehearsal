@@ -143,6 +143,19 @@ describe('workbench style contract', () => {
     expect(['--control-sm', '--control-md', '--control-lg'].map(name => resolve(tokens.get(name)!))).toEqual(['28px', '34px', '40px']);
   });
 
+  it('keeps proportional journey segments outside the control touch minimum', () => {
+    const expandedSegments: string[] = [];
+    sheets.get('responsive.css')!.walkRules(rule => {
+      const reachesSegment = rule.selector.split(',').some(selector =>
+        (selector.includes('.seg') || (selector.includes('.dock') && /\bbutton\b/.test(selector))) && !selector.includes(':not(.seg)'));
+      if (!reachesSegment) return;
+      rule.walkDecls(declaration => {
+        if (/^min-(width|height)$/.test(declaration.prop) && declaration.value.includes('--touch-min')) expandedSegments.push(rule.selector);
+      });
+    });
+    expect(expandedSegments).toEqual([]);
+  });
+
   it('distinguishes the five guest states by icon, shape and tone', () => {
     const states = [MARKERS.queue, MARKERS.serve, MARKERS.blocked, MARKERS.finished, MARKERS.left];
     expect(new Set(states.map(state => state.icon)).size).toBe(states.length);

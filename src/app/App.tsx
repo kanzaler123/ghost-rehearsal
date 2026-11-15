@@ -149,6 +149,7 @@ export function App() {
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
   const thresholdInput = useRef<HTMLSelectElement>(null);
+  const checksTrigger = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<Worker | null>(null);
@@ -578,12 +579,12 @@ export function App() {
     </nav>}
     <div className="workspace" ref={workspaceRef}>
       {!fullSidebar && mode === 'Rehearse' && <aside className="sidebar is-rail" aria-label={t.navigator.title}>
-        <div className="plan-rail-badges"><button type="button" className="plan-badge is-a" title={plan.name} aria-label={`A · ${plan.name}`} onClick={() => setRailExpanded(true)}>A</button>{second && <button type="button" className="plan-badge is-b" title={second.name} aria-label={`B · ${second.name}`} onClick={() => setRailExpanded(true)}>B</button>}</div>
+        <div className="plan-rail-badges"><button type="button" className="plan-badge is-a" title={plan.name} aria-label={`A · ${plan.name} · ${t.studioUi.currentPlan}`} onClick={() => setRailExpanded(true)}>A<StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{second && <button type="button" className="plan-badge is-b" title={second.name} aria-label={`B · ${second.name}`} onClick={() => setRailExpanded(true)}>B</button>}</div>
         <FlowNavigator plan={plan} index={indexA} view={view} previous={previousView} expanded={expandedSet} selected={selection.id} time={time}
           onStage={id => toggleStage(id, !(expandedSet === 'all' || expandedSet.has(id)) || canvasView === 'full')} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onExpandSidebar={() => setRailExpanded(true)} />
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
-        <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
+        <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">A · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
         <CompareReport onChooseRule={() => thresholdInput.current?.focus()} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
@@ -605,7 +606,7 @@ export function App() {
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
             </div>}
-            {(mode === 'Build' || errorCount > 0) && <button type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
+            {(mode === 'Build' || errorCount > 0) && <button ref={checksTrigger} type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
               {errorCount ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}{errorCount ? t.stage.toFix(errorCount) : issues.length ? t.stage.notices(issues.length) : t.stage.passed}
             </button>}
             {mode !== 'Build' && hasStages && <div className="view-switch" role="group" aria-label={t.stage.views.label} title={t.stage.viewsHint}>
@@ -629,8 +630,8 @@ export function App() {
             queues={longestQueues(secondRun?.request.plan ?? second ?? plan, secondView, secondPrevious).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: second!.id }); focusNodes([id]); }} />
         </div>}
         <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)}>
-        {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle}>
-          <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => setShowIssues(false)}>×</button></div>
+        {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setShowIssues(false); checksTrigger.current?.focus(); } }}>
+          <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" autoFocus className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => { setShowIssues(false); checksTrigger.current?.focus(); }}>×</button></div>
           <p className="checks-plan">{t.workspace.checkingPlan(checksPlan.name)}</p>
           {checksPlan.id !== plan.id && <button type="button" className="btn small" onClick={() => { enterBuild(checksPlan.id); setChecksPlanId(checksPlan.id); setShowIssues(true); }}>{t.workspace.editPlan}</button>}
           {!checksIssues.length ? <p className="checks-ok"><CircleCheck size={15} aria-hidden="true" />{t.stage.noIssues}</p> : checksIssues.map((issue, index) => <button type="button" key={index} className={`check-item ${issue.severity}`} onClick={() => { const id = issue.entityIds.find(entity => checksPlan.graph.nodes.some(node => node.id === entity)); enterBuild(checksPlan.id); setChecksPlanId(checksPlan.id); setShowIssues(true); if (id) { setSelection({ id, kind: 'node', owner: checksPlan.id }); setInspectorOpen(true); } }}>

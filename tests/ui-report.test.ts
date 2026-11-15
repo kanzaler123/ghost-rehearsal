@@ -13,6 +13,7 @@ import { DivergenceCard } from '../src/components/shell/DivergenceCard';
 import { CompareReport } from '../src/components/CompareReport';
 import { GhostJourney } from '../src/components/Journey';
 import { Insights } from '../src/components/Results';
+import { StatisticsScope } from '../src/components/StatisticsScope';
 import { longestQueues, momentsSoFar } from '../src/components/shell/navigation';
 
 const project = initialDocument(), scenario = project.scenarios[0], plans = project.plans;
@@ -41,6 +42,20 @@ describe('comparison presentation', () => {
       runA: runs[0], runB: state === 'missing' ? undefined : state === 'missing-final' ? { ...runs[1], completion: null } : runs[1],
       ready: state !== 'stale', basis: state === 'missing-final' ? 'completion' : 'cutoff', visitorId: '', nameOf: id => id, onFocus: () => {}, onChoose: () => {}, onRerun: () => {} }));
     expect(result).toContain('report-stale'); expect(result).not.toContain('report-snapshot'); expect(result).not.toContain('conclusion-groups');
+    if (state === 'stale') expect(result).toContain(`<p class="report-stale">${MESSAGES.en.compare.stale}</p>`);
+  });
+  it('keeps completed-sample disclosure reachable after the initial comparison summary', () => {
+    const result = html(createElement(CompareReport, { planA: plans[0], planB: plans[1], scenario, changes: [], runA: runs[0], runB: runs[1], ready: true, visitorId: '', nameOf: id => id, onFocus: () => {}, onChoose: () => {} }));
+    expect(result).toContain('<details class="snapshot-scope" open="">');
+    expect(result.indexOf('class="snapshot-scope"')).toBeGreaterThan(result.indexOf('class="conclusion-groups"'));
+    expect(result).toContain(`<details><summary>${MESSAGES.en.evidence.completed}</summary>`);
+  });
+  it('explains a zero completed sample while retaining labelled unavailable waiting values', () => {
+    const empty = simulate({ schemaVersion: 1, plan: plans[0], scenario: { ...scenario, observationCutoff: 1 }, runMode: 'cutoff' });
+    const result = html(createElement(StatisticsScope, { runs: [empty], basis: 'cutoff' }));
+    expect(result).toContain(`${MESSAGES.en.compare.rows.average}: —`);
+    expect(result).toContain(`${MESSAGES.en.compare.rows.p90}: —`);
+    expect(result).toContain(MESSAGES.en.reportUi.noCompleted);
   });
   it('shows a real divergence and disables the jump for identical journeys', () => {
     const journeys = runs.map(run => journeyOf(run, 'side-stream:10', scenario.observationCutoff));

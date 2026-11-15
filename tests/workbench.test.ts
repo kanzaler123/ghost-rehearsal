@@ -107,7 +107,7 @@ function render() { tree = flatten(hooks.render(App)); }
 function component(type: unknown) { return tree.find(item => item.type === type)!; }
 function canvas(planId?: string) { return tree.find(item => item.type === Canvas && (!planId || item.props.plan.id === planId))!.props; }
 function button(label: string, startsWith = false) {
-  const found = tree.find(item => item.type === 'button' && (startsWith ? text(item).startsWith(label) : text(item) === label));
+  const found = tree.find(item => item.type === 'button' && (item.props['aria-label'] === label || (startsWith ? text(item).startsWith(label) : text(item) === label)));
   if (!found) throw new Error(`Missing button: ${label}`);
   return found;
 }

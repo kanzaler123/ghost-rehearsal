@@ -264,6 +264,27 @@ describe('studio presentation preserves simulation contracts', () => {
     expect(tree.find(item => item.type === 'button' && item.props.title === t.stage.fit)!.props['aria-pressed']).toBe(false);
     expect(tree.find(item => item.type === 'button' && item.props.title === t.stage.overview)!.props['aria-pressed']).toBe(false);
   });
+  it('Escape closes the checks drawer and restores the checks trigger focus', () => {
+    const trigger = tree.find(item => item.type === 'button' && item.props.className?.startsWith('check-chip'))!, focus = vi.fn();
+    trigger.props.ref.current = { focus }; trigger.props.onClick(); render();
+    const drawer = tree.find(item => item.props.className === 'checks-drawer')!, stopPropagation = vi.fn(), preventDefault = vi.fn();
+    expect(tree.find(item => item.props['aria-label'] === t.stage.closeChecks)!.props.autoFocus).toBe(true);
+    drawer.props.onKeyDown({ key: 'Escape', stopPropagation, preventDefault }); render();
+    expect(tree.some(item => item.props.className === 'checks-drawer')).toBe(false);
+    expect(focus).toHaveBeenCalledOnce(); expect(stopPropagation).toHaveBeenCalledOnce(); expect(preventDefault).toHaveBeenCalledOnce();
+  });
+  it('shows the current edit target in the default compact navigation in every mode', () => {
+    tree.find(item => item.props.className === 'side-collapse')!.props.onClick(); render();
+    const selected = () => tree.filter(item => item.props.className?.includes('tone-selected'));
+    expect(selected()).toHaveLength(1); expect(selected()[0].props['aria-label']).toBe(t.studioUi.currentPlan);
+    click(t.modes.Rehearse);
+    expect(selected()).toHaveLength(1); expect(selected()[0].props['aria-label']).toBe(t.studioUi.currentPlan);
+    compare();
+    expect(selected()).toHaveLength(1); expect(selected()[0].props['aria-label']).toBe(t.studioUi.currentPlan);
+    const plans = tree.find(item => item.type === 'button' && item.props['aria-label'] === t.navigator.plans)!;
+    expect(text(plans)).toContain(canvas().plan.name);
+    expect(canvas(planA.id).editable).toBe(false); expect(canvas(planB.id).editable).toBe(false);
+  });
   it('first-divergence action pauses, tracks the same guest and focuses both recorded stations', () => {
     compare(); component(CompareReport).props.onChoose('side-stream:10'); render();
     component(GhostJourney).props.onDivergence(210, 'checkin', 'checkin-extra'); render();

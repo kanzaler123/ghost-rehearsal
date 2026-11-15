@@ -31,7 +31,7 @@ const en = {
   runStateActions: { run: 'Run rehearsal', stop: 'Stop rehearsal', rerun: 'Run again', play: 'Play replay', 'clear-filter': 'Clear search and filter', 'choose-rule': 'Choose another rule', 'edit-guests': 'Edit guests' },
   topbar: { context: (activity: string, plan: string) => `${activity} · ${plan}`, compareUnavailable: 'Add a second plan to compare', contextActions: 'Plan and activity actions' },
   arrangement: { label: 'Canvas arrangement', auto: 'Auto', rows: 'Top-bottom', cols: 'Left-right', narrowNote: 'Canvases stack on a narrow screen; your choice applies when wider.' },
-  studioUi: { noSecond: 'Add a second plan', readOnly: 'Read-only', noReplay: 'No replay data', timeline: (at: string, end: string) => `${at} of ${end}`, collapseReport: 'Collapse report', expandReport: 'Expand report', collapsePlans: 'Collapse plans', expandPlans: 'Expand plans', exampleLoaded: 'Build mode: edit the example or run a rehearsal. Choose Two Futures to compare the same guests in both plans.', dockSummary: (count: number, first: string) => `${count} items${first ? ` · ${first}` : ''}` },
+  studioUi: { currentPlan: 'Current edit target', noSecond: 'Add a second plan', readOnly: 'Read-only', noReplay: 'No replay data', timeline: (at: string, end: string) => `${at} of ${end}`, collapseReport: 'Collapse report', expandReport: 'Expand report', collapsePlans: 'Collapse plans', expandPlans: 'Expand plans', exampleLoaded: 'Build mode: edit the example or run a rehearsal. Choose Two Futures to compare the same guests in both plans.', dockSummary: (count: number, first: string) => `${count} items${first ? ` · ${first}` : ''}` },
   list: { join: (items: string[]) => items.join(', '), stations: (items: string[]) => items.join(' / ') },
   reportUi: {
     missingPlans: (plans: string) => `No results for ${plans}. Run both plans to compare.`,
@@ -495,7 +495,7 @@ const zh: Messages = {
   runStateActions: { run: '运行预演', stop: '停止预演', rerun: '重新运行', play: '播放回放', 'clear-filter': '清除搜索与筛选', 'choose-rule': '选择其他规则', 'edit-guests': '编辑访客' },
   topbar: { context: (activity: string, plan: string) => `${activity} · ${plan}`, compareUnavailable: '添加第二个方案后比较', contextActions: '方案与活动操作' },
   arrangement: { label: '画布排布', auto: '自动', rows: '上下排列', cols: '左右排列', narrowNote: '窄屏下画布上下排列；屏幕变宽后恢复你的选择。' },
-  studioUi: { noSecond: '添加第二个方案', readOnly: '只读', noReplay: '暂无回放数据', timeline: (at: string, end: string) => `${at}，共 ${end}`, collapseReport: '收起报告', expandReport: '展开报告', collapsePlans: '收起方案', expandPlans: '展开方案', exampleLoaded: '当前为搭建模式，可编辑示例或运行预演。选择“双未来”可比较两个方案中同一批访客的结局。', dockSummary: (count: number, first: string) => `${count} 项${first ? ` · ${first}` : ''}` },
+  studioUi: { currentPlan: '当前编辑目标', noSecond: '添加第二个方案', readOnly: '只读', noReplay: '暂无回放数据', timeline: (at: string, end: string) => `${at}，共 ${end}`, collapseReport: '收起报告', expandReport: '展开报告', collapsePlans: '收起方案', expandPlans: '展开方案', exampleLoaded: '当前为搭建模式，可编辑示例或运行预演。选择“双未来”可比较两个方案中同一批访客的结局。', dockSummary: (count: number, first: string) => `${count} 项${first ? ` · ${first}` : ''}` },
   list: { join: items => items.join('、'), stations: items => items.join('、') },
   reportUi: {
     missingPlans: plans => `${plans} 没有结果。请运行两个方案后比较。`,

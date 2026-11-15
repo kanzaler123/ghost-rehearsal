@@ -67,7 +67,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   const cutoff = formatTime(scenario.observationCutoff);
   const text = t.reportUi;
   const emptyState = data && data.people.total > 0 ? deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: !data.people.better && !data.people.worse, evidenceCount: (runA?.events.length ?? 0) + (runB?.events.length ?? 0) }) : null;
-  const unavailable = context.status === 'missing-run' ? text.missingPlans(t.list.join([!runA ? `A · ${planA.name}` : '', !runB ? `B · ${planB.name}` : ''].filter(Boolean))) : t.evidence.unavailable[context.status];
+  const unavailable = context.status === 'missing-run' ? text.missingPlans(t.list.join([!runA ? `A · ${planA.name}` : '', !runB ? `B · ${planB.name}` : ''].filter(Boolean))) : context.status === 'stale' ? c.stale : t.evidence.unavailable[context.status];
   function browse(filter: AffectedFilter) {
     if (!a || !b) return;
     const people = context.select(filter);
@@ -83,9 +83,9 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
       <p className="report-note">{text.sameGuests} · {text.direction}</p>
       <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : t.review.completion}</p>
     </header>
-    {context.status === 'ready' && runA && runB && <details className="snapshot-scope"><summary>{t.review[basis]} · A {formatTime(a!.until)} / B {formatTime(b!.until)} · {t.evidence.sample} {context.sampleSize}</summary><StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} /></details>}
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && <ConclusionGroups metrics={comparisonMetrics(a, b, data.cost, t)} onEvidence={onEvidence} />}
+    {context.status === 'ready' && runA && runB && <details className="snapshot-scope" open><summary>{t.review[basis]} · A {formatTime(a!.until)} / B {formatTime(b!.until)} · {t.evidence.sample} {context.sampleSize}</summary><StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} /></details>}
     {emptyState && <RunStateCard kind={emptyState.kind} action={emptyState.action} detail={threshold ? t.evidence.minute : t.evidence.any} onAction={() => emptyState.action === 'choose-rule' ? onChooseRule?.() : onRerun?.()} />}
     {context.status !== 'ready' && (onRerun ? <RunStateCard kind={runState ?? (context.status === 'stale' ? 'stale' : 'not-run')} action="rerun" detail={unavailable} detailClassName="report-stale" onAction={onRerun} /> : <p className="report-stale">{unavailable}</p>)}
 

@@ -286,6 +286,8 @@
 .status-scope button:hover { text-decoration: underline; }
 .context-chip { display: block; min-width: 0; max-width: var(--nav-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); color: var(--text-muted); }
 .plan-rail-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3); }
+.plan-rail-badges > .plan-badge { display: inline-flex; justify-content: center; width: auto; min-width: var(--fs-2xl); gap: var(--space-1); padding-inline: var(--size-3px); }
+.current-plan-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-badge.is-a { background: var(--plan-a); color: var(--surface-0); border: 0; }
 .plan-badge.is-b { background: var(--plan-b); color: var(--surface-0); border: 0; }
 .sidebar .workspace-menu-body { width: var(--card-w); z-index: 40; }

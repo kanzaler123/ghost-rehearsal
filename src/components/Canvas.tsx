@@ -215,6 +215,7 @@ function CanvasInner(props: Props) {
   const { t } = useI18n();
   const api = useReactFlow<AnyNode>();
   const shell = useRef<HTMLDivElement>(null);
+  const menuTrigger = useRef<HTMLElement | null>(null);
   const selection = useRef({ planId: plan.id, id: props.selected });
   const zoom = useStore(store => store.transform[2]);
   const width = useStore(store => store.width);
@@ -353,6 +354,7 @@ function CanvasInner(props: Props) {
   }, [plan.graph.edges, display, view, running, props.time, props.tracked, props.chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
+    menuTrigger.current = document.activeElement as HTMLElement | null;
     const bounds = shell.current!.getBoundingClientRect();
     setQuery('');
     setMenu({ left: Math.max(8, Math.min(x - bounds.left, bounds.width - 276)), top: Math.max(8, Math.min(y - bounds.top, bounds.height - 380)), position: api.screenToFlowPosition({ x, y }), nodeId });
@@ -409,7 +411,7 @@ function CanvasInner(props: Props) {
       <button type="button" className="canvas-zoom" aria-label={t.canvas.resetZoom} title={t.canvas.resetZoom} onClick={() => { userMove(); void api.zoomTo(1, { duration: motionDuration(!!props.reducedMotion, 0) }); }}>{Math.round(zoom * 100)}%</button>
       {props.editable && <button type="button" className="icon-btn" aria-label={t.sidebar.addNode} title={t.sidebar.addNode} onClick={() => { const bounds = shell.current!.getBoundingClientRect(); setPanMode(false); openMenu(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2); }}><Plus size={17} /></button>}
     </div>}
-    {menu && <div className="canvas-menu nodrag nopan" role="dialog" aria-label={menu.nodeId ? t.canvas.nodeMenu : t.sidebar.addNode} style={{ left: menu.left, top: menu.top }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setMenu(null); } }}>
+    {menu && <div className="canvas-menu nodrag nopan" role="dialog" aria-label={menu.nodeId ? t.canvas.nodeMenu : t.sidebar.addNode} style={{ left: menu.left, top: menu.top }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setMenu(null); menuTrigger.current?.focus(); } }}>
       {menu.nodeId ? <>
         <b className="canvas-menu-title">{plan.graph.nodes.find(node => node.id === menu.nodeId)?.name}</b>
         <button type="button" autoFocus onClick={() => { props.onSelect(menu.nodeId!, 'node'); setMenu(null); }}>{t.canvas.inspect}</button>

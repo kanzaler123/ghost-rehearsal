@@ -18,4 +18,8 @@ test('reduced motion starts paused while explicit playback and scrubbing work', 
   await expect(slider).toHaveValue('210');
   await expect(slider).toHaveAttribute('aria-valuetext', /03:30/);
   await expect(page.getByLabel(t.dock.speed, { exact: true }).locator('option')).toHaveText(['0.5×', '1×', '2×', '4×', '8×']);
+  expect(await page.evaluate(() => [...document.querySelectorAll('*')].filter(element => {
+    const style = getComputedStyle(element);
+    return [style.animationDuration, style.transitionDuration].some(value => value.split(',').some(duration => parseFloat(duration) > 0.001));
+  }).map(element => element.className))).toEqual([]);
 });
