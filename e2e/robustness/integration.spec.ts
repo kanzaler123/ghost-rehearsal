@@ -96,6 +96,7 @@ test('cancel, rerun and closing the lab release its Worker and restore normal re
   const seeds = dialog.getByLabel(lab.seeds, { exact: true });
   await seeds.fill(Array.from({ length: 30 }, (_, i) => String(20261114 + i)).join(', '));
   await dialog.getByRole('button', { name: lab.start, exact: true }).click();
+  await expect.poll(() => dialog.locator('[data-testid="result-row"][data-status="succeeded"]').count()).toBeGreaterThan(0);
   await expect(dialog.locator('[data-testid="result-row"][data-status="succeeded"]').first()).toBeAttached();
   await dialog.getByRole('button', { name: lab.cancel, exact: true }).click();
   await expect(dialog.getByTestId('batch-status')).toHaveAttribute('data-status', 'partial');
