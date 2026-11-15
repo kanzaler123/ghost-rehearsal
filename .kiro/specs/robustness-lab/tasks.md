@@ -11,6 +11,6 @@
 - [x] Verify compounded-condition/nondefault-seed three-plan export reproduces unchanged summaries.
 - [x] Complete cross-agent code review of independently authored modules.
 - [x] Finish desktop/mobile and Chinese/English real-browser checks, including workbench import reproduction; attach evidence.
-- [ ] Record final check/build/diff results and honest tool attribution; prepare the branch for a Draft PR to kiro/release-integration.
+- [x] Record final check/build/diff results and honest tool attribution; prepare the branch for a Draft PR to kiro/release-integration.
 - [ ] Independent PR review and A browser-test infrastructure integration.
 - [ ] E: main-workbench entry, lifecycle coordination, stale-input state, production entry/deployment and full product acceptance.
