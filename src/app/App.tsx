@@ -152,6 +152,7 @@ export function App() {
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
   const projectRead = useRef(0);
+  const [projectReadFailed, setProjectReadFailed] = useState(false);
   const currentProject = useRef(project);
   currentProject.current = project;
   const thresholdInput = useRef<HTMLSelectElement>(null);
@@ -216,10 +217,14 @@ export function App() {
   }
   async function importProject(file: File) {
     const request = ++projectRead.current;
+    setProjectReadFailed(false);
     let text: string;
     try { text = await file.text(); }
     catch {
-      if (request === projectRead.current) say(tr => tr.notices.fileReadFailed);
+      if (request === projectRead.current) {
+        setProjectReadFailed(true);
+        say(tr => tr.notices.fileReadFailed);
+      }
       return;
     }
     if (request !== projectRead.current) return;
@@ -530,6 +535,7 @@ export function App() {
   useEffect(() => { if (mode === 'Compare' && !busy && !interrupted) setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup, busy, interrupted]);
   useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => { worker.current?.terminate(); projectRead.current += 1; }, []);
+  useEffect(() => { setProjectReadFailed(false); }, [dialog]);
   useEffect(() => {
     if (!unsaved) { try { localStorage.removeItem(DRAFT_KEY); } catch {} setDraftSaved(false); return; }
     if (dialog === 'welcome') { setDraftSaved(false); return; }
@@ -830,6 +836,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {(dialog === 'welcome' || dialog === 'new') && <EventCreator onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
+    {(dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
   </div>;
 }

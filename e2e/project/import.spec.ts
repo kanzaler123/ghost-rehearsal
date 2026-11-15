@@ -123,3 +123,57 @@ test('choosing a new example supersedes an unfinished import', async ({ page }, 
   await expect(heading).toHaveText(chosen!);
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.imported);
 });
+
+for (const entry of ['welcome', 'new-event'] as const) test(`${entry} dialog announces read failures and preserves its draft for retry`, async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+  if (entry === 'new-event') {
+    await openExample(page, info);
+    const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
+    if (await expand.isVisible()) await expand.click();
+    await page.locator('.event-card summary').click();
+    await page.getByRole('button', { name: t.eventSetup.new, exact: true }).click();
+  } else {
+    await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
+    await page.goto('./');
+  }
+  const dialog = page.getByRole('dialog', { name: t.eventSetup.title, exact: true });
+  await dialog.getByLabel(t.dialogs.eventName, { exact: true }).fill('Unsaved event draft');
+  await dialog.getByLabel(t.dialogs.count, { exact: true }).fill('137');
+  await dialog.getByLabel(t.eventSetup.duration, { exact: true }).fill('45');
+  await dialog.getByLabel(t.eventSetup.arrivals, { exact: true }).fill('11');
+  await dialog.getByLabel(t.eventSetup.startingFlow, { exact: true }).selectOption('candy');
+  await page.evaluate(() => {
+    const read = File.prototype.text;
+    let failed = false;
+    File.prototype.text = function () {
+      if (!failed) { failed = true; return Promise.reject(new Error('simulated dialog file read failure')); }
+      return read.call(this);
+    };
+  });
+  const importButton = dialog.getByRole('button', { name: t.eventSetup.import, exact: true });
+  const file = projectFile('dialog-retry.json', 'Recovered dialog import');
+  const firstChooser = page.waitForEvent('filechooser');
+  await importButton.click();
+  await (await firstChooser).setFiles(file);
+  const alert = dialog.getByRole('alert').filter({ hasText: t.notices.fileReadFailed });
+  await expect(alert).toBeVisible();
+  await expect(dialog).toHaveJSProperty('open', true);
+  expect(await dialog.evaluate(element => element.matches(':modal'))).toBe(true);
+  await alert.scrollIntoViewIfNeeded();
+  await expect(alert).toBeInViewport();
+  await expect(importButton).toHaveAccessibleDescription(t.notices.fileReadFailed);
+  await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toHaveValue('Unsaved event draft');
+  await expect(dialog.getByLabel(t.dialogs.count, { exact: true })).toHaveValue('137');
+  await expect(dialog.getByLabel(t.eventSetup.duration, { exact: true })).toHaveValue('45');
+  await expect(dialog.getByLabel(t.eventSetup.arrivals, { exact: true })).toHaveValue('11');
+  await expect(dialog.getByLabel(t.eventSetup.startingFlow, { exact: true })).toHaveValue('candy');
+  await page.screenshot({ path: info.outputPath('dialog-read-error.png'), fullPage: true });
+  const retryChooser = page.waitForEvent('filechooser');
+  await importButton.click();
+  await (await retryChooser).setFiles(file);
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText('Recovered dialog import');
+  expect(errors).toEqual([]);
+});
