@@ -1,6 +1,8 @@
 # Robustness lab contract
 
-Task C is an independent module. Import `RobustnessPanel` from `src/experiments/robustness/RobustnessPanel.tsx` and provide a legal ProjectDocument. Review with `npm run dev -- --port 4189 --strictPort` at `/labs/robustness.html`. The production Vite entry remains owned by E; the normal production build does not publish this lab HTML automatically.
+Open **Robustness lab** in the workbench's Two Futures report to start with the current project and selected A/B plans. The panel displays its fixed observation cutoff independently of the ordinary run's final/cutoff setting. It cannot open during an ordinary rehearsal; while open, ordinary runs are blocked. Closing the panel cancels and releases its worker.
+
+`RobustnessPanel` also remains independently usable with a legal ProjectDocument. The development-only entry is served by `npm run dev -- --port 4189 --strictPort` at `/labs/robustness.html`; production users use the workbench entry.
 
 ## Pure input and computation
 
@@ -31,4 +33,4 @@ BatchState includes batch, rows, currentJobId, status (running/complete/partial)
 
 `exportGroup(batch, seed, conditionId)` produces a standard serialized ProjectDocument with only the selected plans and one transformed shared scenario. Import it into the existing workbench and select cutoff to reproduce that group. The existing codec sorts plans by ID; identify plans by planId and reselect the baseline rather than assuming imported A/B positions retain their experiment roles. For a batch with a custom event cap, reproduce that cap through the engine API; the ProjectDocument Schema has no execution-limit field. Partial groups preserve inputs but make no promise of successful completed simulation.
 
-E must connect the component to current project snapshots, coordinate main-workbench and lab running/cancellation, display stale-input state, and include any desired deployment entry. This module does not touch workbench storage or intercept the main UI. Independent module review is not complete product acceptance.
+A batch keeps the project/configuration snapshot taken at Start. Changing settings marks the displayed results as belonging to earlier inputs; exporting still uses that recorded snapshot. Closing the panel discards its in-memory results, so export them before closing if needed. Single-group project files can be imported through the ordinary workbench. See [release verification](reviews/release-verification.md) for integrated production checks.

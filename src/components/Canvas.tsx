@@ -354,6 +354,7 @@ function CanvasInner(props: Props) {
   }, [plan.graph.edges, display, view, running, props.time, props.tracked, props.chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
+    placement.userMove();
     menuTrigger.current = document.activeElement as HTMLElement | null;
     const bounds = shell.current!.getBoundingClientRect();
     setQuery('');

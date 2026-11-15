@@ -11,6 +11,8 @@ import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario, Validatio
 import { Canvas } from '../components/Canvas';
 import type { ViewRequest, ViewTarget } from '../components/Canvas';
 import { CompareReport } from '../components/CompareReport';
+import { RobustnessPanel } from '../experiments/robustness/RobustnessPanel';
+import { labels as robustnessLabels } from '../experiments/robustness/labels';
 import { GuidedDemo } from '../components/GuidedDemo';
 import type { DemoProgress } from '../components/GuidedDemo';
 import { Inspector } from '../components/Inspector';
@@ -50,7 +52,7 @@ import { loadArrangement, saveArrangement } from './preferences';
 import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
+type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const STORAGE_KEY = 'ghost-rehearsal.project.v1';
@@ -318,6 +320,7 @@ export function App() {
     if (nodeId) { setSelection({ id: nodeId, kind: 'node', owner: ownerId }); focusNodes([nodeId]); }
   }
   function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
+    if (dialog === 'robustness') return;
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
     runningPlans.current = targets.map(target => target.id); setLastRun(null);
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
@@ -585,6 +588,7 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
         <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">A · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
+        {!reportCollapsed && <button type="button" className="btn small" disabled={busy} onClick={() => { setPlaying(false); setDialog('robustness'); }}>{robustnessLabels[lang].title}</button>}
         <CompareReport onChooseRule={() => thresholdInput.current?.focus()} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
@@ -697,6 +701,7 @@ export function App() {
         <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
       </div>)}</div>
     </Modal>}
+    {dialog === 'robustness' && second && <Modal title={robustnessLabels[lang].title} onClose={() => setDialog(null)} wide><div className="modal-body robustness-body"><RobustnessPanel project={project} baselinePlanId={plan.id} candidatePlanId={second.id} lang={lang} embedded /></div></Modal>}
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
     {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item), plans: project.plans.map(item => item.scenarioId !== next.id ? item : { ...item, graph: { ...item.graph, nodes: item.graph.nodes.map(node => node.type === 'entrance' ? { ...node, arrivalStreamIds: node.arrivalStreamIds.filter(id => next.arrivalStreams.some(stream => stream.id === id)) } : node) } }) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {

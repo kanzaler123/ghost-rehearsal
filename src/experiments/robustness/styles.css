@@ -1,4 +1,7 @@
 .robustness-lab { --lab-ink: #20372e; --lab-muted: #53645b; --lab-border: #d6ddd4; color: var(--lab-ink); font: 15px/1.6 system-ui, sans-serif; max-width: 1240px; margin: auto; padding: 28px; }
+.robustness-body { padding: 0; }
+.robustness-lab.is-embedded { background: #f5f8f4; }
+.robustness-lab.is-embedded input:not([type=checkbox]), .robustness-lab.is-embedded select { height: auto; }
 .robustness-lab *, .robustness-lab *::before, .robustness-lab *::after { box-sizing: border-box; }
 .robustness-lab h1, .robustness-lab h2, .robustness-lab h3, .robustness-lab p { margin: 0 0 12px; }
 .robustness-lab h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.2; }

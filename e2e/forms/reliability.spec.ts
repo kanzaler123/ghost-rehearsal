@@ -290,6 +290,26 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await page.getByRole('button', { name: t.inspector.advanced, exact: true }).click();
       expect(JSON.parse(await page.getByLabel(t.dialogs.jsonLabel).inputValue()).maxConcurrent).toBeUndefined();
       await page.keyboard.press('Escape');
+      const requirements = page.locator('.requirement-row');
+      await expect(requirements).toHaveCount(2);
+      const quantity = (index: number) => requirements.nth(index).getByRole('textbox');
+      await quantity(0).fill('-');
+      await requirements.first().getByRole('button').click();
+      await expect(quantity(0)).toHaveValue('1');
+      await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+      await quantity(0).fill('-');
+      await quantity(1).fill('--');
+      await requirements.first().getByRole('button').click();
+      await expect(quantity(0)).toHaveValue('--');
+      await quantity(0).fill('2');
+      await quantity(0).press('Enter');
+      await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+      await expect(quantity(0)).toHaveValue('1');
+      const selectContentWidth = await requirements.first().getByRole('combobox').evaluate(element => {
+        const style = getComputedStyle(element);
+        return element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      });
+      expect(selectContentWidth).toBeGreaterThan(60);
       await page.locator('.plan-node.type-decision').nth(1).click();
       const probability = page.getByLabel(t.inspector.probabilities, { exact: true }).first();
       await probability.fill('0.15');
