@@ -223,6 +223,13 @@ fieldset:disabled { opacity: 0.82; }
 
 .workspace { flex: 1; display: flex; min-height: 0; }
 .mobile-compare-nav { display: none; }
+.comparison-settings { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.comparison-settings label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.comparison-settings small { color: var(--text-2); font-size: 11px; }
+.statistics-scope { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+.statistics-scope p { margin: 6px 0; }
+.statistics-scope summary { cursor: pointer; }
+.lane-window-end { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--text-2); }
 
 /* ---------- Sidebar ---------- */
 

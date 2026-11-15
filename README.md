@@ -32,6 +32,11 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 Use **More options → Run scope → Run to completion**, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time.
 
+The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting. Primary waiting includes all arrived guests; the separate **Completed only** group shows its own n, mean and P90. Each side reports its actual statistics end, arrived/not-arrived counts and exclusions from the paired sample. Final results may end at different times. Missing final results and stale comparisons do not supply current comparison evidence.
+
+比较默认按“至少相差 60 秒”分组（含边界），也可选择“查看任何变化”。总览、Insights、名单、故事、直方图与比较证据导出共用规则。主要等待统计包含全部已到达者；仅 completed 子群另列样本人数、均值和 P90。两侧分别显示实际统计结束、未到达和未配对人数；缺少最终结果或结果过期时不输出当前比较结论。
+
+
 **Event settings** supports arrival-group additions/removals, arrival patterns and time slots. The Inspector edits routing conditions and service samples; **Staff & devices** edits multiple shifts. Event, opening and shift times are displayed in minutes from the start; short service and handover durations remain in seconds. Plans can be renamed or deleted (with Undo available).
 
 Applied project edits are saved as drafts separately from manual saves when their data format is valid. Apply changes in dialogs before relying on draft recovery. Refresh restores the newest draft; incomplete/invalid edits and unavailable storage trigger leave protection. A browser draft is local to that browser, so export important projects as files. Rehearsal results are recalculated after reloading.

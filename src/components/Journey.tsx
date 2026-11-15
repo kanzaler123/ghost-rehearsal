@@ -3,13 +3,14 @@ import type { CSSProperties } from 'react';
 import { ArrowLeft, ArrowUpRight, Crosshair, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt } from '../features/analysis';
-import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus } from '../features/analysis';
+import { affected, affectedVisitors, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
+import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { SimulationRun } from '../simulation/types';
 import { Ghost } from './Icons';
 import { EVENT_TONES } from './Results';
+import { StatisticsScope } from './StatisticsScope';
 
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 const nodeName = (plan: Plan, id?: string) => plan.graph.nodes.find(node => node.id === id)?.name ?? '—';
@@ -52,7 +53,7 @@ interface Props {
   runs: SimulationRun[]; compare: boolean; scenario: Scenario; visitorId: string; time: number; endTime: number;
   picks: PickGroup[]; featured?: string; nameOf: (id: string) => string;
   onChoose: (id: string) => void; onJump: (time: number, nodeId: string | undefined, planId: string) => void; onLocate: () => void;
-  group?: AffectedFilter; basis?: ResultBasis;
+  group?: AffectedFilter; basis?: ResultBasis; threshold?: WaitThreshold;
   onGroupChange?: (filter: AffectedFilter | undefined) => void;
   onOverview?: () => void;
 }
@@ -60,7 +61,7 @@ interface Props {
 const PAGE_SIZE = 20;
 const FILTERS: AffectedFilter[] = ['less', 'more', 'same', 'rescued', 'lost'];
 
-export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview, basis = 'cutoff' }: Props) {
+export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview, basis = 'cutoff', threshold = THRESHOLD }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -69,8 +70,8 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const activeGroup = onGroupChange ? group : localGroup;
   const population = runs[0]?.population ?? [];
   const a = statisticsAt(runs[0], basis), b = compare ? statisticsAt(runs[1], basis) : undefined;
-  const paired = useMemo(() => a && b ? affectedVisitors(a, b, activeGroup) : null, [a, b, activeGroup]);
-  const counts = useMemo(() => a && b ? affected(a, b) : null, [a, b]);
+  const paired = useMemo(() => a && b ? affectedVisitors(a, b, activeGroup, threshold) : null, [a, b, activeGroup, threshold]);
+  const counts = useMemo(() => a && b ? affected(a, b, threshold) : null, [a, b, threshold]);
   // Keep old evidence internally consistent while the surrounding workspace marks a run stale.
   const cutoff = basis === 'completion' ? Math.max(...runs.map(run => statisticsAt(run, basis)?.until ?? 0)) : a?.until ?? runs[0]?.request.scenario.observationCutoff ?? scenario.observationCutoff;
   const replayTime = Math.min(time, cutoff);
@@ -93,6 +94,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     afterCutoff: 'Replay is beyond the cutoff. This panel stays at the observation cutoff.',
     cutoffStatus: 'Status at cutoff', groups: { less: 'Waited ≥1 min less', more: 'Waited ≥1 min more', same: 'Changed by <1 min', rescued: 'Finished only in B', lost: 'Finished only in A' },
   };
+  Object.assign(text.groups, threshold ? t.evidence.groups : t.evidence.anyGroups);
   const groupCounts: Record<AffectedFilter, number> = { less: counts?.better ?? 0, more: counts?.worse ?? 0, same: counts?.same ?? 0, rescued: counts?.rescued ?? 0, lost: counts?.lost ?? 0 };
   const eligibleIds = paired ? new Set(paired.map(item => item.id)) : null;
   const names = population.filter(item => !eligibleIds || eligibleIds.has(item.id)).map(item => ({ id: item.id, name: nameOf(item.id) }));
@@ -106,7 +108,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const outcomes = new Map(a?.visitors.map(item => [item.id, item]));
   const currentInGroup = !eligibleIds || eligibleIds.has(visitorId);
   const firstInGroup = paired?.[0]?.id;
-  useEffect(() => { setPage(0); setQuery(''); }, [activeGroup]);
+  useEffect(() => { setPage(0); setQuery(''); }, [activeGroup, threshold, basis]);
   useEffect(() => {
     if (activeGroup && firstInGroup && !currentInGroup) onChoose(firstInGroup);
   }, [activeGroup, firstInGroup, currentInGroup, onChoose]);
@@ -114,7 +116,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     if (onGroupChange) onGroupChange(filter); else setLocalGroup(filter);
     setPage(0); setQuery('');
     if (a && b) {
-      const next = affectedVisitors(a, b, filter);
+      const next = affectedVisitors(a, b, filter, threshold);
       if (next.length && !next.some(item => item.id === visitorId)) onChoose(next[0].id);
     }
   }
@@ -137,9 +139,11 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= 6) ?? Math.ceil(span / 21600) * 3600;
   const ticks = [...new Set([...Array.from({ length: Math.floor(span / tickStep) + 1 }, (_, index) => index * tickStep), cutoff])];
   const stories = groupPicks(picks);
+  if (!a || (compare && !b)) return <p role="status">{t.evidence.missing}</p>;
   return <div className="ghost-journey">
     <header className="journey-header">
       <div>{onOverview && <button type="button" className="text-btn" onClick={onOverview}><ArrowLeft size={14} aria-hidden="true" />{text.back}</button>}<h3>{text.title}</h3></div>
+      <StatisticsScope runs={runs} basis={basis} />
       <p className="journey-basis">{t.review[basis]} · {text.basis}</p>
       {basis === 'cutoff' && time > cutoff && <p className="journey-basis">{text.afterCutoff}</p>}
     </header>
@@ -197,6 +201,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
                 title={`${t.journey.segments[segment.kind]} · ${nodeName(plans[column], segment.nodeId)} · ${formatTime(segment.start)}–${formatTime(segment.end)}`}
                 onClick={() => onJump(segment.start, segment.nodeId, plans[column].id)}><span>{nodeName(plans[column], segment.nodeId)}</span></button>)}
               {journey.end && <i className={cls('lane-end', journey.end.kind)} style={{ left: pct(journey.end.time) }} />}
+              <i className="lane-window-end" style={{ left: pct(journey.until) }} title={`${t.evidence.ends}: ${formatTime(journey.until)}`} />
               {at !== undefined && <span className={cls('lane-ghost', `tone-${statusTone(status)}`)} style={{ left: pct(at) }}><Ghost size={18} /></span>}
             </div>
           </div>;
@@ -271,7 +276,7 @@ function StationTable({ journeys, plans, compare, cutoff }: { journeys: Journey[
   if (!rows.length) return null;
   const cell = (value?: number) => value === undefined ? <span className="muted">{t.journey.notVisited}</span> : t.formatWait(value);
   return <div className="station-table-wrap"><table className="station-table">
-    <caption>{t.lang === 'zh' ? `逐站用时 · 截至 ${formatTime(cutoff)}` : `Time by station · through ${formatTime(cutoff)}`}</caption>
+    <caption>{t.lang === 'zh' ? `逐站用时 · 截至 ${formatTime(cutoff)}` : `Time by station · through ${formatTime(cutoff)}`}{compare && journeys[0].until !== journeys[1]?.until ? ` · A ${formatTime(journeys[0].until)} / B ${formatTime(journeys[1].until)}` : ''}</caption>
     <thead><tr><th>{t.journey.station}</th>{compare ? <><th>A · {t.journey.wait}</th><th>B · {t.journey.wait}</th><th>{t.journey.delta}</th><th>A · {t.journey.service}</th><th>B · {t.journey.service}</th></> : <><th>{t.journey.wait}</th><th>{t.journey.service}</th></>}</tr></thead>
     <tbody>{rows.map((row, index) => {
       const delta = row.a && row.b ? row.b.queue - row.a.queue : undefined;

@@ -17,10 +17,10 @@ import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
 import { describeStatus, GhostJourney } from '../components/Journey';
 import { FlowNavigator, keyEventText, NowPanel } from '../components/Rehearse';
 import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Results';
-import { comparePicks, featuredGhost, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, visitorName } from '../features/analysis';
-import type { AffectedFilter } from '../features/analysis';
+import { comparePicks, compatibleRuns, featuredGhost, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
+import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
@@ -78,6 +78,7 @@ export function App() {
   const [mode, setMode] = useState<Mode>('Build');
   const [runMode, setRunMode] = useState<RunRequest['runMode']>('cutoff');
   const [basis, setBasis] = useState<ResultBasis>('cutoff');
+  const [threshold, setThreshold] = useState<WaitThreshold>(THRESHOLD);
   const [draftSaved, setDraftSaved] = useState(false);
   const [planName, setPlanName] = useState('');
   const [resourceLimits, setResourceLimits] = useState({ staff: '', devices: '' });
@@ -131,8 +132,7 @@ export function App() {
   const requestFor = (target: Plan, document = project): RunRequest => ({ schemaVersion: 1, scenario: document.scenarios.find(item => item.id === target.scenarioId)!, plan: target, runMode });
   const stale = useMemo(() => !!run && run.inputKey !== inputKey(requestFor(plan)), [run, plan, scenario, runMode]);
   const secondStale = useMemo(() => !!secondRun && !!second && secondRun.inputKey !== inputKey(requestFor(second)), [secondRun, second, project.scenarios, runMode]);
-  const comparisonReady = !!second && !!run && !!secondRun && run.status === 'succeeded' && secondRun.status === 'succeeded'
-    && run.scenarioKey === secondRun.scenarioKey && run.request.runMode === secondRun.request.runMode && !stale && !secondStale;
+  const comparisonReady = !!second && !!run && !!secondRun && compatibleRuns(run, secondRun) && !stale && !secondStale;
   const endTime = Math.max(run?.coveredUntil ?? scenario.observationCutoff, mode === 'Compare' ? secondRun?.coveredUntil ?? 0 : 0);
   const issues = useMemo(() => [...validateScenario(scenario), ...validatePlan(plan), ...validateGraph(scenario, plan)], [scenario, plan]);
   const ownerIssues = owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(project.scenarios.find(item => item.id === owner.scenarioId)!, owner)];
@@ -160,8 +160,8 @@ export function App() {
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
   const selectedStats = statisticsAt(run, basis), selectedSecondStats = statisticsAt(secondRun, basis);
   const featured = useMemo(() => comparisonReady && selectedStats && selectedSecondStats ? featuredGhost(selectedStats, selectedSecondStats) : undefined, [comparisonReady, selectedStats, selectedSecondStats]);
-  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && selectedStats && selectedSecondStats ? comparePicks(selectedStats, selectedSecondStats) : [])
-    : rehearsePicks(run, view, time), [run, selectedStats, selectedSecondStats, comparing, comparisonReady, view, time]);
+  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && selectedStats && selectedSecondStats ? comparePicks(selectedStats, selectedSecondStats, 3, threshold) : [])
+    : rehearsePicks(run, view, time), [run, selectedStats, selectedSecondStats, comparing, comparisonReady, view, time, threshold]);
   const unsaved = JSON.stringify(project) !== savedText;
 
   function commit(next: ProjectDocument) {
@@ -411,9 +411,6 @@ export function App() {
     window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect);
   }, [unsaved, draftSaved]);
   useEffect(() => {
-    if (basis === 'completion' && (!run?.completion || (mode === 'Compare' && !secondRun?.completion))) setBasis('cutoff');
-  }, [basis, run, secondRun, mode]);
-  useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if (dialog) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
@@ -508,6 +505,11 @@ export function App() {
       </div>
     </header>
 
+    {comparing && <div className="comparison-settings">
+      <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
+      <label>{t.evidence.threshold}<select aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
+      <small>{t.review.completionHint}</small>
+    </div>}
     {comparing && <nav className="mobile-compare-nav" aria-label={t.workspace.focus}>
       <button type="button" aria-pressed={mobilePanel === 'report'} onClick={showOverview}>{t.workspace.report}</button>
       <button type="button" aria-pressed={mobilePanel === 'canvas'} onClick={() => { showOverview(); setMobilePanel('canvas'); }}>{t.workspace.canvas}</button>
@@ -520,7 +522,7 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className="sidebar is-report" aria-label={t.compare.title}>
         <div className="report-toolbar">{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button></div>
-        <CompareReport basis={basis} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <CompareReport basis={basis} threshold={threshold} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
@@ -568,7 +570,7 @@ export function App() {
         <div className="stage-head">
           <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
           <div className="stage-tools">
-            {mode !== 'Build' && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
+            {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
             {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
@@ -637,12 +639,12 @@ export function App() {
           </div>
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
-            {run && bottomTab === 'insights' && <Insights key={`${run.inputKey}-${secondRun?.inputKey}-${basis}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />}
+            {run && bottomTab === 'insights' && (comparing && !comparisonReady ? <p className="report-stale">{t.compare.stale}</p> : <Insights threshold={threshold} key={`${run.inputKey}-${secondRun?.inputKey}-${basis}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />)}
             {run && bottomTab === 'now' && <NowPanel plan={run.request.plan} view={view} previous={previousView} time={time} moments={moments} picks={picks} nameOf={nameOf}
               tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
               onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
             {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
-            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.compare.stale}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.compare.stale}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
               picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)}
               group={peopleGroup} onGroupChange={setPeopleGroup} onOverview={comparing ? showOverview : undefined} />)}
             {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.compare.stale}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
@@ -739,6 +741,7 @@ export function App() {
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
+      {comparing && <button type="button" className="option-card" disabled={!comparisonReady || !selectedStats || !selectedSecondStats} onClick={() => { download('comparison-evidence.md', comparisonReport(run, secondRun, comparisonReady, t, basis, threshold), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.evidence.comparison}</b><small>{t.review[basis]} · {threshold ? t.evidence.minute : t.evidence.any}</small></span></button>}
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}

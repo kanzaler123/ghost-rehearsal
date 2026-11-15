@@ -149,36 +149,37 @@ export function rehearsePicks(run: SimulationRun, view: PlaybackState, time: num
 
 export interface VisitorPair { id: string; a: VisitorMetrics; b: VisitorMetrics; delta: number }
 export type AffectedFilter = 'less' | 'more' | 'same' | 'rescued' | 'lost';
+export type WaitThreshold = 0 | 60;
 
 function pairs(a: Statistics, b: Statistics): VisitorPair[] {
   const right = new Map(b.visitors.map(visitor => [visitor.id, visitor]));
   return a.visitors.flatMap(visitor => {
     const other = right.get(visitor.id);
-    if (!other || (visitor.outcome === 'not_arrived' && other.outcome === 'not_arrived')) return [];
-    return [{ id: visitor.id, a: visitor, b: other, delta: other.waiting - visitor.waiting }];
+    if (!other || visitor.outcome === 'not_arrived' || other.outcome === 'not_arrived') return [];
+    return [{ id: visitor.id, a: visitor, b: other, delta: Math.round((other.waiting - visitor.waiting) * 1000) / 1000 }];
   });
 }
 
-const waitChange = (delta: number): 'less' | 'more' | 'same' => delta <= -THRESHOLD ? 'less' : delta >= THRESHOLD ? 'more' : 'same';
-const isAffected = (item: VisitorPair, filter: AffectedFilter) => filter === 'rescued'
+const waitChange = (delta: number, threshold: WaitThreshold): 'less' | 'more' | 'same' => delta < 0 && delta <= -threshold ? 'less' : delta > 0 && delta >= threshold ? 'more' : 'same';
+const isAffected = (item: VisitorPair, filter: AffectedFilter, threshold: WaitThreshold) => filter === 'rescued'
   ? item.a.outcome !== 'completed' && item.b.outcome === 'completed'
-  : filter === 'lost' ? item.a.outcome === 'completed' && item.b.outcome !== 'completed' : waitChange(item.delta) === filter;
+  : filter === 'lost' ? item.a.outcome === 'completed' && item.b.outcome !== 'completed' : waitChange(item.delta, threshold) === filter;
 
-/** All matching guests, with the same one-minute boundary used by the report and story picks. */
-export function affectedVisitors(a: Statistics, b: Statistics, filter?: AffectedFilter): VisitorPair[] {
+/** All matching guests, using the selected boundary shared by the report and story picks. */
+export function affectedVisitors(a: Statistics, b: Statistics, filter?: AffectedFilter, threshold: WaitThreshold = THRESHOLD): VisitorPair[] {
   const all = pairs(a, b);
   if (!filter) return all;
-  return all.filter(item => isAffected(item, filter)).sort((x, y) => filter === 'more' || filter === 'lost' ? y.delta - x.delta
+  return all.filter(item => isAffected(item, filter, threshold)).sort((x, y) => filter === 'more' || filter === 'lost' ? y.delta - x.delta
     : filter === 'same' ? Math.abs(x.delta) - Math.abs(y.delta) : x.delta - y.delta);
 }
 
 /** Ghosts whose two futures differ most. */
-export function comparePicks(a: Statistics, b: Statistics, size = 3): PickGroup[] {
+export function comparePicks(a: Statistics, b: Statistics, size = 3, threshold: WaitThreshold = THRESHOLD): PickGroup[] {
   const all = pairs(a, b);
-  const less = all.filter(item => isAffected(item, 'less')).sort((x, y) => x.delta - y.delta);
-  const more = all.filter(item => isAffected(item, 'more')).sort((x, y) => y.delta - x.delta);
-  const rescued = all.filter(item => isAffected(item, 'rescued')).sort((x, y) => x.delta - y.delta);
-  const lost = all.filter(item => isAffected(item, 'lost')).sort((x, y) => y.delta - x.delta);
+  const less = all.filter(item => isAffected(item, 'less', threshold)).sort((x, y) => x.delta - y.delta);
+  const more = all.filter(item => isAffected(item, 'more', threshold)).sort((x, y) => y.delta - x.delta);
+  const rescued = all.filter(item => isAffected(item, 'rescued', threshold)).sort((x, y) => x.delta - y.delta);
+  const lost = all.filter(item => isAffected(item, 'lost', threshold)).sort((x, y) => y.delta - x.delta);
   const group = (key: string, items: VisitorPair[], value: (item: VisitorPair) => number) => ({ key, total: items.length, items: items.slice(0, size).map(item => ({ id: item.id, value: value(item) })) });
   return [
     group('rescued', rescued, item => item.b.completedAt ?? 0), group('less', less, item => item.delta),
@@ -271,25 +272,26 @@ export function keyEvents(run: SimulationRun): KeyEvent[] {
 /* ---------- Comparison report ---------- */
 
 /** Wait changes of at least this many seconds count as changed. */
-export const THRESHOLD = 60;
+export const THRESHOLD: WaitThreshold = 60;
 
 export interface Affected { total: number; better: number; worse: number; same: number; rescued: number; lost: number; bins: number[] }
 /** Upper bounds (minutes) of the wait-change bins; the last bin is open-ended. */
 export const DELTA_BINS = [-10, -5, -1, 1, 5, 10];
 
-export function affected(a: Statistics, b: Statistics): Affected {
+export function affected(a: Statistics, b: Statistics, threshold: WaitThreshold = THRESHOLD): Affected {
   const all = pairs(a, b);
   const bins = Array(DELTA_BINS.length + 1).fill(0) as number[];
   for (const item of all) {
     const minutes = item.delta / 60;
-    const index = DELTA_BINS.findIndex(bound => bound < 0 ? minutes <= bound : minutes < bound);
-    bins[index < 0 ? DELTA_BINS.length : index]++;
+    const group = waitChange(item.delta, threshold);
+    const index = group === 'same' ? 3 : group === 'less' ? (minutes <= -10 ? 0 : minutes <= -5 ? 1 : 2) : (minutes < 5 ? 4 : minutes < 10 ? 5 : 6);
+    bins[index]++;
   }
-  const better = all.filter(item => isAffected(item, 'less')).length, worse = all.filter(item => isAffected(item, 'more')).length;
+  const better = all.filter(item => isAffected(item, 'less', threshold)).length, worse = all.filter(item => isAffected(item, 'more', threshold)).length;
   return {
     total: all.length, better, worse, same: all.length - better - worse, bins,
-    rescued: all.filter(item => isAffected(item, 'rescued')).length,
-    lost: all.filter(item => isAffected(item, 'lost')).length,
+    rescued: all.filter(item => isAffected(item, 'rescued', threshold)).length,
+    lost: all.filter(item => isAffected(item, 'lost', threshold)).length,
   };
 }
 
@@ -324,6 +326,12 @@ export function stationWaits(planA: Plan, a: Statistics, planB: Plan, b: Statist
 
 export const totalWait = (stats: Statistics) => arrived(stats).reduce((sum, visitor) => sum + visitor.waiting, 0);
 
+export function completedWaiting(stats: Statistics) {
+  const waits = stats.visitors.filter(visitor => visitor.outcome === 'completed').map(visitor => visitor.waiting).sort((a, b) => a - b);
+  return { n: waits.length, average: waits.length ? waits.reduce((sum, wait) => sum + wait, 0) / waits.length : null,
+    p90: waits.length ? waits[Math.ceil(waits.length * 0.9) - 1] : null };
+}
+
 const overlap = (windows: { start: number; end: number }[], until: number) => windows.reduce((sum, window) => sum + Math.max(0, Math.min(window.end, until) - Math.max(0, window.start)), 0);
 
 export interface Cost {
@@ -334,7 +342,7 @@ export interface Cost {
 
 /** Resource cost inside the observation window (staffed and device time from shifts). */
 export function costOf(planA: Plan, planB: Plan, scenario: Scenario, a: Statistics, b: Statistics, basis: ResultBasis = 'cutoff'): Cost {
-  const until = (plan: Plan) => basis === 'cutoff' ? scenario.observationCutoff : plan === planA ? a.until : b.until;
+  const until = (plan: Plan) => plan === planA ? a.until : b.until;
   const staffHours = (plan: Plan) => plan.staff.reduce((sum, staff) => sum + overlap(staff.shifts, until(plan)), 0) / 3600;
   const deviceHours = (plan: Plan) => plan.deviceTypes.reduce((sum, device) => sum + device.quantity * overlap(device.shifts, until(plan)), 0) / 3600;
   const ids = [...new Set([...planA.deviceTypes, ...planB.deviceTypes].map(device => device.id))];
@@ -422,18 +430,19 @@ export function planChanges(a: Plan, b: Plan): ChangeItem[] {
 
 export type ResultBasis = 'cutoff' | 'completion';
 export const statisticsAt = (run: SimulationRun | undefined, basis: ResultBasis): Statistics | null =>
-  (basis === 'completion' ? run?.completion : run?.statistics) ?? null;
+  run?.status === 'succeeded' ? (basis === 'completion' ? run.request.runMode === 'run_to_completion' ? run.completion : null : run.statistics) : null;
+
+export function compatibleRuns(a: SimulationRun, b: SimulationRun): boolean {
+  return a.status === 'succeeded' && b.status === 'succeeded' && a.scenarioKey === b.scenarioKey
+    && a.modelVersion === b.modelVersion && a.request.runMode === b.request.runMode;
+}
 
 export interface VisitorPair { id: string; a: VisitorMetrics; b: VisitorMetrics; delta: number }
 export function pairedVisitors(a: SimulationRun, b: SimulationRun, basis: ResultBasis): VisitorPair[] {
-  if (a.status !== 'succeeded' || b.status !== 'succeeded' || a.scenarioKey !== b.scenarioKey || a.request.runMode !== b.request.runMode) return [];
+  if (!compatibleRuns(a, b)) return [];
   const left = statisticsAt(a, basis), right = statisticsAt(b, basis);
   if (!left || !right) return [];
-  const visitors = new Map(right.visitors.map(visitor => [visitor.id, visitor]));
-  return left.visitors.flatMap(visitor => {
-    const match = visitors.get(visitor.id);
-    return match ? [{ id: visitor.id, a: visitor, b: match, delta: Math.round((match.waiting - visitor.waiting) * 1000) / 1000 }] : [];
-  });
+  return pairs(left, right);
 }
 
 export function nodeEvidence(run: SimulationRun, nodeId: string, basis: ResultBasis) {

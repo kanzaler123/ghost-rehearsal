@@ -1,4 +1,4 @@
-import { executionReport, halloweenProject, initialDocument } from '../src/features/project';
+import { comparisonReport, executionReport, halloweenProject, initialDocument } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { describe, expect, it } from 'vitest';
 import example from '../examples/open-house.json';
@@ -8,7 +8,7 @@ import { simulate } from '../src/simulation/engine';
 import { playbackAt } from '../src/simulation/metrics';
 import type { SimulationEvent, Statistics, VisitorMetrics } from '../src/simulation/types';
 import {
-  nodeEvidence, pairedVisitors, statisticsAt, affected, affectedVisitors, comparePicks, costOf, featuredGhost, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, stationWaits, stationsOf, statusAt, totalWait, visitorName,
+  completedWaiting, nodeEvidence, pairedVisitors, statisticsAt, affected, affectedVisitors, comparePicks, costOf, featuredGhost, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, stationWaits, stationsOf, statusAt, totalWait, visitorName,
 } from '../src/features/analysis';
 
 const document = projectDocumentSchema.parse(example);
@@ -140,6 +140,74 @@ describe('story picks', () => {
 });
 
 describe('comparison report', () => {
+  it.each([0, 60] as const)('uses one partition for all views at threshold %s, including millisecond boundaries', threshold => {
+    const deltas = [-600, -300, -60, -59.999, -0.001, 0, 0.001, 59.999, 60, 300, 600];
+    const visitor = statsA.visitors[0];
+    const a = { ...statsA, visitors: deltas.map((_, index) => ({ ...visitor, id: String(index), waiting: 1000 })) };
+    const b = { ...statsB, visitors: deltas.map((delta, index) => ({ ...visitor, id: String(index), waiting: 1000 + delta })) };
+    const summary = affected(a, b, threshold);
+    expect([summary.better, summary.same, summary.worse]).toEqual(threshold ? [3, 5, 3] : [5, 1, 5]);
+    expect(summary.bins).toEqual(threshold ? [1, 1, 1, 5, 1, 1, 1] : [1, 1, 3, 1, 3, 1, 1]);
+    for (const [filter, count] of [['less', summary.better], ['more', summary.worse], ['same', summary.same]] as const) {
+      expect(affectedVisitors(a, b, filter, threshold)).toHaveLength(count);
+      if (filter !== 'same') expect(comparePicks(a, b, 20, threshold).find(group => group.key === filter)?.total).toBe(count);
+    }
+  });
+
+  it('excludes one-sided arrival and unmatched IDs from paired waits without changing primary samples', () => {
+    const base = statsA.visitors[0];
+    const a = { ...statsA, visitors: [{ ...base, id: 'both' }, { ...base, id: 'late', outcome: 'not_arrived' as const }, { ...base, id: 'absent' }, { ...base, id: 'missing' }] };
+    const b = { ...statsB, visitors: [{ ...base, id: 'both' }, { ...base, id: 'late' }, { ...base, id: 'absent', outcome: 'not_arrived' as const }] };
+    expect(affectedVisitors(a, b).map(pair => pair.id)).toEqual(['both']);
+    expect(pairedVisitors({ ...runA, statistics: a }, { ...runB, statistics: b }, 'cutoff').map(pair => pair.id)).toEqual(['both']);
+    expect(affected(a, b).total).toBe(1);
+    expect(a.visitors).toHaveLength(4);
+  });
+
+  it('keeps all arrived primary waits and an independently calculated completed-only sample', () => {
+    const request = serviceFixture(3, 1);
+    request.runMode = 'run_to_completion'; request.scenario.observationCutoff = 15; request.scenario.horizon = 25;
+    const run = simulate(request);
+    expect(run.statistics).toMatchObject({ arrived: 3, averageWaiting: 25 / 3, p90Waiting: 15 });
+    expect(completedWaiting(run.statistics!)).toEqual({ n: 1, average: 0, p90: 0 });
+    expect(run.completion).toMatchObject({ until: 25, arrived: 3, outcomes: { completed: 2, unfinished: 1 }, averageWaiting: 10, p90Waiting: 20 });
+    expect(completedWaiting(run.completion!)).toEqual({ n: 2, average: 5, p90: 10 });
+    expect(completedWaiting({ ...run.statistics!, visitors: [] })).toEqual({ n: 0, average: null, p90: null });
+  });
+
+  it('keeps different final windows and clips scheduled resource costs to each actual end', () => {
+    const request = serviceFixture(3, 1); request.runMode = 'run_to_completion'; request.scenario.observationCutoff = 15;
+    const a = simulate(request), changed = structuredClone(request);
+    const node = changed.plan.graph.nodes[1]; if (node.type === 'service') node.duration = { kind: 'fixed', value: 20, provenance: { kind: 'synthetic' } };
+    const b = simulate(changed);
+    expect([a.completion!.until, b.completion!.until]).toEqual([30, 60]);
+    const staff = { id: 's', name: 'S', skillIds: [], shifts: [{ start: 0, end: 100 }], unavailability: [], provenance: { kind: 'synthetic' as const } };
+    const costs = costOf({ ...request.plan, staff: [staff] }, { ...changed.plan, staff: [staff] }, request.scenario, a.completion!, b.completion!, 'completion');
+    expect(costs.staffHours).toEqual([30 / 3600, 60 / 3600]);
+    const exported = comparisonReport(a, b, true, MESSAGES.en, 'completion', 60);
+    expect(exported).toContain('Actual end 00:30'); expect(exported).toContain('Actual end 01:00');
+  });
+
+  it.each(['en', 'zh'] as const)('exports groups and secondary samples in %s and refuses missing/stale/incompatible evidence', lang => {
+    const t = MESSAGES[lang];
+    for (const threshold of [0, 60] as const) {
+      const summary = affected(statsA, statsB, threshold), labels = threshold ? t.evidence.groups : t.evidence.anyGroups;
+      const text = comparisonReport(runA, runB, true, t, 'cutoff', threshold);
+      expect(text).toContain(`${labels.less}: ${summary.better}`);
+      expect(text).toContain(`${labels.more}: ${summary.worse}`);
+      expect(text).toContain(`${labels.same}: ${summary.same}`);
+      expect(text).toContain(t.evidence.paired(300));
+      expect(text).toContain(`${t.evidence.completed}: n=43`);
+      expect(text).toContain(`${t.evidence.completed}: n=41`);
+      expect(text).toContain(t.review.caveat);
+    }
+    expect(comparisonReport(runA, runB, false, t, 'cutoff', 60)).toBe(t.report.noRun);
+    expect(comparisonReport(runA, runB, true, t, 'completion', 60)).toBe(t.report.noRun);
+    for (const b of [undefined, { ...runB, status: 'aborted' as const }, { ...runB, modelVersion: 'other' }, { ...runB, scenarioKey: 'other' }]) {
+      expect(comparisonReport(runA, b, true, t, 'cutoff', 60)).toBe(t.report.noRun);
+    }
+  });
+
   it('describes what changed without subflow noise, in process-resource-route order', () => {
     const changes = planChanges(planA, planB);
     expect(changes.some(item => item.id === 'verification' || item.id === 'activities')).toBe(false);

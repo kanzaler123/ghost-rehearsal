@@ -761,6 +761,8 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 
 ### Requirement 40: 运行到完成模式
 
+2026-11-15 比较产品口径补充：`comparison-evidence-contract` 将全部已到达者保留为 cutoff 与 completion 的主要等待统计，同时单列下方 40.3(a) 的仅 completed 子群、平均值、P90 与样本数。此补充扩展 40.2 的输出范围，不删除原 completed 要求；两侧子群可能不是同一批人，必须明确标注。下列原条款保留用于追溯，完整输出契约仍需单独验收。
+
 **User Story:** 作为活动组织者，我希望在截止时刻统计之外，还能看到全部参与者完成流程后的最终结果，并区分两种口径。
 
 #### Acceptance Criteria

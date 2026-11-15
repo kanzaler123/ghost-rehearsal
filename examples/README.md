@@ -17,7 +17,7 @@
 | P90 累计等待（分钟） | 25.79 | 25.79 | 24.07 |
 
 1. **原先的想法：** 增加核验通道可能改善活动体验。B 同时改了通道、设备、机动人员岗位和后续环节，因此差异不能归因于一台扫描设备。
-2. **实际发现：** B 的平均等待只减少约 2.38 秒，完成反而少 2 人。同 ID 配对为 66 人等待更少、26 人更多、208 人不变。7 人从未完成变为完成，9 人从完成变为未完成，2 人从未完成变为中途离开。
+2. **实际发现：** B 的平均等待只减少约 2.38 秒，完成反而少 2 人。默认“至少相差 60 秒”下为 12 人少等、9 人多等、279 人变化不足 60 秒；切到“查看任何变化”后，同 ID 配对为 66 人等待更少、26 人更多、208 人不变。7 人从未完成变为完成，9 人从完成变为未完成，2 人从未完成变为中途离开。
 3. **看见具体经历：** 点击这些分组可进入个人旅程和每个节点的等待。等待减少的 66 人中，有 3 人在 B 中途离开：2 人是新增的未完成→离开，另 1 人在 A/B 都离开。不能把这组人统称为“改善”。
 4. **追查约束：** 点击 B 的第二核验通道，查看积压时刻的岗位与资源记录。核验工作人员只在第一通道，机动人员在 600 秒前只服务资料发放和复检，600 秒后调岗且需交接。B 的资料工作人员在观察窗口内忙碌 1655 秒、空闲 100 秒、不可用 45 秒，利用率约 94.3%（忙碌 / 忙碌加空闲）。这些是可核查的约束与占用记录，不能由此断言只有一个原因。
 5. **验证调整：** Insights 的“试验增配资料发放人员”从 B 复制方案，仅增加一位资料发放人员及其岗位。新人员沿用原资料人员的技能、0–7200 秒班次及 400–460 秒不可用时段，岗位从 0 秒起为 packing。它不改变到达、服务时间、路线或已有岗位。C 的结果如表；界面随后比较 B 与 C，显示额外人员成本。
@@ -103,3 +103,11 @@ C 是一次有依据的合成试验，不是最优方案，也不是同资源预
 本产品用于运营流程的情景比较，不提供建筑疏散、踩踏风险、物理人群碰撞或现场安全认证。
 
 This product compares operational process scenarios. It does not provide building evacuation analysis, crowd crush risk assessment, physical crowd collision modeling, or on-site safety certification.
+
+## 比较口径 / Comparison basis（2026-11-15 重新运行）
+
+主要等待指标在 cutoff 与 final 均包含全部已到达者，不排除未完成和提前离开。等待配对仅包括两侧均已到达的同 ID；未到达和未配对人数另外列出。默认阈值包含恰好 ±60 秒；任何变化按毫秒精度分组。名单、人数、故事、直方图与比较证据导出共用规则。
+
+本例两侧 cutoff 均为 1800 秒、已到达样本均为 300。仅 completed 子群的 n 为 A 43 / B 41，平均等待为 622.718721 / 626.515683 秒，P90 为 1143.571 / 1205 秒。最终两侧都在 7200 秒达到上限；主要平均等待为 4490.55 / 4490.95 秒；仅 completed 子群均 n=149，平均为 3016.531148 / 3042.285711 秒。子群成员可能不同，不能把两均值之差解释为同一批人的效果。达到上限不代表全部完成；界面会保留未完成结局。
+
+The primary mean/P90 includes **all arrived guests** at either cutoff or final, including unfinished and early departures. Paired waiting requires the same ID to have arrived in both plans; missing/not-arrived guests are reported separately. The default inclusive ±60-second rule gives **12 less / 9 more / 279 little change**. “Any change”, at millisecond resolution, gives **66 less / 26 more / 208 unchanged**. Counts, lists, stories, histogram and comparison export use the selected rule. Final statistics use each side's actual end and never substitute a missing final result with cutoff. This example reaches 7200 seconds on both sides with unfinished guests. The separately labelled completed-only sample preserves original Requirement 40; it is not a matched cohort.

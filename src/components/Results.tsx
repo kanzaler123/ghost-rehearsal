@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import type { Plan } from '../schemas';
 import { assignmentDescription, durationDescription, formatTime, nodeInstructions } from '../features/project';
-import { nodeEvidence, pairedVisitors, statisticsAt, visitorName } from '../features/analysis';
-import type { ResultBasis } from '../features/analysis';
+import { affectedVisitors, nodeEvidence, pairedVisitors, statisticsAt, THRESHOLD, visitorName } from '../features/analysis';
+import type { ResultBasis, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { SimulationEvent, SimulationRun } from '../simulation/types';
 import { Ghost } from './Icons';
+import { StatisticsScope } from './StatisticsScope';
 
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
@@ -40,9 +41,10 @@ interface InsightsProps {
   run: SimulationRun; second?: SimulationRun; compare: boolean; comparisonReady: boolean; changes: PlanChange[];
   scenarioId: string; overrides: number; basis: ResultBasis; onSelectNode: (id: string, owner: string) => void;
   onChoose: (id: string) => void; onJump: (time: number, nodeId: string, owner: string) => void; onExperiment?: () => void;
+  threshold?: WaitThreshold;
 }
 
-export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment }: InsightsProps) {
+export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
   const stats = statisticsAt(run, basis);
@@ -50,7 +52,8 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
   const [group, setGroup] = useState<'less' | 'more' | 'same' | null>(null);
   const [selected, setSelected] = useState<{ id: string; owner: string } | null>(null);
   const pairs = useMemo(() => second && compare && comparisonReady ? pairedVisitors(run, second, basis) : [], [run, second, compare, comparisonReady, basis]);
-  const groups = { less: pairs.filter(pair => pair.delta < 0), more: pairs.filter(pair => pair.delta > 0), same: pairs.filter(pair => pair.delta === 0) };
+  const groups = Object.fromEntries((['less', 'more', 'same'] as const).map(key => [key, stats && secondStats ? affectedVisitors(stats, secondStats, key, threshold) : []]));
+  const groupLabels = threshold ? t.evidence.groups : t.evidence.anyGroups;
   const transitions = new Map<string, number>();
   pairs.filter(pair => pair.a.outcome !== pair.b.outcome).forEach(pair => { const key = `${pair.a.outcome}:${pair.b.outcome}`; transitions.set(key, (transitions.get(key) ?? 0) + 1); });
   const nameOf = (id: string) => run.request.plan.graph.nodes.find(node => node.id === id)?.name ?? second?.request.plan.graph.nodes.find(node => node.id === id)?.name ?? id;
@@ -72,10 +75,13 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
     const resource = change.kind === 'staff' ? plan.staff.find(item => item.id === change.id) : plan.deviceTypes.find(item => item.id === change.id);
     return resource ? `${resource.name}: ${'quantity' in resource ? resource.quantity : resource.skillIds.join(', ')}; ${resource.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ')}; ${t.report.unavailable}: ${resource.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}` : '—';
   };
+  if (compare && (!stats || !secondStats)) return <p role="status">{t.evidence.missing}</p>;
   return <div className="analysis-panel">
-    {pairs.length > 0 && <section className="paired-summary">
+    <StatisticsScope runs={secondStats && second ? [run, second] : [run]} basis={basis} />
+    {compare && secondStats && <section className="paired-summary">
       <h3>{t.review.paired}</h3>
-      <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{groups[key].length}</b> {t.review[key]}</button>)}</div>
+      <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{groups[key].length}</b> {groupLabels[key]}</button>)}</div>
+      <p className="subtle">{t.evidence.rule}</p>
       <p className="subtle">{t.review.caveat}</p>
       <p>{t.review.transitions}: {[...transitions].map(([key, count]) => { const [a, b] = key.split(':'); return <span className="chip" key={key}>{count} · {t.outcomes[a]} → {t.outcomes[b]}</span>; })}</p>
       {group && <div className="paired-list"><table><thead><tr><th>{t.review.guest}</th><th>A</th><th>B</th><th>{t.review.delta}</th></tr></thead><tbody>{[...groups[group]].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(pair => <tr key={pair.id}><td><button type="button" className="text-btn" onClick={() => onChoose(pair.id)}>{pair.id}</button></td><td>{t.formatWait(pair.a.waiting)} · {t.outcomes[pair.a.outcome]}</td><td>{t.formatWait(pair.b.waiting)} · {t.outcomes[pair.b.outcome]}</td><td>{pair.delta > 0 ? '+' : ''}{t.formatWait(pair.delta)}</td></tr>)}</tbody></table></div>}

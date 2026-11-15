@@ -15,6 +15,22 @@ const zhPersonTime = (seconds: number | null | undefined) =>
 
 const en = {
   lang: 'en' as Lang,
+  evidence: {
+    threshold: 'Waiting change rule', minute: 'At least 60 seconds', any: 'Any change',
+    groups: { less: 'Waited ≥60 s less', more: 'Waited ≥60 s more', same: 'Changed by <60 s' },
+    anyGroups: { less: 'Waited less', more: 'Waited more', same: 'Exactly unchanged' },
+    bins: ['≤ −10', '(−10, −5]', '(−5, −1]', '(−1, +1)', '[1, 5)', '[5, 10)', '≥ 10'],
+    anyBins: ['≤ −10', '(−10, −5]', '(−5, 0)', '= 0', '(0, 5)', '[5, 10)', '≥ 10'],
+    rule: 'B − A waiting, at millisecond resolution; bins are in minutes. Negative means less waiting, not necessarily a better outcome.',
+    population: 'Primary waiting: all arrived guests, including unfinished and early departures.',
+    paired: (n: number) => `Paired waiting sample: n=${n}, arrived on both sides with the same ID.`,
+    side: (end: string, n: number, absent: number, excluded: number) => `Actual end ${end} · all arrived n=${n} · not arrived ${absent} · arrived outside paired sample ${excluded}`,
+    completed: 'Completed only · secondary waiting sample', sample: 'Sample n',
+    subgroupNote: 'Each side selects its own completed guests; these are not necessarily the same people.',
+    limit: 'Run limit reached with unfinished or not-arrived guests.',
+    missing: 'No usable result for this statistics basis. Run both plans to completion to view final results.',
+    comparison: 'Comparison evidence', ends: 'Actual statistics ends',
+  },
   review: {
     basis: 'Statistics basis', cutoff: 'Observation cutoff', completion: 'Final / run limit', completionHint: 'Run to completion to enable final statistics. Final can still include unfinished guests at the run limit.',
     lastRun: 'Last run · inputs changed', rerun: 'Run again',
@@ -396,6 +412,22 @@ export type Messages = typeof en;
 
 const zh: Messages = {
   lang: 'zh',
+  evidence: {
+    threshold: '等待变化规则', minute: '至少相差 60 秒', any: '查看任何变化',
+    groups: { less: '少等 ≥60 秒', more: '多等 ≥60 秒', same: '变化不足 60 秒' },
+    anyGroups: { less: '等待减少', more: '等待增加', same: '完全不变' },
+    bins: ['≤ −10', '(−10, −5]', '(−5, −1]', '(−1, +1)', '[1, 5)', '[5, 10)', '≥ 10'],
+    anyBins: ['≤ −10', '(−10, −5]', '(−5, 0)', '= 0', '(0, 5)', '[5, 10)', '≥ 10'],
+    rule: '等待差值为 B − A，按毫秒精度分组；直方图区间单位为分钟。负值表示少等，不一定代表结局更好。',
+    population: '主要等待指标：全部已到达者，包括未完成者和提前离开者。',
+    paired: n => `等待配对样本 n=${n}：两侧均已到达且 ID 相同的参与者。`,
+    side: (end, n, absent, excluded) => `实际统计结束 ${end} · 全部已到达 n=${n} · 未到达 ${absent} · 已到达但未配对 ${excluded}`,
+    completed: '仅 completed · 次要等待样本', sample: '样本 n',
+    subgroupNote: '两侧分别取各自已完成者，不保证是同一批人。',
+    limit: '达到运行上限，仍有未完成或未到达者。',
+    missing: '此统计口径暂无可用结果；查看最终统计需要将两个方案运行到完成。',
+    comparison: '比较证据', ends: '实际统计结束时间',
+  },
   review: {
     basis: '统计口径', cutoff: '观察截止', completion: '最终结束 / 运行上限', completionHint: '选择运行到完成后可查看最终统计；达到运行上限时仍可能有人未完成。',
     lastRun: '上次运行结果 · 输入已变更', rerun: '重新运行',
