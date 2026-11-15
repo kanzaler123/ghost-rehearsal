@@ -44,6 +44,20 @@ const cls = (...names: (string | false | undefined | null)[]) => names.filter(Bo
 type Detail = 'near' | 'mid' | 'far';
 const detailAt = (zoom: number): Detail => zoom >= 0.72 ? 'near' : zoom >= 0.4 ? 'mid' : 'far';
 
+function useCardDetail(): Detail {
+  const next = useStore(store => detailAt(store.transform[2]));
+  const [detail, setDetail] = useState(next);
+  useEffect(() => {
+    if (detail === next) return;
+    // Card content changes its measured height. Keep those DOM changes out of
+    // the resize notification cycle that can also update React Flow's store.
+    const frame = requestAnimationFrame(() => setDetail(next));
+    return () => cancelAnimationFrame(frame);
+  }, [next, detail]);
+  return detail;
+}
+
+
 function detailOf(node: Node, t: Messages): string {
   const c = t.canvas;
   switch (node.type) {
@@ -96,7 +110,7 @@ function stateClass(waiting: number, serving: number, blocked: number, trend: nu
 
 function FlowCard({ data, selected }: NodeProps<CardNode>) {
   const { t } = useI18n();
-  const detail = useStore(store => detailAt(store.transform[2]));
+  const detail = useCardDetail();
   const { node, state } = data;
   const serving = state?.serving.length ?? 0;
   const blocked = state?.blocked.length ?? 0;
@@ -137,7 +151,7 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
 
 function StageCard({ data, selected }: NodeProps<StageNode>) {
   const { t } = useI18n();
-  const detail = useStore(store => detailAt(store.transform[2]));
+  const detail = useCardDetail();
   const trackedHere = !!data.tracked && data.ghosts.some(([id]) => id === data.tracked!.id);
   return <div className={cls('stage-card', `lod-${detail}`, selected && 'selected', data.changed && 'changed', data.running && 'running',
     data.running && stateClass(data.waiting, data.serving, data.blocked, data.trend), trackedHere && 'has-tracked')}>
