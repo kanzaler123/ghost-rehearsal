@@ -14,7 +14,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  chromium:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,23 +30,34 @@ jobs:
       - run: npm run check
       - run: npm run build -- --base=/ghost-rehearsal/
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - run: npm run test:browser -- --shard=${{ matrix.shard }}/2
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
       - name: Upload browser failure diagnostics
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          name: browser-failure-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: |
             test-results/
             playwright-report/
           if-no-files-found: ignore
           retention-days: 14
       - uses: actions/upload-pages-artifact@v5
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: matrix.shard == 1 && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:
           path: dist
+
+  # Keep one stable build check; any failed or cancelled shard blocks deployment.
+  build:
+    if: always()
+    needs: chromium
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both Chromium shards
+        env:
+          CHROMIUM_RESULT: ${{ needs.chromium.result }}
+        run: test "$CHROMIUM_RESULT" = success
 
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
