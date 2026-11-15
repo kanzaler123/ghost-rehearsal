@@ -354,6 +354,7 @@ export function App() {
   function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
     if (dialog === 'robustness') return;
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
+    if (scope === 'cutoff') setBasis('cutoff');
     runningPlans.current = targets.map(target => target.id); setLastRun(null);
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
     worker.current?.terminate();
@@ -394,7 +395,6 @@ export function App() {
     const right = project.plans.find(item => item.id === rightId && item.scenarioId === scenario.id);
     if (busy || !left || !right || left.id === right.id) return;
     setDialog(null); setGuide(null); setPlanId(left.id); setSecondId(right.id); setRunMode(scope);
-    if (scope === 'cutoff') setBasis('cutoff');
     setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
     launch([left, right], 'Compare', project, scope);
   }
