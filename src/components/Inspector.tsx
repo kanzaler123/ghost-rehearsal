@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useId } from 'react';
+import { cloneElement, isValidElement, useId, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { ArrowUp, BookmarkPlus, Braces, Lightbulb, PanelRightClose, PanelRightOpen, Plus, Route, Trash2, TriangleAlert, Users, X } from 'lucide-react';
 import type { Edge, Node, Plan, Scenario, ValidationIssue } from '../schemas';
@@ -10,6 +10,10 @@ import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
 import { NumericInput } from './forms/NumericInput';
 import { minutesToSeconds, secondsToMinutes } from './forms/numberDraft';
+import { updateProvenance } from '../features/data-sources';
+import { ServiceDataEditor } from './data-sources/ServiceDataEditor';
+import { ProvenanceEditor } from './data-sources/ProvenanceFields';
+import { dataSourceText } from './data-sources/text';
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   const hintId = useId();
@@ -35,6 +39,13 @@ interface Props {
 export function Inspector({ plan, scenario, node, edge, editable, issues, run, stale, basis, onRerun, onNode, onEdge, onAdvanced, onDelete, onResources, collapsed, onToggle, onSaveTemplate }: Props) {
   const { t, lang } = useI18n();
   const s = t.inspector;
+  const dataText = dataSourceText(lang);
+  const requirementKeys = useRef(new WeakMap<object, number>());
+  const nextRequirementKey = useRef(0);
+  const requirementKey = (item: object) => {
+    if (!requirementKeys.current.has(item)) requirementKeys.current.set(item, nextRequirementKey.current++);
+    return requirementKeys.current.get(item)!;
+  };
   if (collapsed) return <aside className="inspector collapsed" aria-label={s.eyebrow}>
     <button type="button" className="rail-toggle" aria-label={s.expand} title={s.expand} aria-expanded={false} onClick={onToggle}><PanelRightOpen size={17} /><span>{s.eyebrow}</span></button>
   </aside>;
@@ -77,21 +88,24 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
           {node.type === 'service' && <>
             <h3 className="form-heading">{s.serviceRules}</h3>
             <Field label={s.distribution}><select value={node.duration.kind} onChange={event => {
-              const kind = event.target.value; const provenance = { kind: 'user_estimate' as const };
+              const kind = event.target.value; const provenance = updateProvenance(node.duration.provenance, { valueChanged: true });
               onNode({ ...node, duration: kind === 'fixed' ? { kind, value: 30, provenance } : kind === 'uniform' ? { kind, min: 15, max: 45, provenance } : kind === 'triangular' ? { kind, min: 15, mode: 30, max: 45, provenance } : { kind: 'empirical', samples: [20, 30, 40], provenance } });
             }}>{(['fixed', 'uniform', 'triangular', 'empirical'] as const).map(kind => <option key={kind} value={kind}>{s.distributions[kind]}</option>)}</select></Field>
-            {node.duration.kind === 'fixed' && <Field label={s.serviceTime}><NumberInput label={s.serviceTime} value={node.duration.value} step={0.1} onChange={value => onNode({ ...node, duration: { kind: 'fixed', value, provenance: { kind: 'user_estimate' } } })} /></Field>}
-            {(node.duration.kind === 'uniform' || node.duration.kind === 'triangular') && <div className="form-row">{(['min', ...(node.duration.kind === 'triangular' ? ['mode'] : []), 'max'] as ('min' | 'mode' | 'max')[]).map(field => <Field key={field} label={s[field]}><NumberInput step={0.1} value={Number((node.duration as unknown as Record<string, number>)[field])} onChange={value => onNode({ ...node, duration: { ...node.duration, [field]: value, provenance: { kind: 'user_estimate' } } })} /></Field>)}</div>}
-            {node.duration.kind === 'empirical' && <Field label={t.review.samples}><textarea key={`${node.id}-${node.duration.samples.join(',')}`} defaultValue={node.duration.samples.join(', ')} onChange={event => event.target.setCustomValidity('')} onBlur={event => { const samples = event.target.value.trim().split(/[,，\s]+/).map(Number); if (!event.target.value.trim() || samples.some(value => !Number.isFinite(value) || value < 0)) { event.target.setCustomValidity(t.review.samplesInvalid); event.target.reportValidity(); return; } onNode({ ...node, duration: { kind: 'empirical', samples, provenance: { kind: 'user_estimate' } } }); }} /></Field>}
+            {node.duration.kind === 'fixed' && <Field label={s.serviceTime}><NumberInput label={s.serviceTime} value={node.duration.value} step={0.1} onChange={value => onNode({ ...node, duration: { kind: 'fixed', value, provenance: updateProvenance(node.duration.provenance, { valueChanged: true }) } })} /></Field>}
+            {(node.duration.kind === 'uniform' || node.duration.kind === 'triangular') && <div className="form-row">{(['min', ...(node.duration.kind === 'triangular' ? ['mode'] : []), 'max'] as ('min' | 'mode' | 'max')[]).map(field => <Field key={field} label={s[field]}><NumberInput step={0.1} value={Number((node.duration as unknown as Record<string, number>)[field])} onChange={value => onNode({ ...node, duration: { ...node.duration, [field]: value, provenance: updateProvenance(node.duration.provenance, { valueChanged: true }) } })} /></Field>)}</div>}
+            {node.duration.kind === 'empirical' && <Field label={t.review.samples}><textarea key={`${node.id}-${node.duration.samples.join(',')}`} defaultValue={node.duration.samples.join(', ')} onChange={event => event.target.setCustomValidity('')} onBlur={event => { const samples = event.target.value.trim().split(/[,，\s]+/).map(Number); if (!event.target.value.trim() || samples.some(value => !Number.isFinite(value) || value < 0)) { event.target.setCustomValidity(t.review.samplesInvalid); event.target.reportValidity(); return; } if (node.duration.kind === 'empirical' && JSON.stringify(samples) === JSON.stringify(node.duration.samples)) return; onNode({ ...node, duration: { kind: 'empirical', samples, provenance: updateProvenance(node.duration.provenance, { valueChanged: true }) } }); }} /></Field>}
+            <p className="subtle">{dataText.manualHint}</p>
+            <details className="ds-details"><summary>{dataText.sourceKind}</summary><ProvenanceEditor key={JSON.stringify(node.duration)} value={node.duration.provenance} lang={lang} onChange={provenance => onNode({ ...node, duration: { ...node.duration, provenance } })} /></details>
+            <details className="ds-details"><summary>{dataText.service}</summary><ServiceDataEditor duration={node.duration} targetName={`${node.name} (${node.id})`} lang={lang} onChange={duration => onNode({ ...node, duration })} /></details>
             <Field label={s.maxConcurrent} hint={s.maxConcurrentHint}><NumericInput optional min={1} value={node.maxConcurrent} placeholder={t.common.unlimited} onChange={maxConcurrent => onNode({ ...node, maxConcurrent })} /></Field>
             <h3 className="form-heading">{s.perService}</h3>
             {!node.requirements.length && <p className="subtle">{s.noRequirements}</p>}
-            {node.requirements.map((item, index) => <div className="requirement-row" key={index}>
+            {node.requirements.map((item, index) => <div className="requirement-row" key={requirementKey(item)}>
               <select aria-label={s.requirement(index + 1)} value={`${item.kind}:${item.kind === 'staff' ? item.skillId : item.deviceTypeId}`} onChange={event => {
                 const [kind, id] = event.target.value.split(':'); const requirements = [...node.requirements];
-                requirements[index] = kind === 'staff' ? { kind, skillId: id, quantity: item.quantity } : { kind: 'device', deviceTypeId: id, quantity: item.quantity }; onNode({ ...node, requirements });
+                requirements[index] = kind === 'staff' ? { kind, skillId: id, quantity: item.quantity } : { kind: 'device', deviceTypeId: id, quantity: item.quantity }; requirementKeys.current.set(requirements[index], requirementKey(item)); onNode({ ...node, requirements });
               }}>{plan.skills.map(skill => <option key={`staff:${skill.id}`} value={`staff:${skill.id}`}>{s.staffOption} · {skill.name}</option>)}{plan.deviceTypes.map(device => <option key={`device:${device.id}`} value={`device:${device.id}`}>{s.deviceOption} · {device.name}</option>)}</select>
-              <NumberInput label={s.requirementQty(index + 1)} value={item.quantity} min={1} onChange={quantity => onNode({ ...node, requirements: node.requirements.map((other, i) => i === index ? { ...other, quantity } : other) })} />
+              <NumberInput label={s.requirementQty(index + 1)} value={item.quantity} min={1} onChange={quantity => { const next = { ...item, quantity }; requirementKeys.current.set(next, requirementKey(item)); onNode({ ...node, requirements: node.requirements.map((other, i) => i === index ? next : other) }); }} />
               <button type="button" className="icon-btn danger" aria-label={s.removeRequirement(index + 1)} onClick={() => onNode({ ...node, requirements: node.requirements.filter((_, i) => i !== index) })}><X size={14} /></button>
             </div>)}
             <button type="button" className="text-btn" disabled={!plan.skills.length && !plan.deviceTypes.length} onClick={() => onNode({ ...node, requirements: [...node.requirements, plan.skills.length ? { kind: 'staff', skillId: plan.skills[0].id, quantity: 1 } : { kind: 'device', deviceTypeId: plan.deviceTypes[0].id, quantity: 1 }] })}><Plus size={14} aria-hidden="true" />{s.addRequirement}</button>

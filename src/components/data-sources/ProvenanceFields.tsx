@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { provenanceSchema } from '../../schemas';
 import type { ServiceNode } from '../../schemas';
 import { updateProvenance } from '../../features/data-sources';
@@ -6,6 +6,18 @@ import { dataSourceText, type DataSourceLang } from './text';
 import './data-sources.css';
 
 type Provenance = ServiceNode['duration']['provenance'];
+
+export function ProvenanceEditor({ value, lang, onChange }: { value: Provenance; lang: DataSourceLang; onChange: (value: Provenance) => void }) {
+  const [draft, setDraft] = useState(value);
+  const t = dataSourceText(lang);
+  return <section className="ds-editor" aria-label={t.sourceKind}>
+    <ProvenanceFields value={draft} lang={lang} onChange={setDraft} />
+    <div className="ds-actions">
+      <button type="button" disabled={!provenanceSchema.safeParse(draft).success || JSON.stringify(draft) === JSON.stringify(value)} onClick={() => onChange(draft)}>{t.applySource}</button>
+      <button type="button" onClick={() => setDraft(value)}>{t.cancelSource}</button>
+    </div>
+  </section>;
+}
 
 export function ProvenanceFields({ value, lang, onChange, kindDisabled = false }: {
   value: Provenance;

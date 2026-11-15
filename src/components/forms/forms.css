@@ -10,6 +10,7 @@ dialog.forms-modal::backdrop { background: rgba(4, 3, 9, 0.74); backdrop-filter:
 .forms-modal .json-body .dialog-description { margin: 0 0 12px; }
 .forms-number { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .forms-number input { width: 100%; font-family: var(--font-mono); font-size: 12.5px; }
+.requirement-row > .forms-number { flex: 0 0 var(--topbar-h); }
 .forms-number .forms-number-error { color: #ffb3c0; font-size: 11.5px; line-height: 1.5; }
 .forms-number input[aria-invalid=true] { border-color: #ffb3c0; }
 .forms-group > legend { margin-bottom: 6px; font-size: 12px; font-weight: 620; color: var(--text-2); }

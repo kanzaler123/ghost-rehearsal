@@ -24,11 +24,12 @@ function download(name: string, text: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function RobustnessPanel({ project }: { project: ProjectDocument }) {
-  const [language, setLanguage] = useState<LabLanguage>('zh');
+export function RobustnessPanel({ project, baselinePlanId, candidatePlanId, lang = 'zh', embedded = false }: { project: ProjectDocument; baselinePlanId?: string; candidatePlanId?: string; lang?: LabLanguage; embedded?: boolean }) {
+  const [language, setLanguage] = useState<LabLanguage>(lang);
   const t = labels[language];
+  const initialConfig = useMemo(() => ({ ...defaultConfig(project), ...(baselinePlanId ? { baselinePlanId } : {}), ...(candidatePlanId ? { candidatePlanIds: [candidatePlanId] } : {}) }), [project, baselinePlanId, candidatePlanId]);
   const [document, setDocument] = useState(project);
-  const [config, setConfig] = useState(() => defaultConfig(project));
+  const [config, setConfig] = useState(initialConfig);
   const [seedText, setSeedText] = useState(() => defaultConfig(project).seeds.join(', '));
   const [conditionInputs, setConditionInputs] = useState(() => defaultConfig(project).conditions.map(item => ({ ...item, value: String(item.multiplier) })));
   const [state, setState] = useState<BatchState | null>(null);
@@ -46,12 +47,12 @@ export function RobustnessPanel({ project }: { project: ProjectDocument }) {
     return () => { next.dispose(); client.current = null; };
   }, []);
   useEffect(() => {
-    const next = defaultConfig(project);
+    const next = initialConfig;
     setDocument(project);
     setConfig(next);
     setSeedText(next.seeds.join(', '));
     setConditionInputs(next.conditions.map(item => ({ ...item, value: String(item.multiplier) })));
-  }, [project]);
+  }, [project, initialConfig]);
 
   const parsedConfig = useMemo(() => ({ ...config,
     seeds: seedText.trim() ? seedText.trim().split(/[\s,，]+/).filter(Boolean).map(Number) : [],
@@ -67,6 +68,7 @@ export function RobustnessPanel({ project }: { project: ProjectDocument }) {
   const rows = state?.rows ?? [];
   const groups = useMemo(() => state ? aggregateBatch(state.batch, state.rows) : [], [state]);
   const batch = state?.batch;
+  const inputChanged = !!batch && (!preview.batch || JSON.stringify([batch.project, batch.config]) !== JSON.stringify([preview.batch.project, preview.batch.config]));
   const planName = (id: string) => batch?.project.plans.find(plan => plan.id === id)?.name ?? id;
   const conditionName = (condition: Condition) => condition.multiplier === 1 ? t.original : `${t.multiplier} ×${number(condition.multiplier)}`;
   const resultConditionName = (id: string) => {
@@ -109,18 +111,20 @@ export function RobustnessPanel({ project }: { project: ProjectDocument }) {
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   }
 
-  return <main className="robustness-lab" data-testid="robustness-panel" lang={language === 'zh' ? 'zh-CN' : 'en'}>
+  return <section className={`robustness-lab${embedded ? ' is-embedded' : ''}`} data-testid="robustness-panel" lang={language === 'zh' ? 'zh-CN' : 'en'}>
     <header className="lab-header">
-      <div><p className="lab-note">GHOST REHEARSAL / LAB C</p><h1>{t.title}</h1><p>{t.subtitle}</p></div>
-      <button type="button" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>{language === 'zh' ? 'English' : '中文'}</button>
+      <div>{!embedded && <><p className="lab-note">GHOST REHEARSAL / LAB C</p><h1>{t.title}</h1></>}<p>{t.subtitle}</p></div>
+      {!embedded && <button type="button" onClick={() => setLanguage(language === 'zh' ? 'en' : 'zh')}>{language === 'zh' ? 'English' : '中文'}</button>}
     </header>
     <p>{t.scope}</p><p className="lab-note">{t.synthetic}</p>
+    {embedded && <p className="lab-note">{t.coordination}</p>}
+    <p data-testid="experiment-cutoff">{t.cutoff}: {number(document.scenarios.find(scenario => scenario.id === baseline?.scenarioId)?.observationCutoff)} s</p>
     <section className="lab-section" aria-labelledby="lab-config-title">
       <h2 id="lab-config-title">{t.configuration}</h2>
       <fieldset disabled={running || importing}>
         <div className="lab-config-grid">
           <div>
-            <label>{t.project}<input type="file" accept="application/json,.json" onChange={event => { void importProject(event.target.files?.[0]); event.target.value = ''; }} /></label>
+            {!embedded && <label>{t.project}<input type="file" accept="application/json,.json" onChange={event => { void importProject(event.target.files?.[0]); event.target.value = ''; }} /></label>}
             <label>{t.baseline}<select aria-label={t.baseline} value={config.baselinePlanId} onChange={event => {
               const id = event.target.value, scenarioId = document.plans.find(plan => plan.id === id)?.scenarioId;
               const possible = document.plans.filter(plan => plan.id !== id && plan.scenarioId === scenarioId).map(plan => plan.id);
@@ -166,6 +170,7 @@ export function RobustnessPanel({ project }: { project: ProjectDocument }) {
       <h2 id="lab-results-title">{t.results}</h2>
       {!state ? <p>{t.noResults}</p> : <>
         <p className="lab-note">{t.snapshot}</p>
+        <p data-testid="experiment-input-status" role="status">{inputChanged ? t.inputChanged : t.inputCurrent}</p>
         <div className="lab-filters">
           <label>{t.conditionFilter}<select aria-label={t.conditionFilter} value={conditionFilter} onChange={event => setConditionFilter(event.target.value)}><option value="">{t.all}</option>{batch!.config.conditions.map(item => <option key={item.id} value={item.id}>{resultConditionName(item.id)}</option>)}</select></label>
           <label>{t.candidateFilter}<select aria-label={t.candidateFilter} value={candidateFilter} onChange={event => setCandidateFilter(event.target.value)}><option value="">{t.all}</option>{batch!.config.candidatePlanIds.map(id => <option key={id} value={id}>{planName(id)}</option>)}</select></label>
@@ -216,5 +221,5 @@ export function RobustnessPanel({ project }: { project: ProjectDocument }) {
         </div><p className="lab-note">{t.groupNote}</p>
       </>}
     </section>
-  </main>;
+  </section>;
 }

@@ -1,6 +1,12 @@
 # Importing arrival records and service samples
 
-This is D's independently reviewable module. The main workbench entry will be connected by E after review of B's forms. The built-in lab and all included fixtures are synthetic test material, not measured-event evidence.
+The workbench supports arrival records and service samples through the editors below. The built-in example, development lab and all included fixtures are synthetic test material, not measured-event evidence.
+
+## Use the workbench
+
+In **Build → Event settings**, expand **Arrival data** for the group to replace. Choose a file or paste data, select its units, preview, and choose **Apply data**. This changes only the event dialog's draft; its final Apply commits the shared scenario for all listed plans. Canceling the dialog discards the import. A pending import must be applied or canceled before the outer dialog can save.
+
+Select a service node and expand **Service samples** in the Inspector. **Apply data** commits one undoable change to that node. The separate source editor changes only source metadata. Invalid imports and canceled previews leave the project untouched. Applied changes use normal draft recovery, export/import and stale-result detection.
 
 ## Open the lab
 
@@ -48,15 +54,15 @@ New input defaults to **User estimate**, even when the existing values were labe
 | Measured | Observations measured for the intended activity; explain how they were collected |
 | Historical | Records from an earlier activity; explain which one and why it is applicable |
 
-Source and Notes each allow up to 1,000 Unicode code points using the existing schema. Editing those descriptions alone does not change the source kind. Hand-editing parameter values through E's integration must call `updateProvenance(previous, { valueChanged: true })`; this preserves source/notes and sets User estimate. A confirmed measurement correction can explicitly reselect Measured. Name-only edits should leave provenance alone.
+Source and Notes each allow up to 1,000 Unicode code points using the existing schema. Editing those descriptions alone does not change the source kind. Hand-editing arrival or service values preserves source/notes and sets User estimate. A confirmed measurement correction can explicitly reselect Measured. Name-only edits leave provenance alone.
 
-To edit an existing source without importing values, expand **Edit existing service source (keep current samples)** in the lab. Apply source to draft changes only provenance; the outer Apply project is still required. Cancel source edit restores that metadata draft. In E's forms this is the separate `ProvenanceFields` control, while CSV editors apply only a validated import.
+To edit an existing source without importing values, expand **Source kind** in the workbench. Arrival source changes stay in the event dialog's draft; service source changes require **Apply source**. Cancel source edit restores the service metadata draft. The separate development lab uses **Edit existing service source (keep current samples)** and its outer **Apply project** step.
 
-Shared arrival changes affect all plans referencing that scenario. Once E connects the form, outer Apply must use the existing project update path so old simulation results become stale. Service changes affect the selected service node in its plan.
+Shared arrival changes affect all plans referencing that scenario. Outer Apply uses the normal project update path, making old simulation results stale. Service changes affect the selected service node in its plan.
 
-## Component contract for E
+## Component contract
 
-Import named components from `src/components/data-sources/ArrivalDataEditor.tsx`, `ServiceDataEditor.tsx` and `ProvenanceFields.tsx`. The editors accept the interfaces in [D's task](parallel-release/04-measured-inputs.md); the service editor also accepts optional `targetName` for a specific node label. Pass `lang: 'en' | 'zh'`. `onChange` supplies a schema-valid replacement stream/duration after explicit Apply data. Route that replacement to the outer form draft, not the committed project. Key the service editor by plan and node identity. `ProvenanceFields` is a controlled metadata field group and takes `value`, `lang`, `onChange`, with optional `kindDisabled` for draft gating.
+Import named components from `src/components/data-sources/ArrivalDataEditor.tsx`, `ServiceDataEditor.tsx` and `ProvenanceFields.tsx`. The editors accept the interfaces in [D's task](parallel-release/04-measured-inputs.md); the service editor also accepts optional `targetName` for a specific node label. Pass `lang: 'en' | 'zh'`. `onChange` supplies a schema-valid replacement stream/duration after explicit Apply data. Route arrival replacements to the outer scenario draft; the Inspector commits a service replacement as one node edit. Key service drafts by their target and current duration. `ProvenanceFields` is a controlled metadata field group and takes `value`, `lang`, `onChange`, with optional `kindDisabled` for draft gating.
 
 Pure exports from `src/features/data-sources/index.ts`:
 
@@ -65,4 +71,4 @@ Pure exports from `src/features/data-sources/index.ts`:
 - `createArrivalTemplate(attributes)` and `createServiceTemplate()` return CSV text.
 - `updateProvenance(previous, { valueChanged?, source?, notes?, kind? })` returns a new provenance object. An explicitly supplied kind takes precedence over the default downgrade. The caller must only supply a measured/historical kind following an explicit user selection for the current values.
 
-The lab is served by Vite development mode. D does not modify the shared production entry configuration. See the [review report](reviews/measured-inputs.md) for reproduction, actual results and remaining integration checks.
+The separate lab remains a Vite development entry; production users open these editors in the workbench. See the [module review report](reviews/measured-inputs.md) for the original module evidence and [release verification](reviews/release-verification.md) for integration checks.

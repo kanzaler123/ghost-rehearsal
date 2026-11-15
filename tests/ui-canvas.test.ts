@@ -141,6 +141,18 @@ describe('studio viewport controls', () => {
     flow().onMoveStart({ type: 'pointerdown' }); expect(props.onManual).toHaveBeenCalledOnce();
     hooks.dimensions.width -= 200; render(); vi.advanceTimersByTime(1000); expect(setViewport).not.toHaveBeenCalled();
   });
+  it('cancels pending placement when opening the add-node menu and still closes it on viewport moves', () => {
+    mount(); vi.advanceTimersByTime(40); setViewport.mockClear();
+    vi.stubGlobal('document', { activeElement: { focus: vi.fn() } });
+    tree[0].props.ref.current.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1050, height: 750 });
+    tree.find(item => item.type === 'button' && item.props['aria-label'] === MESSAGES.en.sidebar.addNode)!.props.onClick(); render();
+    vi.advanceTimersByTime(1000); render();
+    expect(setViewport).not.toHaveBeenCalled();
+    expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(true);
+    tree.find(item => item.type === Controls)!.props.onZoomIn();
+    flow().onMoveStart(null); render();
+    expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(false);
+  });
   it('applies a reduced-motion readable view immediately and uses no viewport animation', () => {
     props = { ...props, reducedMotion: true }; mount();
     expect(setViewport).toHaveBeenCalled(); expect(setViewport.mock.calls.every(([, options]) => options.duration === 0)).toBe(true);

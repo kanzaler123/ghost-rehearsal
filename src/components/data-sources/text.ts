@@ -25,6 +25,9 @@ const en = {
   syntheticHint: 'Generated examples or assumptions for testing a scenario.', user_estimateHint: 'Values entered or adjusted by a user without verified measurement.',
   measuredHint: 'Values measured for this event or process; describe how they were collected.', historicalHint: 'Records from a previous event or period; identify that source and its limits.',
   templateHint: 'Templates contain synthetic example rows. Replace them with your own records and select their unit.',
+  manualHint: 'Changing a value sets its source to User estimate and keeps source notes. You can explicitly select another source kind below.',
+  applySource: 'Apply source', cancelSource: 'Cancel source edit',
+  pendingImport: 'Apply or cancel this import before applying the shared scenario.',
 };
 
 const zh: typeof en = {
@@ -52,6 +55,9 @@ const zh: typeof en = {
   syntheticHint: '用于检验情景的生成示例或假设。', user_estimateHint: '由用户输入或调整、尚无可核实测量依据的值。',
   measuredHint: '针对本次活动或流程测量的值，请说明采集方法。', historicalHint: '过去活动或时段的记录，请标明来源与适用限制。',
   templateHint: '模板包含合成示例行。请替换为自己的记录，并选择对应单位。',
+  manualHint: '修改数值会将来源改为“用户估计”并保留来源说明。可在下方明确重选来源类型。',
+  applySource: '应用来源', cancelSource: '取消来源编辑',
+  pendingImport: '请先应用或取消此次导入，再应用共享场景。',
 };
 
 export const dataSourceText = (lang: DataSourceLang) => lang === 'zh' ? zh : en;

@@ -7,6 +7,7 @@
 .ds-input, .ds-provenance { display: grid; gap: 0.75rem; }
 .ds-editor label, .ds-provenance label { display: grid; gap: 0.35rem; font-weight: 600; }
 .ds-editor input, .ds-editor textarea, .ds-editor select, .ds-provenance input, .ds-provenance textarea, .ds-provenance select { box-sizing: border-box; width: 100%; min-width: 0; padding: 0.65rem; border: 1px solid #829b94; border-radius: 6px; background: white; color: #243534; font: inherit; font-weight: 400; }
+.ds-editor input, .ds-editor select, .ds-provenance input, .ds-provenance select { height: auto; }
 .ds-editor textarea, .ds-provenance textarea { resize: vertical; }
 .ds-editor .ds-csv { white-space: pre; font: 13px/1.5 ui-monospace, monospace; }
 .ds-editor button { min-height: 42px; padding: 0.6rem 1rem; border: 1px solid #597d71; border-radius: 6px; background: #eaf3ed; color: #143f2d; font: inherit; font-weight: 600; cursor: pointer; }
@@ -27,6 +28,8 @@
 .ds-editor td, .ds-editor th { padding: 0.5rem; text-align: left; border-bottom: 1px solid #bdcdc8; overflow-wrap: anywhere; }
 .ds-error, .ds-errors { color: #9b2927; }
 .ds-provenance [aria-invalid="true"] { border-color: #9b2927; }
+.ds-details { min-width: 0; margin: 1rem 0; }
+.ds-details > summary { cursor: pointer; margin-bottom: 0.5rem; }
 @media (max-width: 480px) {
   .ds-editor { padding: 1rem; }
   .ds-preview, .ds-provenance { padding: 0.75rem; }

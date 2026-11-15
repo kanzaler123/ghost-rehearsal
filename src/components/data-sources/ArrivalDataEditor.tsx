@@ -15,13 +15,14 @@ interface ArrivalDataEditorProps {
   horizon: number;
   lang: DataSourceLang;
   onChange: (stream: ArrivalStream) => void;
+  requireApply?: boolean;
 }
 
 export function ArrivalDataEditor(props: ArrivalDataEditorProps) {
   return <ArrivalDraft key={JSON.stringify([props.stream, props.attributes, props.observationCutoff, props.horizon])} {...props} />;
 }
 
-function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, onChange }: ArrivalDataEditorProps) {
+function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, onChange, requireApply = false }: ArrivalDataEditorProps) {
   const t = dataSourceText(lang);
   const [text, setText] = useState('');
   const [unit, setUnit] = useState<TimeUnit | ''>('');
@@ -49,6 +50,7 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
     <p><b>{t.target}:</b> {stream.name ?? stream.id} <code>{stream.id}</code></p>
     <p className="ds-hint">{t.arrivalHint}</p>
     <DataInput key={inputKey} text={text} unit={unit} lang={lang} template={createArrivalTemplate(attributes)}
+      submitError={requireApply ? text || unit || JSON.stringify(provenance) !== JSON.stringify(stream.provenance) ? t.pendingImport : '' : undefined}
       onTextChange={value => { setText(value); invalidate(); }}
       onUnitChange={value => { setUnit(value); invalidate(); }} />
     <p className="ds-hint">{t.estimateHint}</p>

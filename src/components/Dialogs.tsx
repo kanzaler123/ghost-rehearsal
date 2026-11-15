@@ -10,6 +10,10 @@ import { Field, MinuteInput, NumberInput } from './Inspector';
 import { NumericInput } from './forms/NumericInput';
 import { minutesToSeconds, secondsToMinutes } from './forms/numberDraft';
 import { modalControls, useModalFocus } from './forms/modalFocus';
+import { updateProvenance } from '../features/data-sources';
+import { ArrivalDataEditor } from './data-sources/ArrivalDataEditor';
+import { ProvenanceFields } from './data-sources/ProvenanceFields';
+import { dataSourceText } from './data-sources/text';
 import './forms/forms.css';
 
 export function Modal({ title, children, onClose, wide = false, icon }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; icon?: ReactNode }) {
@@ -17,7 +21,7 @@ export function Modal({ title, children, onClose, wide = false, icon }: { title:
   const ref = useRef<HTMLDialogElement>(null);
   useModalFocus(ref);
   return createPortal(<dialog ref={ref} aria-modal="true" aria-label={title} className={`modal forms-modal ${wide ? 'wide' : ''}`}
-    onCancel={event => { event.preventDefault(); onClose(); }}
+    onCancel={event => { if (event.target === event.currentTarget) { event.preventDefault(); onClose(); } }}
     onKeyDown={event => {
       event.stopPropagation();
       if (event.key === 'Escape') { event.preventDefault(); onClose(); }
@@ -92,7 +96,16 @@ export function ScenarioEditor({ scenario, planNames, onApply, onClose }: { scen
   const [bucketKeys, setBucketKeys] = useState<Record<string, number[]>>(() => Object.fromEntries(scenario.arrivalStreams.flatMap(stream => stream.kind === 'bucketed' ? [[stream.id, stream.buckets.map((_, index) => index)]] : [])));
   const [error, setError] = useState('');
   const joined = planNames.join(lang === 'zh' ? '、' : ', ');
-  return <Modal title={d.scenarioTitle} onClose={onClose} wide><form onSubmit={event => { event.preventDefault(); const errors = validateScenario(draft).filter(issue => issue.severity === 'error'); if (errors.length) setError(errors.map(issue => `${issue.path.join('.')}: ${issueText(issue, lang)}`).join('\n')); else { onApply(draft); onClose(); } }}><div className="modal-body">
+  const dataText = dataSourceText(lang);
+  return <Modal title={d.scenarioTitle} onClose={onClose} wide><form noValidate onSubmit={event => {
+    event.preventDefault();
+    const invalid = event.currentTarget.querySelector<HTMLInputElement | HTMLTextAreaElement>('input:invalid, select:invalid, textarea:invalid');
+    if (invalid) {
+      for (let details = invalid.closest('details'); details; details = details.parentElement?.closest('details') ?? null) details.open = true;
+      invalid.focus(); invalid.reportValidity(); return;
+    }
+    const errors = validateScenario(draft).filter(issue => issue.severity === 'error'); if (errors.length) setError(errors.map(issue => `${issue.path.join('.')}: ${issueText(issue, lang)}`).join('\n')); else { onApply(draft); onClose(); }
+  }}><div className="modal-body">
     <div className="notice">{d.sharedBy(joined)}</div>
     <div className="form-row"><Field label={d.eventName}><input value={draft.name ?? ''} onChange={event => setDraft({ ...draft, name: event.target.value })} /></Field><Field label={d.seed}><NumberInput label={d.seed} value={draft.seed} max={4294967295} onChange={seed => setDraft({ ...draft, seed })} /></Field></div>
     <div className="form-row"><Field label={d.cutoff}><MinuteInput label={d.cutoff} value={draft.observationCutoff} min={1} onChange={observationCutoff => setDraft({ ...draft, observationCutoff })} /></Field><Field label={d.horizon}><MinuteInput value={draft.horizon} min={1} onChange={horizon => setDraft({ ...draft, horizon })} /></Field></div>
@@ -107,18 +120,21 @@ export function ScenarioEditor({ scenario, planNames, onApply, onClose }: { scen
           const kind = event.target.value;
           const count = stream.kind === 'records' ? stream.records.length : stream.kind === 'bucketed' ? stream.buckets.reduce((sum, item) => sum + item.count, 0) : stream.count;
           const start = 'start' in stream ? stream.start : 0, end = 'end' in stream ? stream.end : draft.observationCutoff;
-          const base = { id: stream.id, name: stream.name, provenance: { kind: 'user_estimate' as const }, attributeDistributions: 'attributeDistributions' in stream ? stream.attributeDistributions : Object.fromEntries(draft.attributes.map(attribute => [attribute.id, { values: attribute.values.map(value => ({ value, probability: 1 / attribute.values.length })), provenance: { kind: 'user_estimate' as const } }])) };
+          const base = { id: stream.id, name: stream.name, provenance: updateProvenance(stream.provenance, { valueChanged: true }), attributeDistributions: 'attributeDistributions' in stream ? stream.attributeDistributions : Object.fromEntries(draft.attributes.map(attribute => [attribute.id, { values: attribute.values.map(value => ({ value, probability: 1 / attribute.values.length })), provenance: { kind: 'user_estimate' as const } }])) };
           if (kind === 'bucketed') { setBucketKeys(keys => ({ ...keys, [stream.id]: [0] })); update({ ...base, kind, buckets: [{ start, end, count }] }); }
           else if (kind === 'even' || kind === 'random') update({ ...base, kind: 'total_in_window', count, start, end, spacing: kind });
           else update({ ...base, kind: 'preset_profile', count, start, end, profile: kind === 'peak_at' ? { kind, peakAt: (start + end) / 2 } : { kind: kind as 'uniform' | 'early_peak' | 'late_peak' } });
         }}><option value="even">{t.review.even}</option><option value="random">{t.review.random}</option><option value="early_peak">{t.review.early}</option><option value="late_peak">{t.review.late}</option><option value="peak_at">{t.review.peak}</option><option value="bucketed">{t.review.bucketed}</option>{stream.kind === 'records' && <option value="records">{t.review.recordsPattern}</option>}</select></Field>
         {stream.kind === 'total_in_window' || stream.kind === 'preset_profile' ? <>
-          <div className="form-row"><Field label={d.count}><NumberInput value={stream.count} onChange={count => update({ ...stream, count, provenance: { kind: 'user_estimate' } })} /></Field><Field label={d.start}><MinuteInput value={stream.start} onChange={start => update({ ...stream, start, provenance: { kind: 'user_estimate' } })} /></Field><Field label={d.end}><MinuteInput value={stream.end} onChange={end => update({ ...stream, end, provenance: { kind: 'user_estimate' } })} /></Field></div>
-          {stream.kind === 'preset_profile' && stream.profile.kind === 'peak_at' && <Field label={t.review.peakAt}><MinuteInput value={stream.profile.peakAt} onChange={peakAt => update({ ...stream, profile: { kind: 'peak_at', peakAt }, provenance: { kind: 'user_estimate' } })} /></Field>}
+          <div className="form-row"><Field label={d.count}><NumberInput value={stream.count} onChange={count => update({ ...stream, count, provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field><Field label={d.start}><MinuteInput value={stream.start} onChange={start => update({ ...stream, start, provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field><Field label={d.end}><MinuteInput value={stream.end} onChange={end => update({ ...stream, end, provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field></div>
+          {stream.kind === 'preset_profile' && stream.profile.kind === 'peak_at' && <Field label={t.review.peakAt}><MinuteInput value={stream.profile.peakAt} onChange={peakAt => update({ ...stream, profile: { kind: 'peak_at', peakAt }, provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field>}
         </> : stream.kind === 'bucketed' ? <>
-          {stream.buckets.map((bucket, bucketIndex) => <div className="form-row" key={bucketKeys[stream.id][bucketIndex]}><Field label={d.start}><MinuteInput value={bucket.start} onChange={start => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, start } : item), provenance: { kind: 'user_estimate' } })} /></Field><Field label={d.end}><MinuteInput value={bucket.end} onChange={end => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, end } : item), provenance: { kind: 'user_estimate' } })} /></Field><Field label={d.count}><NumberInput value={bucket.count} onChange={count => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, count } : item), provenance: { kind: 'user_estimate' } })} /></Field><button type="button" className="text-btn danger" onClick={() => { setBucketKeys(keys => ({ ...keys, [stream.id]: keys[stream.id].filter((_, i) => i !== bucketIndex) })); update({ ...stream, buckets: stream.buckets.filter((_, i) => i !== bucketIndex), provenance: { kind: 'user_estimate' } }); }}>{t.review.remove}</button></div>)}
-          <button type="button" className="text-btn" onClick={() => { const start = stream.buckets.at(-1)?.end ?? 0; setBucketKeys(keys => ({ ...keys, [stream.id]: [...keys[stream.id], (keys[stream.id].at(-1) ?? -1) + 1] })); update({ ...stream, buckets: [...stream.buckets, { start, end: start + 300, count: 10 }], provenance: { kind: 'user_estimate' } }); }}>{t.review.addBucket}</button>
+          {stream.buckets.map((bucket, bucketIndex) => <div className="form-row" key={bucketKeys[stream.id][bucketIndex]}><Field label={d.start}><MinuteInput value={bucket.start} onChange={start => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, start } : item), provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field><Field label={d.end}><MinuteInput value={bucket.end} onChange={end => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, end } : item), provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field><Field label={d.count}><NumberInput value={bucket.count} onChange={count => update({ ...stream, buckets: stream.buckets.map((item, i) => i === bucketIndex ? { ...item, count } : item), provenance: updateProvenance(stream.provenance, { valueChanged: true }) })} /></Field><button type="button" className="text-btn danger" onClick={() => { setBucketKeys(keys => ({ ...keys, [stream.id]: keys[stream.id].filter((_, i) => i !== bucketIndex) })); update({ ...stream, buckets: stream.buckets.filter((_, i) => i !== bucketIndex), provenance: updateProvenance(stream.provenance, { valueChanged: true }) }); }}>{t.review.remove}</button></div>)}
+          <button type="button" className="text-btn" onClick={() => { const start = stream.buckets.at(-1)?.end ?? 0; setBucketKeys(keys => ({ ...keys, [stream.id]: [...keys[stream.id], (keys[stream.id].at(-1) ?? -1) + 1] })); update({ ...stream, buckets: [...stream.buckets, { start, end: start + 300, count: 10 }], provenance: updateProvenance(stream.provenance, { valueChanged: true }) }); }}>{t.review.addBucket}</button>
         </> : <p className="subtle">{d.records(stream.records.length)}</p>}
+        <p className="subtle">{dataText.manualHint}</p>
+        <details className="ds-details"><summary>{dataText.sourceKind}</summary><div className="ds-editor"><ProvenanceFields value={stream.provenance} lang={lang} onChange={provenance => update({ ...stream, provenance })} /></div></details>
+        <details className="ds-details"><summary>{dataText.arrival}</summary><ArrivalDataEditor stream={stream} attributes={draft.attributes} observationCutoff={draft.observationCutoff} horizon={draft.horizon} lang={lang} requireApply onChange={update} /></details>
       </div>;
     })}
     <button type="button" className="btn small" onClick={() => setDraft({ ...draft, arrivalStreams: [...draft.arrivalStreams, { id: newId('arrival', draft.arrivalStreams.map(item => item.id)), kind: 'total_in_window', count: 10, start: 0, end: Math.min(600, draft.observationCutoff), spacing: 'even', provenance: { kind: 'user_estimate' }, attributeDistributions: Object.fromEntries(draft.attributes.map(attribute => [attribute.id, { values: attribute.values.map(value => ({ value, probability: 1 / attribute.values.length })), provenance: { kind: 'user_estimate' } }])) }] })}><Plus size={13} />{t.review.addStream}</button>
