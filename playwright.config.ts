@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const basePath = process.env.PLAYWRIGHT_BASE_PATH ?? '/';
+const basePath = process.env.PLAYWRIGHT_BASE_PATH ?? '/ghost-rehearsal/';
 
 export default defineConfig({
   testDir: './e2e',
@@ -16,8 +16,9 @@ export default defineConfig({
     { name: `mobile-${lang}`, use: { browserName: 'chromium' as const, viewport: { width: 390, height: 844 } } },
   ]),
   webServer: {
-    command: `npm run preview -- --port 4178 --strictPort --base=${basePath}`,
+    command: `npm run build -- --base=${basePath} && npm run preview -- --port 4178 --strictPort --base=${basePath}`,
     url: `http://127.0.0.1:4178${basePath}`,
     reuseExistingServer: false,
+    timeout: 120_000,
   },
 });
