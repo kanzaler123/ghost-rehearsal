@@ -1,0 +1,3 @@
+id,arrival_time,attr:ticket,attr:visit
+guest-1,0,regular,full
+guest-1,-1,unknown,quick
