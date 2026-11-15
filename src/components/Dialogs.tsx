@@ -21,7 +21,7 @@ export function Modal({ title, children, onClose, wide = false, icon }: { title:
   const ref = useRef<HTMLDialogElement>(null);
   useModalFocus(ref);
   return createPortal(<dialog ref={ref} aria-modal="true" aria-label={title} className={`modal forms-modal ${wide ? 'wide' : ''}`}
-    onCancel={event => { event.preventDefault(); onClose(); }}
+    onCancel={event => { if (event.target === event.currentTarget) { event.preventDefault(); onClose(); } }}
     onKeyDown={event => {
       event.stopPropagation();
       if (event.key === 'Escape') { event.preventDefault(); onClose(); }

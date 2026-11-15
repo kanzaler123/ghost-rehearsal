@@ -419,7 +419,7 @@ fieldset:disabled { opacity: 0.82; }
   flex: 1; min-width: var(--size-60px); height: var(--radius-sm); padding: 0; border: 0; border-radius: var(--radius-pill); appearance: none; cursor: pointer;
   background: var(--surface-1);
 }
-.scrubber:focus { box-shadow: none; }
+.scrubber:focus { box-shadow: none; outline: var(--focus-w) solid var(--focus-ring); outline-offset: var(--focus-offset); }
 .scrubber:disabled { opacity: 0.4; cursor: not-allowed; }
 .scrubber::-webkit-slider-thumb {
   appearance: none; width: var(--fs-lg); height: var(--fs-lg); border-radius: 50%; background: var(--ink--fff); border: var(--size-3px) solid var(--tone-serve);

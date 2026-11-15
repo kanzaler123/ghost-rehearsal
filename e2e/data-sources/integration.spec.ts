@@ -50,6 +50,8 @@ test('arrival file import is staged, validates before outer Apply and round-trip
   const stream = dialog.locator('.config-card').first();
   const importer = stream.getByRole('region', { name: d.arrival, exact: true });
   await stream.locator('summary').filter({ hasText: d.arrival }).click();
+  await importer.getByLabel(d.file, { exact: true }).dispatchEvent('cancel', { bubbles: true, cancelable: false });
+  await expect(dialog).toBeVisible();
   const csv = 'id,arrival_time,attr:ticket,attr:visit\nfixture-1,0,regular,full\nfixture-2,1.5,vip,quick\n';
   await upload(page, importer, csv.replace('fixture-2', 'fixture-1'), d);
   await expect(importer.getByRole('button', { name: d.apply, exact: true })).toBeDisabled();
