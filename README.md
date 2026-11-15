@@ -10,7 +10,8 @@ Ghost Rehearsal is a visual event planner and discrete-event simulator with a Ha
 
 ## What you can do
 
-- **Build a flow:** entrances, services, decisions, waiting areas, merges, exits, and subflow groups; curved connections, parameter editing, undo/redo, and automatic layout.
+- **Start with an event:** set its name, guest count, duration, and arrival window. Each event has its own plans; creating another event keeps the existing ones.
+- **Build a flow:** entrances, services, decisions, waiting areas, merges, exits, and subflow groups; curved connections, parameter editing, undo/redo, and automatic layout. Double-click the canvas to find a node, use right-click menus, or switch between selection and hand tools.
 - **Reuse your work:** start with Haunted House, Trick or Treat, Open House, or a blank plan. Save a node or an entire plan as a template. Each plan has its own node list, and applying a saved template creates an independent copy.
 - **Run a rehearsal:** deterministic arrivals and sampling, queues, branching, batch release, shared staff and equipment, shifts, handovers, and opening/closing rules.
 - **Follow the ghosts:** replay actual simulation events, inspect a guest's journey, and see waiting-time and resource-use summaries.
@@ -21,15 +22,19 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 ## Try it in three minutes
 
-1. Open the [live workbench](https://kanzaler123.github.io/ghost-rehearsal/). A two-entrance Open House example is loaded on a fresh visit.
+1. Open the [live workbench](https://kanzaler123.github.io/ghost-rehearsal/). On a fresh visit, create your own event or choose **Try the two-plan demo** for the walkthrough below.
 2. Click **Run rehearsal**, then play or scrub the timeline to inspect queues and guest journeys.
 3. Choose **Two Futures** to run and compare the included baseline and alternative plans. They share the same guest scenario but have different service and resource arrangements.
 4. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
 5. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
 
-Templates are stored separately from the current project in the same browser. In **Templates → My templates**, use the download button beside a saved node or plan to export it as a JSON file. On another device, choose **Import template** in the same library. Imports add a new copy without replacing existing templates or the current project.
+Templates are stored separately from the current project in the same browser. In **Templates**, choose **Export all** to pack every saved node and plan into one JSON file. On another device, choose **Import templates** and select that backup, multiple individual files, or a mix of both. Each saved template also retains its own download button.
+
+Imports add independent copies without replacing existing templates or the current project. If any selected file is invalid or unsupported, the whole batch is rejected and the library stays unchanged.
 
 Plan template files include the flow, arrivals, and resources. Node template files retain the source plan and scenario as context for resource reuse; applying one adds the selected node and its resource dependencies. Project JSON exports do not include the saved-template library, so export the templates you want to keep separately. Simulation results are recalculated after a reload.
+
+The event selector and **Event settings** button sit above the plan list. Only plans belonging to the selected event are shown. The canvas takes interaction cues from [ComfyUI's canvas controls](https://docs.comfy.org/interface/canvas-controls): drag a selection box in Select mode, hold Space or the middle mouse button to pan, scroll to zoom, or use the Hand tool. Shift/Ctrl/Cmd-click selects multiple nodes. Double-click or right-click empty canvas to add a node at that location; right-click a node to edit or delete it. Canvas insertion and opening the inspector preserve the viewport.
 
 ## Run locally
 
@@ -102,7 +107,9 @@ Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
 
 Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人员设备安排，并比较不同方案。可直接打开上方在线演示，右上角切换中文；也可使用 Node.js 24，执行 `npm ci`、`npm run dev` 本地运行。
 
-支持每个方案独立的节点列表、弧形连线、万圣节预设，以及保存节点和整套方案作为模板。在“模板库 → 我的模板”中，点击模板旁的下载按钮即可导出；换设备后选择“导入模板”。导入会追加新副本，不覆盖已有模板或当前项目。节点模板文件保留原方案及场景作为资源上下文，使用时只添加所选节点及所需资源。项目 JSON 不包含模板库，需要分别导出。当前是可运行预览版，尚未完成全部规划需求，也尚未完成 Kiro 使用证明、演示视频和 Devpost 正式提交。
+首次使用先创建活动，填写名称、人数、活动时长和入场时间，再选择空白流程或万圣节预设。左侧按“活动 → 方案 → 节点”组织，可新建和切换活动；每个活动有独立方案。画布支持双击搜索节点、右键操作、框选与多选、抓手平移和滚轮缩放。
+
+模板库的“导出全部”将所有节点与方案模板打成一个 JSON 文件。“批量导入”可以一次选择整库备份、多个单独文件或混合选择。导入追加独立副本，不覆盖已有内容；任一文件有误时整批不导入。单个模板仍可单独导出。节点文件保留原方案及场景作为资源上下文。项目 JSON 不包含模板库，需要分别导出。当前是可运行预览版，尚未完成全部规划需求、Kiro 使用证明、演示视频和 Devpost 正式提交。
 
 ## License
 

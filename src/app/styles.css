@@ -233,6 +233,13 @@ fieldset:disabled { opacity: 0.82; }
   margin: 12px 0; font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.25; color: var(--text-0);
   font-variation-settings: 'SOFT' 60; overflow-wrap: break-word;
 }
+.event-picker { display: flex; align-items: center; gap: 4px; }
+.event-picker .event-title { flex: 1; min-width: 0; padding: 8px 28px 8px 0; border: 0; background-color: transparent; text-overflow: ellipsis; }
+.event-picker .icon-btn { flex-shrink: 0; }
+.event-card .new-event { margin: 0 0 12px; color: var(--pumpkin-2); }
+.event-setup > p { margin: 10px 0 18px; }
+.event-setup > .field, .event-setup > .form-row { margin-top: 14px; }
+.event-start-options { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .save-pill {
   flex-shrink: 0; padding: 2px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 650;
   color: var(--ecto); background: rgba(142, 245, 208, 0.07); border: 1px solid rgba(142, 245, 208, 0.25);
@@ -321,6 +328,8 @@ fieldset:disabled { opacity: 0.82; }
 .saved-template .side-action > svg { flex-shrink: 0; color: var(--pumpkin-2); }
 .template-empty { padding: 16px 0; font-size: 12px; color: var(--text-3); }
 .template-local { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.template-transfer { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.template-notice { color: var(--ecto); font-size: 13px; margin-bottom: 12px; }
 .palette-node {
   --c: var(--ecto);
   position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 7px;
@@ -520,6 +529,21 @@ fieldset:disabled { opacity: 0.82; }
 .react-flow__controls { border-radius: 11px; overflow: hidden; border: 1px solid var(--line-2); }
 .react-flow__controls-button { width: 30px; height: 30px; }
 .react-flow__controls-button svg { max-width: 13px; max-height: 13px; }
+.canvas-tools { position: absolute; z-index: 6; top: 14px; left: 14px; display: flex; align-items: center; gap: 3px; padding: 4px; border: 1px solid var(--line-2); border-radius: 10px; background: rgba(21, 17, 29, 0.95); box-shadow: 0 5px 20px #0004; }
+.canvas-tools .active { color: var(--pumpkin-2); background: #ff9a4d1c; }
+.canvas-zoom { min-width: 52px; padding: 8px 4px; border: 0; border-inline: 1px solid var(--line); color: var(--text-2); font: 11px var(--font-mono); background: transparent; }
+.canvas-menu { position: absolute; z-index: 7; width: 260px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); overflow: auto; padding: 8px; border: 1px solid var(--line-2); border-radius: 12px; background: #19141f; box-shadow: 0 12px 38px #0008; }
+.canvas-menu .search-box { margin: 0 0 6px; }
+.canvas-menu input { min-width: 0; }
+.canvas-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; text-align: left; background: transparent; color: var(--text-1); }
+.canvas-menu button:hover, .canvas-menu button:focus-visible { background: #ff9a4d14; color: var(--pumpkin-2); }
+.canvas-menu .danger { color: var(--blood); }
+.canvas-menu-title { display: block; padding: 7px 10px; overflow-wrap: anywhere; color: var(--text-0); }
+.canvas-node-choices { max-height: 282px; overflow: auto; }
+.canvas-node-choices button span { display: flex; flex-direction: column; gap: 2px; }
+.canvas-node-choices button b { font-size: 12px; }
+.canvas-node-choices button small { color: var(--text-3); font-size: 11px; }
+.canvas-menu .canvas-menu-fit { border-top: 1px solid var(--line); margin-top: 6px; border-radius: 0; font-size: 12px; }
 .react-flow__minimap { border-radius: 12px; overflow: hidden; border: 1px solid var(--line-2); box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.9); }
 .react-flow__minimap svg { display: block; width: 168px; height: 100px; }
 /* Short or narrow canvases drop the minimap so it never covers the flow */

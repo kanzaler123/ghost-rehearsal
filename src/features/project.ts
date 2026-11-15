@@ -58,14 +58,27 @@ export type SavedTemplate = z.infer<typeof templateLibrarySchema>[number];
 const templateFileSchema = z.strictObject({
   format: z.literal('ghost-rehearsal-template'), schemaVersion: z.literal(1), template: templateLibrarySchema.element,
 });
+const templateBundleSchema = z.strictObject({
+  format: z.literal('ghost-rehearsal-template-library'), schemaVersion: z.literal(1), templates: templateLibrarySchema.min(1),
+});
+const templateImportSchema = z.discriminatedUnion('format', [templateFileSchema, templateBundleSchema]);
 
 export function serializeTemplate(template: SavedTemplate): string {
   return JSON.stringify(templateFileSchema.parse({ format: 'ghost-rehearsal-template', schemaVersion: 1, template }), null, 2);
 }
 
-export function importTemplate(text: string, existing: SavedTemplate[]): SavedTemplate[] {
-  const { template } = templateFileSchema.parse(JSON.parse(text));
-  return [...existing, { ...template, id: newId('template', existing.map(item => item.id)) }];
+export function serializeTemplates(templates: SavedTemplate[]): string {
+  return JSON.stringify(templateBundleSchema.parse({ format: 'ghost-rehearsal-template-library', schemaVersion: 1, templates }), null, 2);
+}
+
+export function importTemplate(text: string | string[], existing: SavedTemplate[]): SavedTemplate[] {
+  const imported = (Array.isArray(text) ? text : [text]).flatMap(file => {
+    const data = templateImportSchema.parse(JSON.parse(file));
+    return data.format === 'ghost-rehearsal-template' ? [data.template] : data.templates;
+  });
+  const next = [...existing];
+  for (const template of imported) next.push({ ...template, id: newId('template', next.map(item => item.id)) });
+  return next;
 }
 
 export function halloweenProject(kind: 'haunted' | 'candy', t: Messages): ProjectDocument {
@@ -96,6 +109,18 @@ export function addPlanFromTemplate(project: ProjectDocument, template: ProjectD
   plan.id = newId('plan', project.plans.map(item => item.id)); plan.name = name; plan.scenarioId = scenario.id;
   delete plan.sourcePlanId;
   return { ...project, scenarios: [...project.scenarios, scenario], plans: [...project.plans, plan] };
+}
+
+export function addEvent(project: ProjectDocument, event: ProjectDocument): ProjectDocument {
+  const next = addPlanFromTemplate(project, event, event.plans[0].name);
+  const scenarioId = next.plans.at(-1)!.scenarioId;
+  for (const original of event.plans.slice(1)) {
+    const plan = structuredClone(original);
+    plan.id = newId('plan', next.plans.map(item => item.id)); plan.scenarioId = scenarioId;
+    delete plan.sourcePlanId;
+    next.plans.push(plan);
+  }
+  return next;
 }
 
 export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate): { plan: Plan; node: Node } {

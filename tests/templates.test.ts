@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addNodeFromTemplate, addPlanFromTemplate, emptyProject, halloweenProject, importTemplate, initialDocument, serializeTemplate, templateLibrarySchema } from '../src/features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, emptyProject, halloweenProject, importTemplate, initialDocument, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../src/features/project';
 import type { SavedTemplate } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { planSchema, projectDocumentSchema, validateGraph } from '../src/schemas';
@@ -140,4 +140,55 @@ it.each([
   const before = JSON.stringify(existing);
   expect(() => importTemplate(corrupt(serializeTemplate(existing[0])), existing)).toThrow();
   expect(JSON.stringify(existing)).toBe(before);
+});
+
+it('exports nodes and plans together and restores the whole library independently', () => {
+  const document = halloweenProject('haunted', MESSAGES.en);
+  const library: SavedTemplate[] = [
+    { id: 'template-1', name: 'Whole event plan', document },
+    { id: 'template-2', name: 'Tour station', nodeId: 'stop-3', document },
+  ];
+  const imported = importTemplate(serializeTemplates(library), []);
+  expect(imported).toEqual(library);
+  imported[1].document.plans[0].graph.nodes[2].name = 'Changed copy';
+  expect(imported[0].document.plans[0].graph.nodes[2].name).toBe('Haunted tour');
+  expect(library[1].document.plans[0].graph.nodes[2].name).toBe('Haunted tour');
+});
+
+it('imports multiple single files and bundles in one batch without overwriting existing templates', () => {
+  const document = halloweenProject('candy', MESSAGES.en);
+  const plan: SavedTemplate = { id: 'template-1', name: 'Plan', document };
+  const node: SavedTemplate = { id: 'template-1', name: 'Node', nodeId: 'stop-2', document };
+  const existing = [plan];
+  const before = JSON.stringify(existing);
+  const next = importTemplate([serializeTemplate(node), serializeTemplates([plan, node]), serializeTemplate(plan)], existing);
+  expect(next.map(item => item.id)).toEqual(['template-1', 'template-2', 'template-3', 'template-4', 'template-5']);
+  expect(next.map(item => item.name)).toEqual(['Plan', 'Node', 'Plan', 'Node', 'Plan']);
+  expect(JSON.stringify(existing)).toBe(before);
+});
+
+it.each(['malformed', 'future-version', 'empty-bundle'] as const)('rejects an entire batch containing a %s file', kind => {
+  const existing: SavedTemplate[] = [{ id: 'template-1', name: 'Keep', document: halloweenProject('haunted', MESSAGES.en) }];
+  const before = JSON.stringify(existing);
+  const invalid = kind === 'malformed' ? '{' : JSON.stringify({ format: 'ghost-rehearsal-template-library', schemaVersion: kind === 'future-version' ? 2 : 1, templates: kind === 'empty-bundle' ? [] : existing });
+  expect(() => importTemplate([serializeTemplate(existing[0]), invalid], existing)).toThrow();
+  expect(JSON.stringify(existing)).toBe(before);
+});
+
+it('adds independent events with all their plans while keeping existing events', () => {
+  const project = emptyProject();
+  project.scenarios[0].name = 'My existing event';
+  const example = initialDocument();
+  const before = JSON.stringify({ project, example });
+  const once = addEvent(project, example);
+  const twice = addEvent(once, example);
+  expect(projectDocumentSchema.safeParse(twice).success).toBe(true);
+  expect(twice.scenarios).toHaveLength(3);
+  expect(twice.plans).toHaveLength(5);
+  expect(twice.plans[1].scenarioId).toBe(twice.plans[2].scenarioId);
+  expect(twice.plans[3].scenarioId).not.toBe(twice.plans[1].scenarioId);
+  expect(twice.plans[2].graph).toEqual(example.plans[1].graph);
+  twice.plans[3].graph.nodes[0].name = 'Only this event';
+  expect(once.plans[1].graph.nodes[0].name).toBe(example.plans[0].graph.nodes[0].name);
+  expect(JSON.stringify({ project, example })).toBe(before);
 });

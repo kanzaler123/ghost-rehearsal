@@ -2,19 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Connection } from '@xyflow/react';
 import {
-  BookOpen, BookmarkPlus, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Columns2, Copy, Download, FilePlus2, FileText, Flame, Gauge, Hammer,
+  BookOpen, BookmarkPlus, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Columns2, Copy, Download, FileText, Flame, Gauge, Hammer,
   Hourglass, LayoutGrid, Maximize, Pause, Play, Redo2, RotateCcw, Save, ScrollText, Search, Sparkles, Square, Timer, TriangleAlert,
-  MoreHorizontal, Plus, Trash2, Undo2, Upload, Users, WandSparkles,
+  MoreHorizontal, Plus, Settings2, Trash2, Undo2, Upload, Users, WandSparkles,
 } from 'lucide-react';
 import { duplicatePlan, edgeSchema, nodeSchema, planSchema, PRODUCT_STATEMENT, scenarioSchema, validateGraph, validatePlan, validateScenario } from '../schemas';
 import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario } from '../schemas';
 import { Canvas } from '../components/Canvas';
 import { Inspector } from '../components/Inspector';
-import { JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
+import { EventCreator, JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
 import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
 import { EmptyResults, EventLog, Insights, Journey, ResourceUse } from '../components/Results';
 import type { PlanChange } from '../components/Results';
-import { addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { errorText, issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
 import type { Lang, Messages } from '../i18n';
@@ -23,7 +23,7 @@ import { playbackAt } from '../simulation/metrics';
 import type { SimulationRun } from '../simulation/types';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'new' | 'templates' | 'save-template' | null;
+type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'insights' | 'events' | 'journey' | 'resources';
 const STORAGE_KEY = 'ghost-rehearsal.project.v1';
@@ -33,7 +33,7 @@ const TABS: { tab: Tab; icon: typeof Sparkles }[] = [{ tab: 'insights', icon: Sp
 const other = (lang: Lang): Lang => lang === 'en' ? 'zh' : 'en';
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
-function loadProject(lang: Lang): { document: ProjectDocument; notice: Notice; saved: boolean } {
+function loadProject(lang: Lang): { document: ProjectDocument; notice: Notice; saved: boolean; setup?: boolean } {
   const example = () => localizeDocument(initialDocument(), 'zh', lang);
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -42,8 +42,8 @@ function loadProject(lang: Lang): { document: ProjectDocument; notice: Notice; s
       if (result.document) return { document: localizeDocument(result.document, other(lang), lang), notice: t => t.notices.restored, saved: true };
       return { document: example(), notice: t => t.notices.badSave, saved: false };
     }
-  } catch { return { document: example(), notice: t => t.notices.noStorage, saved: false }; }
-  return { document: example(), notice: null, saved: false };
+  } catch { return { document: localizeDocument(emptyProject(), 'zh', lang), notice: t => t.notices.noStorage, saved: false, setup: true }; }
+  return { document: localizeDocument(emptyProject(), 'zh', lang), notice: null, saved: false, setup: true };
 }
 
 export function App() {
@@ -64,7 +64,7 @@ export function App() {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [busy, setBusy] = useState(false);
-  const [dialog, setDialog] = useState<Dialog>(null);
+  const [dialog, setDialog] = useState<Dialog>(loaded.setup ? 'welcome' : null);
   const [bottomTab, setBottomTab] = useState<Tab>('insights');
   const [dockOpen, setDockOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -76,6 +76,8 @@ export function App() {
   const [templateDraft, setTemplateDraft] = useState<SavedTemplate | null>(null);
   const [templateName, setTemplateName] = useState('');
   const [templateError, setTemplateError] = useState('');
+  const [templateNotice, setTemplateNotice] = useState('');
+  const currentTemplates = useRef(templates);
   const [notice, setNoticeState] = useState<Notice>(() => loaded.notice);
   const [showIssues, setShowIssues] = useState(false);
   const [fitToken, setFitToken] = useState(0);
@@ -140,7 +142,7 @@ export function App() {
     try { const text = JSON.stringify(project); localStorage.setItem(STORAGE_KEY, text); setSavedText(text); say(tr => tr.notices.saved); }
     catch { say(tr => tr.notices.saveFailed); }
   }
-  function openLibrary(tab: 'nodes' | 'plans') { setLibraryTab(tab); setTemplateError(''); setDialog('templates'); }
+  function openLibrary(tab: 'nodes' | 'plans') { setLibraryTab(tab); setTemplateError(''); setTemplateNotice(''); setDialog('templates'); }
   function prepareTemplate(node?: Node) {
     const target = node ? owner : plan;
     const draft: SavedTemplate = { id: newId('template', templates.map(item => item.id)), name: node?.name ?? target.name,
@@ -149,7 +151,7 @@ export function App() {
     setTemplateDraft(draft); setTemplateName(draft.name); setTemplateError(''); setDialog('save-template');
   }
   function persistTemplates(next: SavedTemplate[]) {
-    try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); setTemplates(next); return true; }
+    try { localStorage.setItem(TEMPLATES_KEY, JSON.stringify(next)); currentTemplates.current = next; setTemplates(next); return true; }
     catch { setTemplateError(t.templates.saveFailed); return false; }
   }
   function usePlanTemplate(document: ProjectDocument, name: string) {
@@ -213,10 +215,11 @@ export function App() {
     selectPlan(result.plan.id); setSecondId(plan.id);
     setMode('Build'); say(tr => tr.notices.copied);
   }
-  function addNode(type: Node['type'], position = { x: 350 + (plan.graph.nodes.length % 3) * 240, y: 180 + Math.floor(plan.graph.nodes.length / 3) * 150 }) {
+  function addNode(type: Node['type'], position?: { x: number; y: number }) {
     if (mode !== 'Build') return;
-    const node = createNode(type, plan, scenario, position, t.nodeTypes[type]);
-    changePlan({ ...plan, graph: { ...plan.graph, nodes: [...plan.graph.nodes, node] } }); setSelection({ id: node.id, kind: 'node', owner: plan.id }); setFitToken(value => value + 1);
+    const node = createNode(type, plan, scenario, position ?? { x: 350 + (plan.graph.nodes.length % 3) * 240, y: 180 + Math.floor(plan.graph.nodes.length / 3) * 150 }, t.nodeTypes[type]);
+    changePlan({ ...plan, graph: { ...plan.graph, nodes: [...plan.graph.nodes, node] } }); setSelection({ id: node.id, kind: 'node', owner: plan.id });
+    if (!position) setFitToken(value => value + 1);
   }
   function connect(connection: Connection) {
     if (mode !== 'Build') return;
@@ -264,9 +267,11 @@ export function App() {
     }
     say(tr => tr.notices.noDifference);
   }
-  function startNew(next: ProjectDocument) {
-    commit(next); setPlanId(next.plans[0].id); setSecondId(next.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
-    setSelection({ id: '', kind: 'node', owner: next.plans[0].id }); setDialog(null);
+  function startNew(event: ProjectDocument) {
+    const next = dialog === 'welcome' ? event : addEvent(project, event);
+    const first = next.plans[dialog === 'welcome' ? 0 : project.plans.length];
+    commit(next); setPlanId(first.id); setSecondId(next.plans.find(item => item.id !== first.id && item.scenarioId === first.scenarioId)?.id ?? ''); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
+    setSelection({ id: '', kind: 'node', owner: first.id }); setDialog(null);
   }
   useEffect(() => {
     if (!playing) return;
@@ -275,7 +280,7 @@ export function App() {
     return () => clearInterval(timer);
   }, [playing, speed, endTime]);
   useEffect(() => { if (time >= endTime) setPlaying(false); }, [time, endTime]);
-  useEffect(() => { setFitToken(value => value + 1); }, [mode, dockOpen, inspectorOpen]);
+  useEffect(() => { setFitToken(value => value + 1); }, [mode]);
   useEffect(() => { if (selection.id) setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
@@ -378,13 +383,19 @@ export function App() {
       <aside className="sidebar">
         <section className="side-section event-card">
           <div className="event-eyebrow"><span className="eyebrow">{t.sidebar.event}</span><span className={cls('save-pill', unsaved && 'unsaved')}>{unsaved ? t.header.unsaved : t.header.saved}</span></div>
-          <h2 className="event-title">{scenario.name ?? t.header.untitled}</h2>
+          <div className="event-picker">
+            <select className="event-title" aria-label={t.eventSetup.active} value={scenario.id} disabled={busy} onChange={event => { const target = project.plans.find(item => item.scenarioId === event.target.value); if (target) selectPlan(target.id); }}>
+              {project.scenarios.filter(item => project.plans.some(plan => plan.scenarioId === item.id)).map(item => <option key={item.id} value={item.id}>{item.name ?? t.header.untitled}</option>)}
+            </select>
+            <button type="button" className="icon-btn" aria-label={t.eventSetup.settings} title={t.eventSetup.settings} disabled={busy} onClick={() => { setMode('Build'); setPlaying(false); setDialog('scenario'); }}><Settings2 size={16} /></button>
+          </div>
+          <button type="button" className="text-btn new-event" disabled={busy} onClick={() => setDialog('new')}><Plus size={14} />{t.eventSetup.new}</button>
           <button type="button" className="side-link" onClick={() => { setMode('Build'); setPlaying(false); setDialog('scenario'); }}><Ghost size={15} /><span>{t.sidebar.guests}</span><b>{populationSize(scenario)}</b></button>
           <button type="button" className="side-link" onClick={() => { setMode('Build'); setPlaying(false); setDialog('resources'); }}><Users size={15} aria-hidden="true" /><span>{t.sidebar.resources}</span><b>{staffCount + deviceCount}</b></button>
         </section>
         <section className="side-section">
           <div className="section-heading"><h2>{t.sidebar.plans}</h2><div className="section-actions"><button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} disabled={busy} onClick={() => prepareTemplate()}><BookmarkPlus size={16} /></button><button type="button" className="icon-btn" aria-label={t.sidebar.duplicate} title={t.sidebar.duplicate} disabled={busy} onClick={copyPlan}><Copy size={16} /></button></div></div>
-          <ul className="plan-list">{project.plans.map(item => {
+          <ul className="plan-list">{project.plans.filter(item => item.scenarioId === scenario.id).map(item => {
             const isA = item.id === plan.id; const isB = item.id === second?.id;
             return <li key={item.id} className={cls('plan-card', isA && 'is-a', isB && 'is-b')}>
               <button type="button" className="plan-main" aria-pressed={isA} onClick={() => selectPlan(item.id)}>
@@ -404,7 +415,6 @@ export function App() {
         </section>
         <section className="side-section side-footer">
           <button type="button" className="side-action template-launch" disabled={busy} onClick={() => openLibrary('plans')}><BookOpen size={17} aria-hidden="true" />{t.templates.browse}<span>↗</span></button>
-          <button type="button" className="side-action" onClick={() => setDialog('new')}><FilePlus2 size={15} aria-hidden="true" />{t.sidebar.newProject}</button>
         </section>
       </aside>
 
@@ -476,7 +486,7 @@ export function App() {
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
-    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
     {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {
@@ -487,18 +497,29 @@ export function App() {
       if (dialog === 'plan-json') { const next = result.data as Plan; if (next.id !== plan.id || !project.scenarios.some(item => item.id === next.scenarioId)) return t.dialogs.keepPlanId; changePlan(next); }
       if (dialog === 'scenario-json') { const next = result.data as Scenario; if (next.id !== scenario.id) return t.dialogs.keepScenarioId; commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item) }); }
     }} />}
-    <input ref={templateInput} type="file" accept=".json,application/json" hidden onChange={async event => {
-      const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return;
-      setTemplateError('');
+    <input ref={templateInput} type="file" accept=".json,application/json" multiple hidden onChange={async event => {
+      const files = Array.from(event.currentTarget.files ?? []); event.currentTarget.value = ''; if (!files.length) return;
+      setTemplateError(''); setTemplateNotice('');
       try {
-        const next = importTemplate(await file.text(), templates);
-        if (persistTemplates(next)) { setLibraryTab(next.at(-1)!.nodeId ? 'nodes' : 'plans'); say(tr => tr.templates.imported); }
+        const texts = await Promise.all(files.map(file => file.text()));
+        const previousCount = currentTemplates.current.length;
+        const next = importTemplate(texts, currentTemplates.current);
+        if (persistTemplates(next)) {
+          setLibraryTab(next.slice(previousCount).some(item => !item.nodeId) ? 'plans' : 'nodes');
+          setTemplateNotice(t.templates.imported(next.length - previousCount));
+          say(tr => tr.templates.imported(next.length - previousCount));
+        }
       } catch { setTemplateError(t.templates.importFailed); }
     }} />
     {dialog === 'templates' && <Modal title={t.templates.title} icon={<BookOpen size={18} />} onClose={() => setDialog(null)} wide>
       <div className="spellbook-intro"><div><span className="eyebrow">KIROWEEN / GHOST REHEARSAL</span><p>{t.templates.subtitle}</p></div><Pumpkin size={64} /></div>
       <div className="dialog-tabs" role="tablist">{(['plans', 'nodes'] as const).map(tab => <button type="button" role="tab" aria-selected={libraryTab === tab} className={libraryTab === tab ? 'active' : ''} key={tab} onClick={() => setLibraryTab(tab)}>{t.templates[tab]}</button>)}</div>
       <div className="modal-body template-library">
+        <div className="template-transfer">
+          <button type="button" className="btn secondary" onClick={() => { setTemplateError(''); setTemplateNotice(''); templateInput.current?.click(); }}><Upload size={15} />{t.templates.import}</button>
+          <button type="button" className="btn ghost" disabled={!templates.length} onClick={() => download('ghost-rehearsal-templates.json', serializeTemplates(templates), 'application/json')}><Download size={15} />{t.templates.exportAll(templates.length)}</button>
+        </div>
+        {templateNotice && <p className="template-notice" role="status">{templateNotice}</p>}
         <p className="subtle">{libraryTab === 'plans' ? t.templates.planHint : readOnly ? t.sidebar.readOnlyHint : t.templates.nodeHint}</p>
         <h3 className="eyebrow">{t.templates.presets}</h3>
         {libraryTab === 'nodes' ? <div className="palette">{NODE_TYPES.map(type => <button type="button" key={type} disabled={readOnly} className={`palette-node type-${type}`} onClick={() => { addNode(type); setDialog(null); }}>
@@ -511,7 +532,6 @@ export function App() {
           <button type="button" className="template-card blank" onClick={() => usePlanTemplate(emptyProject(t.defaults), t.defaults.plan)}><Plus size={28} /><b>{t.templates.blank}</b><small>{t.templates.blankHint}</small></button>
         </div>}
         <div className="section-heading"><h3 className="eyebrow">{t.templates.saved}</h3><div className="section-actions">
-          <button type="button" className="text-btn" onClick={() => { setTemplateError(''); templateInput.current?.click(); }}><Upload size={15} />{t.templates.import}</button>
           {libraryTab === 'plans' && <button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} onClick={() => prepareTemplate()}><BookmarkPlus size={15} /></button>}
         </div></div>
         <div className="saved-templates">{templates.filter(item => libraryTab === 'nodes' ? !!item.nodeId : !item.nodeId).map(item => <div className="saved-template" key={item.id}>
@@ -542,9 +562,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {dialog === 'new' && <Modal title={t.dialogs.newTitle} icon={<FilePlus2 size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.newText}</p>
-      <button type="button" className="option-card" onClick={() => startNew(emptyProject(t.defaults))}><span className="option-icon"><FilePlus2 size={20} /></span><span><b>{t.dialogs.blank}</b><small>{t.dialogs.blankHint}</small></span></button>
-      <button type="button" className="option-card" onClick={() => startNew(localizeDocument(initialDocument(), 'zh', lang))}><span className="option-icon"><Ghost size={22} /></span><span><b>{t.dialogs.example}</b><small>{t.dialogs.exampleHint}</small></span></button>
-    </div></Modal>}
+    {(dialog === 'welcome' || dialog === 'new') && <EventCreator onClose={() => setDialog(null)} onCreate={startNew} onExample={() => startNew(localizeDocument(initialDocument(), 'zh', lang))} onImport={() => fileInput.current?.click()} />}
   </div>;
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Plus, X } from 'lucide-react';
+import { CalendarDays, Plus, X } from 'lucide-react';
 import { deviceUnitIds, validatePlan, validateScenario } from '../schemas';
-import type { Plan, Scenario } from '../schemas';
-import { newId } from '../features/project';
+import type { Plan, ProjectDocument, Scenario } from '../schemas';
+import { emptyProject, halloweenProject, newId } from '../features/project';
 import { issueText, useI18n } from '../i18n';
 import { Field, NumberInput } from './Inspector';
 
@@ -43,6 +43,44 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
     <textarea aria-label={t.dialogs.jsonLabel} className="json-editor" spellCheck={false} value={text} readOnly={readOnly} onChange={event => setText(event.target.value)} />
     <p role="alert" className="form-error">{error}</p>
     <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.close}</button>{!readOnly && <button type="button" className="btn primary" onClick={() => { try { const message = onApply(JSON.parse(text)); if (message) setError(message); else onClose(); } catch { setError(t.dialogs.jsonMalformed); } }}>{t.dialogs.checkApply}</button>}</div>
+  </Modal>;
+}
+
+export function EventCreator({ onCreate, onExample, onImport, onClose }: { onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
+  const { t, lang } = useI18n();
+  const [name, setName] = useState('');
+  const [guests, setGuests] = useState(100);
+  const [duration, setDuration] = useState(30);
+  const [arrivalWindow, setArrivalWindow] = useState(10);
+  const [preset, setPreset] = useState<'blank' | 'haunted' | 'candy'>('blank');
+  const [error, setError] = useState('');
+  return <Modal title={t.eventSetup.title} icon={<CalendarDays size={19} />} onClose={onClose}>
+    <form onSubmit={event => {
+      event.preventDefault();
+      const document = preset === 'blank' ? emptyProject(t.defaults) : halloweenProject(preset, t);
+      const scenario = document.scenarios[0];
+      scenario.name = name.trim(); scenario.observationCutoff = duration * 60; scenario.horizon = Math.max(duration * 60, 7200);
+      scenario.arrivalStreams = [{ id: 'arrival-1', kind: 'total_in_window', count: guests, start: 0, end: arrivalWindow * 60, spacing: 'even', attributeDistributions: {}, provenance: { kind: 'user_estimate' } }];
+      const errors = validateScenario(scenario).filter(issue => issue.severity === 'error');
+      if (errors.length) { setError(errors.map(issue => issueText(issue, lang)).join('\n')); return; }
+      onCreate(document);
+    }}>
+      <div className="modal-body event-setup">
+        <span className="eyebrow">{t.eventSetup.steps}</span><p>{t.eventSetup.subtitle}</p>
+        <Field label={t.dialogs.eventName}><input aria-label={t.dialogs.eventName} value={name} maxLength={100} required placeholder={t.eventSetup.namePlaceholder} onChange={event => setName(event.target.value)} /></Field>
+        <div className="form-row">
+          <Field label={t.dialogs.count}><NumberInput label={t.dialogs.count} value={guests} min={1} max={10000} onChange={setGuests} /></Field>
+          <Field label={t.eventSetup.duration}><NumberInput label={t.eventSetup.duration} value={duration} min={1} onChange={setDuration} /></Field>
+        </div>
+        <Field label={t.eventSetup.arrivals} hint={t.eventSetup.arrivalsHint}><NumberInput label={t.eventSetup.arrivals} value={arrivalWindow} min={1} max={duration} onChange={setArrivalWindow} /></Field>
+        <Field label={t.eventSetup.startingFlow}><select aria-label={t.eventSetup.startingFlow} value={preset} onChange={event => setPreset(event.target.value as typeof preset)}>
+          <option value="blank">{t.templates.blank}</option><option value="haunted">{t.templates.haunted.name}</option><option value="candy">{t.templates.candy.name}</option>
+        </select></Field>
+        <p className="form-error" role="alert">{error}</p>
+        <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" onClick={onImport}>{t.eventSetup.import}</button></div>
+      </div>
+      <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
+    </form>
   </Modal>;
 }
 
