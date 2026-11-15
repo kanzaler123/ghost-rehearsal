@@ -41,3 +41,19 @@
 ## Kiro 证据
 
 - [ ] 在 Kiro 中导出对应原始会话并核对贡献记录；Codex 不补写无法验证的 Kiro 历史
+
+## 2026-11-15 合并后接手核验（Codex）
+
+基线为 `6309d5f`（已与 origin/main 核对），开发分支 `codex/comparison-guided-demo`。以上历史验证记录保留，以下为本次重新核验，不追溯改写作者。
+
+| 范围 | 当前状态与依据 | 尚未验收 |
+| --- | --- | --- |
+| 输入、校验、复制、规范化文件、指纹（5–25、41–42、47 的输入部分） | 已实现；Schema、codec、fingerprint、example、boundaries 测试通过 | 完整输出运行时校验、未来版本迁移 |
+| 编辑、模板、多活动、三模式（1–4、43） | 可运行；workbench、templates、canvas、stages 测试通过 | 正式 Workbench_Spec、完整键盘与所有恢复状态验收 |
+| 排队、到达、岗位、班次、关闭、回放（26–39） | 部分实现；simulation、analysis 有手算案例与事件一致性测试 | 完整语义文档、完整 Golden_Case_Suite、输出契约、规模性能 |
+| 比较、旅程、统计与安排导出（4、34–40） | 部分实现；总览/名单按 60 秒，Insights 按非零差值；最终主指标为全部已到达，与原 40.3(a) 仅 completed 有冲突 | 由 comparison-evidence-contract 统一并补充 completed 子群 |
+| 示例与演示（44、46） | 示例 A/B 可运行；已有 packingExperiment，但入口隐蔽且测试复制了构造代码 | 由 guided-decision-demo 完成可发现的 A/B/C 引导；原 46 的完整七场景机器可读分镜仍未验收 |
+| 浏览器与 CI | CI 有测试/构建；既有浏览器记录保留；本次基线只重新跑了自动检查与构建 | 真实 Worker 的自动浏览器 smoke、390px 与双语路径 |
+| Kiro 证据 | 日志仍为模板、Hook 配置存在 | 实际执行须核对日志/会话；不能把 Codex 创建的 Spec 算作 Kiro 工作 |
+
+本次基线 `npm run check`：12 文件、263 项测试及两组 TypeScript 检查通过；`npm run build` 通过，保留主包超过 500 kB 的提示。既有组件测试含模拟 React hooks/Worker 传输，不能代替真实浏览器测试。没有组织者试用、实地校准或完整 47 项验收。
