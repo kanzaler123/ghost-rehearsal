@@ -21,6 +21,18 @@ export function readProject(text: string, lang: Lang = 'zh'): { document?: Proje
   return { document: result.document, issues: result.issues };
 }
 
+/** Export only the selected experiment and its shared scenario inputs. */
+export function experimentProject(project: ProjectDocument, planIds: readonly string[]): ProjectDocument | undefined {
+  if (!planIds.length || new Set(planIds).size !== planIds.length) return;
+  const plans = planIds.map(id => project.plans.find(plan => plan.id === id));
+  if (plans.some(plan => !plan)) return;
+  const scenarioIds = new Set(plans.map(plan => plan!.scenarioId));
+  return readProject(JSON.stringify({
+    format: project.format, schemaVersion: project.schemaVersion,
+    plans, scenarios: project.scenarios.filter(scenario => scenarioIds.has(scenario.id)),
+  })).document;
+}
+
 export function newId(prefix: string, used: string[]) {
   let index = 1;
   while (used.includes(`${prefix}-${index}`)) index++;
