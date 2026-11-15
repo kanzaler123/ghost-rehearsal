@@ -410,6 +410,7 @@ const en = {
     noDifference: 'This guest’s two journeys are identical.',
     importFailed: (error: string) => `Import failed: ${error}`,
     imported: 'Project imported. You can undo this.',
+    fileReadFailed: 'Could not read that file. Choose it again or select another project file. The current project is unchanged.',
     invalidJson: 'The file isn’t valid JSON. The current project is unchanged.',
   },
   dialogs: {
@@ -863,6 +864,7 @@ const zh: Messages = {
     noDifference: '这位参与者的两条经历没有差异。',
     importFailed: error => `导入失败：${error}`,
     imported: '项目已导入，原操作可撤销。',
+    fileReadFailed: '无法读取该文件。请重新选择文件或选择其他项目文件，原项目保持不变。',
     invalidJson: '文件不是合法的 JSON，原项目保持不变。',
   },
   dialogs: {

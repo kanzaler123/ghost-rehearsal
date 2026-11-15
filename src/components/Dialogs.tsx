@@ -51,13 +51,14 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onImport, onClose }: { onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
+export function EventCreator({ onCreate, onExample, onImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
   const [duration, setDuration] = useState(30);
   const [arrivalWindow, setArrivalWindow] = useState(10);
   const [preset, setPreset] = useState<'blank' | 'haunted' | 'candy'>('blank');
+  const importErrorId = useId();
   const [error, setError] = useState('');
   return <Modal title={t.eventSetup.title} icon={<CalendarDays size={19} />} onClose={onClose}>
     <form onSubmit={event => {
@@ -82,7 +83,8 @@ export function EventCreator({ onCreate, onExample, onImport, onClose }: { onCre
           <option value="blank">{t.templates.blank}</option><option value="haunted">{t.templates.haunted.name}</option><option value="candy">{t.templates.candy.name}</option>
         </select></Field>
         <p className="form-error" role="alert">{error}</p>
-        <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" onClick={onImport}>{t.eventSetup.import}</button></div>
+        <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" aria-describedby={importError ? importErrorId : undefined} onClick={onImport}>{t.eventSetup.import}</button></div>
+        <p id={importErrorId} className="form-error" role="alert">{importError}</p>
       </div>
       <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>
