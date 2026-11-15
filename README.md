@@ -23,12 +23,14 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 ## Try it in three minutes
 
-1. Open the [live workbench](https://kanzaler123.github.io/ghost-rehearsal/). On a fresh visit, create your own event or choose **Try the two-plan demo** for the walkthrough below.
-2. Click **Run rehearsal**, then play or scrub the timeline to inspect queues and guest journeys.
-3. Choose **Two Futures** to run the included baseline and alternative plans. They share the same guest scenario but have different service and resource arrangements. Start with the completion, waiting and cost summary in **Overview**.
-4. Click a group count to inspect its complete guest list, or open **Guest journey** and choose a representative story. Jump to the first difference, compare the two cutoff records, then use **Back to comparison** to return to the overview.
-5. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
-6. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
+1. Start this version locally (instructions below) and choose **Start the A/B/C guide** on the welcome screen or in the Build sidebar. The guide adds independent example plans and preserves existing events. The public deployment updates after a merge to main.
+2. Read the A/B results: completed, unfinished, early departures, average/P90 waiting and resource costs. The example is synthetic, and B changes several arrangements at once.
+3. Choose **Follow the same guest**, then **Jump to first difference**. Inspect the same ID's two recorded journeys, station table and events.
+4. Choose **Inspect posts and resources**, then **Inspect packing evidence**. Check staff eligibility, actual postings and availability; the backlog alone does not establish a unique cause.
+5. Choose **Create C and compare**. C adds one packing worker with the original worker's shifts and unavailable periods. Read all B/C outcomes and **View resource costs**; extra completions can accompany extra departures.
+6. Choose **Prepare C export**, then **Download C arrangement**. The file includes C's rules, posts, sources and B/C evidence using the selected statistics basis and waiting rule. **Reset guide** reuses its plans, **Rerun this comparison** recalculates them, and **Exit guide** leaves them available for free editing in Build.
+
+The original two-plan example, blank flows, Haunted house and reusable templates remain available. Selecting Build exits the guide; normal project export preserves all its plans, while simulation results are recalculated after import.
 
 Use **More options → Run scope → Run to completion**, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time.
 
@@ -72,6 +74,8 @@ npm run preview
 
 `check` runs both strict TypeScript checks and the automated tests once. `build` produces `dist/`; `preview` serves that build locally. There are no environment variables or external services to configure.
 
+For the real Chromium/production-Worker smoke suite, run `npx playwright install chromium`, then `npm run build` and `npm run test:browser`. It starts its own preview server on port 4178 and covers desktop/390px in English/Chinese. Failure traces, screenshots, downloads and a JSON result go to ignored `test-results/`; the HTML report is in `playwright-report/`. CI installs Chromium with its system dependencies and checks the `/ghost-rehearsal/` deployment base path.
+
 ## Deployment and verification
 
 [GitHub Actions](https://github.com/kanzaler123/ghost-rehearsal/actions/workflows/pages.yml) installs the locked dependencies, runs tests and type checks, and builds the site. Successful pushes to `main` deploy to GitHub Pages; pull requests run the checks without deployment.
@@ -81,6 +85,8 @@ The Pages build uses `/ghost-rehearsal/` as its base path. If you fork and publi
 Local verification on **2026-11-15**: **263 automated tests across 12 files**, both TypeScript checks, and the production build passed. Automated coverage includes hand-calculated queues, shared resources, shifts and closing rules, unfinished guests and run limits, canonical files and fingerprints, viewport fitting, matching guest groups, cutoff-consistent journeys, and station totals that count each future once.
 
 Desktop browser checks for the UI revision covered a fresh rehearsal opening with its flow centered, the dual-canvas comparison overview, complete group lists with search and pagination, report links to a key moment and plan rules, and the featured demo guest's first visible divergence at **03:30**: still queuing in A, being served in B. A **390 × 844 CSS-pixel** browser viewport also covered the Report / Flow / Guest navigation, selecting a guest to reveal their detail, resetting panel scroll positions, and keeping wide station tables within their own horizontal scroll area. These were Chromium checks, not a physical-device or cross-browser certification. Merge checks also covered switching the overview, guest journeys, resource summaries and backlog evidence between cutoff and final results, copying a plan without losing its comparison partner, and a 390 × 844 viewport without page overflow. The merged application reported no browser errors in these checks.
+
+**Post-merge verification update, 2026-11-15:** the two new Specs are implemented. **272 tests across 12 files**, both TypeScript checks and the Pages production build passed. **8 real-Worker Chromium cases passed** across desktop/390px and English/Chinese, including the complete A/B/C guide, threshold and statistics switches, absent/stale results and actual imports/exports. The last suite took **75.972 seconds**, with no retries or skipped cases. The earlier figures above remain historical checkpoints. See the [validation record](docs/validation-2026-11-15.md) for intermediate failures, exact coverage, Hook evidence and remaining work. Remote CI/deployment has not been run for this local branch.
 
 ## Scope and limitations
 
@@ -127,6 +133,8 @@ Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人�
 
 首次使用先创建活动，填写名称、人数、活动时长和入场时间，再选择空白流程或万圣节预设。左侧按“活动 → 方案 → 节点”组织，可新建和切换活动；每个活动有独立方案。画布支持双击搜索节点、右键操作、框选与多选、抓手平移和滚轮缩放。
 
+本分支新增欢迎页和搭建侧栏的“开始 A/B/C 引导演示”：自动运行 A/B → 同一访客 → 首次差异 → 岗位与资源 → 创建 C → 检查 B/C 全部结局及资源代价 → 导出 C 安排与比较证据。引导保留已有活动；可退出、重置和重跑，切回“搭建”可自由编辑。重置后再创建 C 会复用本次引导的 C，不反复添加副本。合并部署前，请本地运行体验。
+
 三个模式的界面重点不同：
 
 - **搭建：** 以可读、可编辑的节点为中心，子流程显示为阶段框。
@@ -136,6 +144,8 @@ Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人�
 点击受影响人数或“访客旅程”，进入独立的全高详情视图。完整名单支持搜索、分页，以及少等、多等、变化不足一分钟、只在 A 完成、只在 B 完成等筛选；同一代表人物的多个故事合并显示。选择一位参与者后，可比较两个未来的时间带、结局、首次差异、逐站用时和事件证据，再通过“返回比较总览”回到整体方案。旅程记录默认使用观察截止；全程运行后可以切换最终统计，报告、时间带、逐站表和资源统计随所选口径更新。累计等待统一写作“人·分钟”。
 
 本轮验证记录（**2026-11-15**）：**12 个测试文件、263 项自动化测试**、两项 TypeScript 检查和生产构建通过。当前桌面浏览器已检查新运行的流程居中、双画布总览、完整筛选名单，以及示例代表人物在 **03:30** 的首次可见差异：A 仍在排队，B 已开始服务。
+
+以上为历史检查点。本次合并后开发最终验证：**272 项测试、两项 TypeScript 检查、Pages 生产构建通过；8 项真实 Worker 浏览器用例全部通过**，覆盖中英文、桌面和 390px、完整 A/B/C、统计切换、未到达/缺少最终结果/过期及导入导出。耗时 **75.972 秒**，无重试或跳过。Kiro Hook 仅核实已加载，实际执行仍未证实；本轮全部按 Codex 贡献记录。详见[验证记录](docs/validation-2026-11-15.md)。
 
 模板库的“导出全部”将所有节点与方案模板打成一个 JSON 文件。“批量导入”可以一次选择整库备份、多个单独文件或混合选择。导入追加独立副本，不覆盖已有内容；任一文件有误时整批不导入。单个模板仍可单独导出。节点文件保留原方案及场景作为资源上下文。项目 JSON 不包含模板库，需要分别导出。当前是可运行预览版，尚未完成全部规划需求、Kiro 使用证明、演示视频和 Devpost 正式提交。
 
