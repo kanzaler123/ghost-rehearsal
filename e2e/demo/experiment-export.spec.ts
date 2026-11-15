@@ -95,8 +95,50 @@ test('guide exports only its reproducible A/B/C experiment and preserves existin
   await expect(outcome('unfinished').locator('td').nth(1)).toHaveText('218');
   await expect(outcome('left').locator('td').nth(1)).toHaveText('10');
   await page.locator('.comparison-options > summary').click();
-  await expect(page.getByLabel(t.review.basis, { exact: true }).locator('option[value=completion]')).toBeEnabled();
+  const basis = page.getByLabel(t.review.basis, { exact: true });
+  await expect(basis.locator('option[value=completion]')).toBeEnabled();
+  await basis.selectOption('completion');
+  await expect(basis).toHaveValue('completion');
   await page.locator('.comparison-options > summary').click();
+  const finalCompleted = await outcome('completed').locator('td').allTextContents();
+  async function runPair(scope: 'cutoff' | 'run_to_completion') {
+    await pickerButton.click();
+    await picker.getByLabel(t.run.scope, { exact: true }).selectOption(scope);
+    const nextWorker = page.waitForEvent('worker');
+    await picker.getByRole('button', { name: t.comparePicker.apply, exact: true }).click();
+    expect((await nextWorker).url()).toMatch(/\/assets\/worker-[^/]+\.js$/);
+    await expect(picker).toHaveCount(0);
+    await expect(pickerButton).toBeEnabled();
+  }
+  async function revealOutcomes() {
+    const summary = page.locator('.report-step > summary').filter({ hasText: t.compare.steps.outcomes });
+    if (await summary.locator('..').getAttribute('open') === null) await summary.click();
+  }
+  // A full run preserves the selected final basis.
+  await runPair('run_to_completion');
+  await page.locator('.comparison-options > summary').click();
+  await expect(basis).toHaveValue('completion');
+  await page.locator('.comparison-options > summary').click();
+  await revealOutcomes();
+  await expect(outcome('completed').locator('td')).toHaveText(finalCompleted);
+  // Executing cutoff from a final view must select available cutoff statistics.
+  await runPair('cutoff');
+  await page.locator('.comparison-options > summary').click();
+  await expect(basis).toHaveValue('cutoff');
+  await expect(basis.locator('option[value=completion]')).toBeDisabled();
+  await page.locator('.comparison-options > summary').click();
+  await revealOutcomes();
+  await expect(outcome('completed').locator('td').nth(0)).toHaveText('41');
+  await expect(outcome('completed').locator('td').nth(1)).toHaveText('72');
+  // Running to completion again must not discard the user's cutoff view.
+  await runPair('run_to_completion');
+  await page.locator('.comparison-options > summary').click();
+  await expect(basis).toHaveValue('cutoff');
+  await expect(basis.locator('option[value=completion]')).toBeEnabled();
+  await page.locator('.comparison-options > summary').click();
+  await revealOutcomes();
+  await expect(outcome('completed').locator('td').nth(0)).toHaveText('41');
+  await expect(outcome('completed').locator('td').nth(1)).toHaveText('72');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await fullProject(page, t)).toBe(text);
   expect(errors).toEqual([]);

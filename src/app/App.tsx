@@ -394,6 +394,7 @@ export function App() {
     const right = project.plans.find(item => item.id === rightId && item.scenarioId === scenario.id);
     if (busy || !left || !right || left.id === right.id) return;
     setDialog(null); setGuide(null); setPlanId(left.id); setSecondId(right.id); setRunMode(scope);
+    if (scope === 'cutoff') setBasis('cutoff');
     setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
     launch([left, right], 'Compare', project, scope);
   }
