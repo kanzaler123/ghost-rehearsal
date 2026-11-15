@@ -1,0 +1,31 @@
+import { expect, test } from '@playwright/test';
+import { compareExample, openExample, pauseAt, selectPacking } from './studio';
+
+test('edit undo redo preserves selection and view; real replay and first divergence agree', async ({ page }, info) => {
+  const t = await openExample(page, info);
+  await selectPacking(page, t);
+  const name = page.getByLabel(t.inspector.name, { exact: true });
+  const original = await name.inputValue();
+  const viewport = await page.locator('.react-flow__viewport').getAttribute('style');
+  await name.fill(`${original} 2`);
+  await name.press('Tab');
+  await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+  await expect(name).toHaveValue(original);
+  await expect(page.locator('.react-flow__node[data-id="packing"]')).toHaveClass(/selected/);
+  await expect(page.locator('.react-flow__viewport')).toHaveAttribute('style', viewport!);
+  await page.getByRole('button', { name: t.header.redo, exact: true }).click();
+  await expect(name).toHaveValue(`${original} 2`);
+  await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+  await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
+  await expect(page.getByLabel(t.dock.timeline, { exact: true })).toBeEnabled();
+  await pauseAt(page, t, 210);
+  await page.waitForTimeout(2100);
+  await expect(page.getByLabel(t.dock.timeline, { exact: true })).toHaveValue('210');
+  await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  const guide = await compareExample(page, t);
+  await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
+  await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).click();
+  await expect(page.locator('.ghost-id code')).toHaveText('side-stream:10');
+  await expect(page.locator('.diff-note')).toContainText('03:30');
+  await expect(page.getByLabel(t.dock.timeline, { exact: true })).toHaveValue('210');
+});
