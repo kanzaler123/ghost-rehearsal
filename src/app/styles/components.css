@@ -613,7 +613,6 @@ fieldset:disabled { opacity: 0.82; }
 .issue-list > div.warning { border-color: color-mix(in srgb, var(--candle) 30%, transparent); background: color-mix(in srgb, var(--candle) 6%, transparent); }
 .issue-list > div.warning b { color: var(--candle); }
 
-.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: var(--fs-2xl); background: color-mix(in srgb, var(--ink--040309) 74%, transparent); backdrop-filter: blur(var(--space-3)); animation: fade var(--duration-0-18s) ease-out; }
 .modal {
   width: var(--size-540px); max-width: 100%; max-height: 90dvh; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--radius-xl); border: var(--stroke) solid var(--line-2); animation: rise var(--duration-0-22s) ease-out; background: var(--surface-2); box-shadow: var(--elev-2);
 }
@@ -690,7 +689,6 @@ fieldset:disabled { opacity: 0.82; }
 .entry-atmosphere .haunt-moon, .canvas-shell:has(.canvas-empty) .haunt-moon { opacity: 0.85; }
 .entry-atmosphere .haunt-bat, .entry-atmosphere .haunt-web { opacity: 0.55; }
 .entry-atmosphere .haunt-pumpkins, .haunt:not(.is-quiet) .haunt-pumpkins { display: flex; position: absolute; right: var(--space-7); bottom: var(--space-7); opacity: 0.8; color: var(--tone-wait); }
-.app.is-entry .modal-backdrop { background: color-mix(in srgb, var(--surface-0) 48%, transparent); backdrop-filter: none; }
 .event-setup { display: flex; flex-direction: column; }
 .event-start-options { order: -1; margin-top: 0; margin-bottom: var(--space-4); }
 .event-start-options button { min-height: var(--control-lg); padding: var(--space-2) var(--space-3); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-md); background: var(--surface-1); }

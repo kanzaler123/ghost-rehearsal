@@ -72,6 +72,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await number.press('Tab');
       await create.click();
       await expect(page.getByRole('dialog')).toHaveCount(0);
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
       await expect(page.getByLabel(t.eventSetup.active)).toContainText('Forms rehearsal');
     });
 
@@ -79,6 +80,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
       await page.locator('.side-link').filter({ hasText: t.sidebar.resources }).click();
       const first = page.getByRole('tab', { name: t.dialogs.tabResources, exact: true });
       const second = page.getByRole('tab', { name: t.dialogs.tabAssignments, exact: true });
@@ -130,13 +132,16 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
       const settings = page.getByRole('button', { name: t.eventSetup.settings, exact: true });
+      await page.locator('.event-picker summary').click();
       await settings.click();
       const cutoff = page.getByLabel(t.dialogs.cutoff, { exact: true });
       const oldValue = await cutoff.inputValue();
       await cutoff.fill('1.5');
       await cutoff.press('Enter');
       await page.keyboard.press('Escape');
+      await page.locator('.event-picker summary').click();
       await settings.click();
       await expect(cutoff).toHaveValue(oldValue);
       await page.getByRole('button', { name: t.review.addStream, exact: true }).click();
@@ -156,14 +161,66 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       expect(JSON.parse(await page.getByLabel(t.dialogs.jsonLabel).inputValue()).observationCutoff).toBe(90);
       await page.keyboard.press('Escape');
       await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+      await page.locator('.event-picker summary').click();
       await settings.click();
       await expect(cutoff).toHaveValue(oldValue);
+    });
+
+    test('time slot drafts stay with their rows through removal, addition and edits', async ({ page }, info) => {
+      const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+      await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
+      await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
+      await page.locator('.event-picker summary').click();
+      await page.getByRole('button', { name: t.eventSetup.settings, exact: true }).click();
+      await page.getByRole('button', { name: t.review.addStream, exact: true }).click();
+      const stream = page.getByRole('dialog').locator('.config-card').last();
+      const streamId = await stream.getByLabel(t.dialogs.streams, { exact: true }).inputValue();
+      await stream.getByRole('combobox', { name: t.review.pattern, exact: true }).selectOption('bucketed');
+      const add = stream.getByRole('button', { name: t.review.addBucket, exact: true });
+      const rows = stream.locator('.form-row');
+      await add.click();
+      await rows.nth(0).locator('input').nth(2).fill('-');
+      await rows.nth(0).getByRole('button', { name: t.review.remove, exact: true }).click();
+      await expect(rows).toHaveCount(1);
+      await expect(rows.nth(0).locator('input').nth(2)).toHaveValue('10');
+      await expect(rows.nth(0).locator('input').nth(2)).toHaveAttribute('aria-invalid', 'false');
+      await add.click();
+      await rows.nth(0).locator('input').nth(2).fill('-');
+      await rows.nth(1).locator('input').nth(2).fill('--');
+      await add.click();
+      await expect(rows.nth(0).locator('input').nth(2)).toHaveValue('-');
+      await expect(rows.nth(1).locator('input').nth(2)).toHaveValue('--');
+      await rows.nth(0).getByRole('button', { name: t.review.remove, exact: true }).click();
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0).locator('input').nth(2)).toHaveValue('--');
+      await expect(rows.nth(1).locator('input').nth(2)).toHaveValue('10');
+      const apply = page.getByRole('button', { name: t.dialogs.applyShared(2), exact: true });
+      await apply.click();
+      await expect(page.getByRole('dialog', { name: t.dialogs.scenarioTitle })).toBeVisible();
+      await expect(rows.nth(0).locator('input').nth(2)).toHaveAttribute('aria-invalid', 'true');
+      for (const [index, value] of [[2, '12'], [0, '16'], [1, '19']] as const) {
+        const input = rows.nth(0).locator('input').nth(index);
+        await input.fill(value);
+        await input.press('Enter');
+        await expect(input).toBeFocused();
+        await expect(input).toHaveValue(value);
+      }
+      await apply.click();
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page.getByLabel(t.header.more, { exact: true }).click();
+      await page.getByRole('button', { name: t.sidebar.scenarioJson, exact: true }).click();
+      const scenario = JSON.parse(await page.getByLabel(t.dialogs.jsonLabel).inputValue());
+      expect(scenario.arrivalStreams.find((item: { id: string }) => item.id === streamId).buckets).toEqual([
+        { start: 960, end: 1140, count: 12 }, { start: 1200, end: 1500, count: 10 },
+      ]);
     });
 
     test('JSON long errors, template save and rename keep actions reachable', async ({ page }, info) => {
       const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
       await page.getByLabel(t.header.more, { exact: true }).click();
       await page.getByRole('button', { name: t.sidebar.planJson, exact: true }).click();
       const json = page.getByLabel(t.dialogs.jsonLabel);
@@ -172,7 +229,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       invalid['unexpected'.repeat(200)] = true;
       await json.fill(JSON.stringify(invalid));
       await page.getByRole('button', { name: t.dialogs.checkApply, exact: true }).click();
-      await expect(page.getByRole('alert')).not.toBeEmpty();
+      await expect(page.getByRole('dialog').getByRole('alert')).not.toBeEmpty();
       const close = page.getByRole('button', { name: t.common.close, exact: true });
       await close.focus();
       await close.press('Tab');
@@ -182,6 +239,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await page.screenshot({ path: info.outputPath('json-error-footer.png') });
       await json.fill(original);
       await page.getByRole('button', { name: t.dialogs.checkApply, exact: true }).click();
+      await page.getByLabel(t.topbar.contextActions, { exact: true }).click();
       await page.getByRole('button', { name: t.templates.savePlan, exact: true }).click();
       await page.getByLabel(t.templates.name, { exact: true }).fill('Forms template');
       const save = page.getByRole('dialog').locator('button[type="submit"]');
@@ -189,6 +247,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await expect(save).toBeInViewport({ ratio: 1 });
       await save.press('Enter');
       await expect(page.getByRole('dialog')).toHaveCount(0);
+      await page.getByLabel(t.topbar.contextActions, { exact: true }).click();
       await page.getByRole('button', { name: t.review.rename, exact: true }).first().click();
       await page.getByLabel(t.review.planName, { exact: true }).fill('Forms renamed');
       await page.getByRole('dialog').getByRole('button', { name: t.header.save, exact: true }).focus();
@@ -202,6 +261,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
       const service = page.locator('.plan-node.type-service').first();
       await service.click();
       await page.getByRole('combobox', { name: t.inspector.distribution, exact: true }).selectOption('fixed');

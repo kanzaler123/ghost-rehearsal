@@ -10,6 +10,8 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await page.goto('./');
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+      if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
+      await page.locator('.event-picker summary').click();
       await page.getByRole('button', { name: t.eventSetup.settings, exact: true }).click();
       await page.getByRole('textbox', { name: t.dialogs.eventName, exact: true }).fill('Keyboard isolation');
       await page.getByRole('button', { name: t.dialogs.applyShared(2), exact: true }).click();
