@@ -374,3 +374,12 @@
 .resource-summary li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: var(--space-2); }
 .resource-summary li > span:last-child { text-align: right; }
 
+
+.journey-segments > summary { cursor: pointer; min-height: var(--touch-min); padding: var(--space-3) var(--space-2); color: var(--text-1); font-size: var(--fs-sm); }
+.journey-segments > summary, .segment-choice { scroll-margin-block: var(--size-180px) var(--space-4); }
+.segment-choices { display: grid; gap: var(--space-4); }
+.segment-plan { min-width: 0; }
+.segment-plan h4 { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-ui); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.segment-plan ol { display: grid; gap: var(--space-2); list-style: none; padding: 0; margin: var(--space-2) 0 0; }
+.segment-choice { width: 100%; min-height: var(--touch-min); padding: var(--space-3); text-align: left; white-space: normal; overflow-wrap: anywhere; color: var(--text-1); background: var(--surface-1); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-md); font-size: var(--fs-sm); }
+.segment-choice:hover { background: var(--surface-2); }
