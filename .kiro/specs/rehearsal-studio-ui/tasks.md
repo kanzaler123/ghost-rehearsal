@@ -554,7 +554,7 @@ Status recorded on 2026-11-15: source implementation and browser coverage are co
     - Done-check: the verification file lists the diff summary, each selector change with its reason, and "no deleted coverage / no loosened assertions" only if the diff shows it.
     - _Requirements: 4.5, 35.12, 36.15_
 
-- [ ] 23. Deliver the work
+- [x] 23. Deliver the work
   - [x] 23.1 Write the delivery report
     - Write `docs/reviews/ui-visual-polish.md` with: branch name; a table of changed files with a one-sentence change each; design notes; every verification command as typed with its real exit status and pass, fail and skip counts (linking `verification.md` and `baseline-checks.md`); pre-existing failures separate from new ones; the statement that property checks are table-driven and "not property-based" because `fast-check` was not added; the 12-screenshot set (plus the extra captures) and any missing image with reason; local run and review steps as a numbered list from a fresh checkout (install, start, test, open each of the six screens, each with its observable result); minimal interface notes for other tasks; remaining issues and known limitations or "no remaining issues". Any business-logic problem found outside scope is reported with cause, impact and verification scope, with no fix included.
     - Files: `docs/reviews/ui-visual-polish.md` (new).
@@ -572,13 +572,13 @@ Status recorded on 2026-11-15: source implementation and browser coverage are co
     - Done-check: `git branch --show-current` prints `kiro/ui-visual-polish`; `git status` shows no staged leftovers; the push exits 0; `git log origin/main..HEAD` shows no commit authored on `main`.
     - _Requirements: 37.1, 37.9, 37.10_
 
-  - [ ] 23.4 Open the Draft PR into `kiro/release-integration`
+  - [x] 23.4 Open the Draft PR into `kiro/release-integration`
     - Create a Draft PR from `kiro/ui-visual-polish` targeting `kiro/release-integration` (not `main`). The description states the dependency on PR #3 (task A) and the shared files touched (`App.tsx`, the split `styles.css`, `messages.ts`, `CompareReport.tsx`, `Journey.tsx`, `comparisonText.ts`, `Results.tsx`, `Inspector.tsx`), links `docs/reviews/ui-visual-polish.md`, summarises the verification results with real counts and "not run" items, lists the screenshots, unfinished items and known limitations, and states that the merge into `main` happens with the other tasks at the end of the release. Merge nothing. After PR #3 merges into the integration branch, sync by merging the integration branch into this branch (no rebase, no force-push) and re-run `npm run check`.
     - Done-check: `gh pr view --json isDraft,baseRefName` reports `isDraft: true` and `baseRefName: kiro/release-integration`; the PR body contains the dependency statement.
     - _Requirements: 37.3, 37.9, 35.11_
 
-- [ ] 24. Record unresolved decisions in the delivery notes
-  - [ ] 24.1 Record unresolved decisions in the delivery notes
+- [x] 24. Record unresolved decisions in the delivery notes
+  - [x] 24.1 Record unresolved decisions in the delivery notes
     - Add an "Unresolved decisions" section to `docs/reviews/ui-visual-polish.md` and to the Draft PR description, phrased as questions for the user, with no code and no implementation work: (1) Should the people-list page number, search text, group filter and overview scroll position be retained when returning from the Visitor_Journey? (Not added this round; Requirement 35.13.) (2) Should each Two Futures canvas get its own "edit this plan" action (Requirements 19.8, 19.9, 34.2)? Only a "Read-only" text chip was added. (3) Should Inspector field-level validation messages and undo granularity (Requirements 10.4, 10.9, 10.10) be changed? They belong to `kiro/dialog-form-reliability` and were not touched. Also note that `fast-check` was not added and the property checks are table-driven example tests. Commit and push this change as its own small commit; update the PR with `gh pr edit`; present the three questions to the user.
     - Files: `docs/reviews/ui-visual-polish.md`.
     - Done-check: the report and the PR body contain the three questions; `git diff --check` exits 0; the push exits 0.
@@ -586,6 +586,7 @@ Status recorded on 2026-11-15: source implementation and browser coverage are co
 
 ## Notes
 
+- Delivered as [Draft PR #8](https://github.com/kanzaler123/ghost-rehearsal/pull/8) into `kiro/release-integration`; branch push succeeded and the GitHub connector confirmed draft/base/head. Nothing was merged or deployed. Task 20.2 remains deferred until task B is integrated.
 - Tasks marked with `*` are optional supplementary tests and can be skipped for a faster MVP. The behavior tests for reduced-motion default-paused, arrangement, jump-to-divergence, scope switching, stale versus layout-only and replay scrubbing are required and not marked optional.
 - Each task references requirement numbers for traceability. Checkpoints ensure incremental validation.
 - Property-style tests are table-driven example tests in the existing Vitest setup and are not property-based; no dependency is added.

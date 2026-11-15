@@ -1,5 +1,7 @@
 # Rehearsal Studio UI delivery review
 
+Delivered as [Draft PR #8](https://github.com/kanzaler123/ghost-rehearsal/pull/8), from `kiro/ui-visual-polish` into `kiro/release-integration`. The branch is pushed; no merge or deployment was performed.
+
 Implementation on `kiro/ui-visual-polish` passes both typechecks, **370 unit tests in 25 files**, the production build and the final full browser suite: **56 passed, 0 failed, 4 intentional capture skips**. All eight viewport/language/motion path combinations pass, including export and reimport. There are **28 matching before/after screenshot pairs**, with no missing images. The full browser run required stopping its verified preview process after all tests completed; automatic preview teardown remains a local environment limitation. The separate after-capture run exited naturally.
 
 The adopted baseline is `origin/codex/comparison-guided-demo` at `40dc58deb073450f10b4d0aa64a79c22dc19d17f`. The earlier supplied `cbe1a834431bfe9a24817d64632bd8ec9071fca3` is its ancestor, seven commits earlier. Planning was inherited in `eeef1dc`, and the baseline checks were recorded in `4d22025`. Codex captured the unchanged UI in `4ef1d01` before any source edits, then committed styles in `ef777c1`, implementation in `e478920`, browser coverage in `746cb3a` and the verified boundary, focus and layout corrections in `c3464a4`. The final full browser run and after capture target `c3464a4`. No merge into main is part of this delivery.
@@ -21,7 +23,7 @@ This inventory is relative to `40dc58d`, including inherited spec/evidence files
 | `.kiro/specs/rehearsal-studio-ui/.config.kiro` | Records the rehearsal-studio-ui spec identity inherited from the planning work. |
 | `.kiro/specs/rehearsal-studio-ui/requirements.md` | Records the scoped UI requirements, including the completion criteria and excluded decisions. |
 | `.kiro/specs/rehearsal-studio-ui/design.md` | Defines presentation components, states, tokens and interaction contracts. |
-| `.kiro/specs/rehearsal-studio-ui/tasks.md` | Tracks implemented work separately from pending verification and delivery gates. |
+| `.kiro/specs/rehearsal-studio-ui/tasks.md` | Records completed implementation, verification and delivery, with the B-dependent Inspector wrapper deferred. |
 | `KIRO_USAGE.md` | Appends the continuation record without attributing Codex implementation to Kiro. |
 | `docs/kiro/ui-visual-polish-usage.md` | Separates inherited Kiro planning evidence from this Codex continuation. |
 | `docs/reviews/ui-visual-polish.md` | Provides this delivery report and review instructions. |
@@ -150,7 +152,7 @@ The six pairs below form the required 12-image review set. Before images were ta
 
 These steps reproduce the tested paths and the screenshot states.
 
-1. From a fresh directory, run `git clone --branch kiro/ui-visual-polish https://github.com/kanzaler123/ghost-rehearsal.git`, then `cd ghost-rehearsal`. Confirm `git branch --show-current` prints `kiro/ui-visual-polish`. Remote delivery is pending until the branch push is recorded.
+1. From a fresh directory, run `git clone --branch kiro/ui-visual-polish https://github.com/kanzaler123/ghost-rehearsal.git`, then `cd ghost-rehearsal`. Confirm `git branch --show-current` prints `kiro/ui-visual-polish`.
 2. Use a Node version supported by `package.json`, run `npm ci`, then `npx playwright install chromium`. Successful commands install the locked dependencies and the browser needed by the tests.
 3. Run `npm run check`, `npm run build -- --base=/ghost-rehearsal/` and `npm run test:browser`. Compare actual results with the linked verification record; the browser script builds a production bundle and starts its own local preview using the real Worker.
 4. Run `npm run dev` and open the local URL printed by Vite in a fresh browser profile. At 1366×768, the welcome view should show the product sentence plus separate example, blank-activity and import actions. Choose “Try the two-plan demo”; Build should open without a second tour overlay.
@@ -164,7 +166,7 @@ These steps reproduce the tested paths and the screenshot states.
 ## Coordination and remaining limits
 
 - [Interface notes](ui-visual-polish/interface-notes.md) record task B PR #5 as open and unmerged at `b22556accca1fc27e9fb0dc6d72ef8ed3d93e72b`, against integration `ca28c078443b35d49bee6593a5d0dc6a20db12ae`. The late Inspector wrapper (task 20.2) is deferred; `Inspector.tsx` and `Dialogs.tsx` remain unchanged. Inspector keyboard dismissal remains within that ownership boundary; this review does not claim every drawer now implements Escape dismissal. Apply any future wrapper to B’s reviewed markup.
-- The intended Draft PR targets `kiro/release-integration` and depends on task A PR #3, still unmerged at `40dc58d` when checked. Draft PR creation and push are pending. After A merges, synchronize by merging integration into this branch and rerun checks; do not rebase or force-push.
+- Draft PR #8 targets `kiro/release-integration` and depends on task A PR #3, still unmerged at `40dc58d` when checked. After A merges, synchronize by merging integration into this branch and rerun checks; do not rebase or force-push.
 - The browser matrix and screenshot capture pass. The verification record maps checked interactions to tests; the image inventory supplies all matching visual states.
 - Precisely positioned timeline segments can be short or overlap at the same timestamp. Their geometry is not enlarged into false durations; the text alternative provides larger actionable entries. This does not establish a separate, non-overlapping 44×44 target for every point on the drawn timeline.
 - Final output retains the existing large-chunk build warning. The final browser suite finished all tests but required stopping its verified preview process to complete teardown and write exit 0. Automatic local preview shutdown remains unresolved; no general process-killing or infrastructure workaround is part of this UI change.
