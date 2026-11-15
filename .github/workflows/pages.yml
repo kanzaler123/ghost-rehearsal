@@ -54,7 +54,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps webkit
-      - run: npm run test:browser:webkit -- smoke.spec.ts --repeat-each=3
+      - run: npm run test:browser:webkit
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
       - name: Upload WebKit failure diagnostics

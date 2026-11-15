@@ -24,3 +24,20 @@ WebKit results use `test-results/webkit/`, `test-results/webkit-results.json` an
 ## CI and failures
 
 The Chromium `build` job and the `webkit` job run independently. Pages deployment requires both to succeed. WebKit failures retain the same two output roots as the main job, with artifact name `browser-failure-webkit-<run-id>-<attempt>` for 14 days. This distinct name avoids collisions when both jobs fail. Open its HTML report from the extracted `playwright-report/webkit` directory. See [failure diagnostics](ci-diagnostics.md) for trace inspection and retention limits.
+
+## Current validation blocker
+
+The first focused WebKit run (43761211358, candidate 7a23250) passed 26
+cases and failed 6 desktop cases with `ResizeObserver loop completed with
+undelivered notifications.` Chromium passed its full suite (184 passed,
+4 skipped). Keep this change in draft until the WebKit failures are resolved;
+do not filter these errors or skip the affected cases to enable deployment.
+
+A temporary repeated-smoke diagnostic (43762390316) reproduced 3 failures
+in 12 runs. Native observer callbacks immediately before the error targeted
+React Flow containers and nodes, not the comparison header or timeline.
+Deferring the application's viewport resize refit by one animation frame did
+not fix it (43762701062: 5 failures in 12 runs). That experiment and the
+instrumentation were removed, and the full focused WebKit command restored.
+The callback sequence narrows the investigation but does not establish the
+root cause. These experiments are not successful validation of the candidate.
