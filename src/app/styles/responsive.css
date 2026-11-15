@@ -127,8 +127,8 @@
   .mode-compare .ghost-journey, .mode-compare.focus-person .ghost-journey { grid-template-columns: minmax(0, 1fr); gap: var(--fs-lg); }
   .mode-compare .people-list, .mode-compare.focus-person .people-list { max-height: var(--size-210px); }
   .mode-compare .ghost-stories { padding-bottom: var(--fs-md); border-bottom: var(--stroke) solid var(--line); }
-  .mode-compare .journey-header { scroll-margin-top: var(--size-96px); }
-  .mode-compare .report-head { scroll-margin-top: var(--size-112px); }
+  .mode-compare .journey-header { scroll-margin-top: max(var(--size-96px), calc(var(--comparison-header-height, 0px) + var(--space-3))); }
+  .mode-compare .report-head { scroll-margin-top: max(var(--size-112px), calc(var(--comparison-header-height, 0px) + var(--space-3))); }
   .mode-compare .report-snapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mode-compare .resource-summary { grid-column: auto; }
   .mode-compare .status-bar { flex-shrink: 0; }
