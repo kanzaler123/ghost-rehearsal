@@ -20,6 +20,11 @@ import { labelFits, segmentExtent } from './timelineGeometry';
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 const nodeName = (plan: Plan, id?: string) => plan.graph.nodes.find(node => node.id === id)?.name ?? '—';
 
+function segmentText(segment: Journey['segments'][number], plan: Plan, basis: ResultBasis, t: Messages): string {
+  const description = t.reportUi.segment(nodeName(plan, segment.nodeId), t.journey.segments[segment.kind], formatTime(segment.start), formatTime(segment.end), t.formatWait(segment.end - segment.start));
+  return `${description}${segment.open ? ` · ${basis === 'cutoff' ? t.reportUi.continues : t.reportUi.continuesFinal}` : ''}`;
+}
+
 export function describeStatus(status: VisitorStatus, plan: Plan, time: number, t: Messages): string {
   const s = t.journey.status;
   switch (status.kind) {
@@ -198,8 +203,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
                 const extent = segmentExtent(segment.start, segment.end, span);
                 const label = nodeName(plans[column], segment.nodeId);
                 const key = `${column}-${index}`;
-                const description = t.reportUi.segment(label, t.journey.segments[segment.kind], formatTime(segment.start), formatTime(segment.end), t.formatWait(segment.end - segment.start));
-                const detail = `${description}${segment.open ? ` · ${basis === 'cutoff' ? text.continues : text.continuesFinal}` : ''}`;
+                const detail = segmentText(segment, plans[column], basis, t);
                 return <button type="button" key={index} className={cls('seg', `seg-${segment.kind}`, segment.open && 'open', extent.width === 0 && 'seg-mark')}
                   style={{ left: `${extent.left}%`, width: `${extent.width}%` }} aria-label={detail}
                   aria-describedby={segmentDetail?.key === key ? 'journey-segment-detail' : undefined}
@@ -225,6 +229,20 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         <div className="lane-text-alternative">{journeys.map((journey, column) => <ol key={column} aria-label={plans[column].name}>{journey.segments.map((segment, index) => <li key={index}>{t.reportUi.segment(nodeName(plans[column], segment.nodeId), t.journey.segments[segment.kind], formatTime(segment.start), formatTime(segment.end), t.formatWait(segment.end - segment.start))}</li>)}</ol>)}</div>
         <div className="lane-legend">{(['queue', 'hold', 'blocked', 'service'] as const).map(kind => <span key={kind}><i className={`seg-${kind}`} />{t.journey.segments[kind]}</span>)}</div>
       </div>
+
+      {journeys.some(journey => journey.segments.length) && <details className="journey-segments">
+        <summary>{text.chooseSegment}</summary>
+        <div className="segment-choices">{journeys.map((journey, column) => <section className="segment-plan" key={column} aria-label={plans[column].name}>
+          <h4>{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}{plans[column].name}</h4>
+          {!journey.segments.length && <p>{text.noData}</p>}
+          <ol>{journey.segments.map((segment, index) => {
+            const key = `${column}-${index}`, detail = segmentText(segment, plans[column], basis, t);
+            return <li key={index}><button type="button" className="segment-choice"
+              aria-describedby={segmentDetail?.key === key ? 'journey-segment-detail' : undefined}
+              onClick={() => { setSegmentDetail({ key, text: detail }); onJump(segment.start, segment.nodeId, plans[column].id); }}>{detail}</button></li>;
+          })}</ol>
+        </section>)}</div>
+      </details>}
 
       <details className="evidence" ref={evidenceRef}>
         <summary>{t.review[basis]} · {t.journey.station} · {t.journey.evidence(journeys.reduce((sum, journey) => sum + journey.events.length, 0))}</summary>
