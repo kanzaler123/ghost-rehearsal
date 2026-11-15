@@ -161,7 +161,6 @@
   .dock-body { padding: var(--space-2) var(--size-10px) var(--space-4); }
   .bar-row { grid-template-columns: var(--size-80px) minmax(0, 1fr) auto; gap: var(--space-3); }
   .status-scope { display: none; }
-  .modal-backdrop { padding: var(--size-10px); }
   .modal-header, .modal-body { padding-left: var(--fs-lg); padding-right: var(--fs-lg); }
   .json-editor { margin: 0 var(--fs-lg) var(--fs-md); }
   .form-row { flex-wrap: wrap; }
