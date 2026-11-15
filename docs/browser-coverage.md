@@ -63,3 +63,11 @@ The next investigation should minimize the renderer resize reproduction and
 separate React Flow's container-size store update from its pane-extent cache
 update. Root cause and a reliable production fix remain unconfirmed. Original
 error assertions and the full focused WebKit command remain in place.
+
+The renderer split probe (43764172630) passed 4/4 when only size-state
+publication was deferred, versus 0/4 for extent-cache deferral and 1/4 native.
+An isolated real-Canvas fixture subsequently passed 4/4 native WebKit cases
+(43764559153) and 2/2 local Chromium cases, so it has **not** reproduced the
+complete application's failure. Both reproducible diagnostic entry points are
+saved in `diagnostics/resize-observer/README.md`. No production or dependency
+patch is included; PR #19 remains blocked pending a reliable root-cause fix.

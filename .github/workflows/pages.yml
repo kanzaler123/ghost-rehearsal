@@ -54,7 +54,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps webkit
-      - run: npx playwright test --config diagnostics/resize-observer/playwright.config.ts --project=webkit-en --project=webkit-zh --repeat-each=2
+      - run: npm run test:browser:webkit
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
       - name: Upload WebKit failure diagnostics
