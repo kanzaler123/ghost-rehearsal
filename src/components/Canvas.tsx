@@ -322,8 +322,12 @@ function CanvasInner(props: Props) {
     return placement.cancelPending;
   }, [props.request.token, instance]);
   useEffect(() => {
-    placement.resize(!props.editable);
-  }, [width, height]);
+    // React Flow publishes these dimensions from ResizeObserver. Refit in the
+    // next frame: changing zoom can change card detail and node heights, which
+    // must not feed another layout back into the same resize notification loop.
+    const frame = requestAnimationFrame(() => placement.resize(!props.editable));
+    return () => cancelAnimationFrame(frame);
+  }, [width, height, placement, props.editable]);
 
   // ---------- Edges ----------
   const edges = useMemo<FlowEdge[]>(() => {
