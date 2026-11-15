@@ -15,7 +15,8 @@ Ghost Rehearsal is a visual event planner and discrete-event simulator with a Ha
 - **Reuse your work:** start with Haunted House, Trick or Treat, Open House, or a blank plan. Save a node or an entire plan as a template. Each plan has its own node list, and applying a saved template creates an independent copy.
 - **Run a rehearsal:** deterministic arrivals and sampling, queues, branching, batch release, shared staff and equipment, shifts, handovers, and opening/closing rules.
 - **Follow the ghosts:** replay actual simulation events in a stage view that folds each top-level subflow into one card; click a stage to open it. Cards show waiting, service, blocking and one-minute queue trends in one shared colour scheme, and key moments are marked on the timeline. Start following a guest from stories such as “waited longest” or “queuing now”; the followed ghost stays pinned and labelled on the canvas, with an aligned timeline per plan and the raw event log as evidence.
-- **Compare Two Futures:** synchronize two plans and read the comparison in order: what changed, which results moved at the cutoff, who was affected, why (waiting by station), and what it costs in staff, devices and utilization. Both canvases open and zoom to the same stage, and the view opens on one guest whose two futures differ. Try a slower-service stress scenario; changed inputs mark previous results as stale.
+- **Compare Two Futures:** start in **Overview**, with two synchronized canvases and a summary of completions, average waiting, and resource cost. Expand the report sections to inspect concrete input changes, outcomes, affected guests, where waiting changed, and resource use. Both canvases can open and zoom to the same stage. Try a slower-service stress scenario; changed inputs mark previous results as stale.
+- **Inspect the people behind the numbers:** click an affected-group count or **Guest journey** to open a dedicated, full-height detail view. Browse the complete guest list with search and pagination, filtering by less waiting, more waiting, little change, or finishing in only one plan. Representative stories combine multiple labels for the same person. Compare the guest's aligned lanes, outcome, first visible divergence, station totals and recorded events, then return to **Overview**. These details all use the same observation cutoff, even when the full simulation continues beyond it.
 - **Keep your plans:** save locally, import/export project JSON, and export an operational plan in Markdown. Switch between English and Chinese.
 
 No account, API key, or backend is needed. Simulation runs in a browser worker; project data stays in your browser unless you export it. Fonts and icons are bundled locally.
@@ -24,9 +25,10 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 1. Open the [live workbench](https://kanzaler123.github.io/ghost-rehearsal/). On a fresh visit, create your own event or choose **Try the two-plan demo** for the walkthrough below.
 2. Click **Run rehearsal**, then play or scrub the timeline to inspect queues and guest journeys.
-3. Choose **Two Futures** to run and compare the included baseline and alternative plans. They share the same guest scenario but have different service and resource arrangements.
-4. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
-5. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
+3. Choose **Two Futures** to run the included baseline and alternative plans. They share the same guest scenario but have different service and resource arrangements. Start with the completion, waiting and cost summary in **Overview**.
+4. Click a group count to inspect its complete guest list, or open **Guest journey** and choose a representative story. Jump to the first difference, compare the two cutoff records, then use **Back to comparison** to return to the overview.
+5. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
+6. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
 
 Templates are stored separately from the current project in the same browser. In **Templates**, choose **Export all** to pack every saved node and plan into one JSON file. On another device, choose **Import templates** and select that backup, multiple individual files, or a mix of both. Each saved template also retains its own download button.
 
@@ -65,7 +67,9 @@ npm run preview
 
 The Pages build uses `/ghost-rehearsal/` as its base path. If you fork and publish under another repository name, update the build argument in [the workflow](.github/workflows/pages.yml), and select **GitHub Actions** in **Settings → Pages**. A normal local build uses `/`.
 
-Local verification on **2026-11-15**: 159 automated tests across seven files, both TypeScript checks, and the production build passed. Browser checks covered running and comparing plans, template copies and reload persistence, project import/export, curved connections, and desktop/mobile layouts. The latest checks also covered canonical save/export equality, failed imports preserving unsaved edits, and stale-result markers appearing after parameter changes and disappearing after undo. SHA-256 was checked against Node crypto for both example plans and 100 generated requests. Tests include hand-calculated queue cases, shared resources, shift changes, closing policies, incomplete guests, and run limits.
+Local verification on **2026-11-15**: **235 automated tests across 12 files**, both TypeScript checks, and the production build passed. Automated coverage includes hand-calculated queues, shared resources, shifts and closing rules, unfinished guests and run limits, canonical files and fingerprints, viewport fitting, matching guest groups, cutoff-consistent journeys, and station totals that count each future once.
+
+Desktop browser checks for this revision covered a fresh rehearsal opening with its flow centered, the dual-canvas comparison overview, complete group lists with search and pagination, report links to a key moment and plan rules, and the featured demo guest's first visible divergence at **03:30**: still queuing in A, being served in B. A **390 × 844 CSS-pixel** browser viewport also covered the Report / Flow / Guest navigation, selecting a guest to reveal their detail, resetting panel scroll positions, and keeping wide station tables within their own horizontal scroll area. These were Chromium checks, not a physical-device or cross-browser certification.
 
 ## Scope and limitations
 
@@ -74,7 +78,7 @@ This is a working preview. The planning specification describes a broader target
 - Example parameters are synthetic. Results describe the supplied assumptions, not guaranteed outcomes at a real event. This is an operational process model, not a crowd-safety or evacuation certification tool.
 - The 10,000-guest run cap is a protective limit, not a performance certification at that size.
 - Subflows group members for display and act as stages in Rehearse and Two Futures; they do not change the simulation. Advanced JSON editing exposes complex distributions, attribute routing, and multi-segment shifts.
-- Waiting summaries use the observation cutoff; completion mode can continue simulation and event playback beyond that cutoff.
+- Comparison summaries and guest-journey lanes, outcomes, event evidence and station totals use the observation cutoff. Completion mode can continue the simulation and canvas playback beyond that cutoff; the journey view keeps its cutoff boundary visible and explains when replay has moved past it.
 - Stale-result detection uses canonical SHA-256 fingerprints. Display names and layout changes preserve results; simulation inputs and provenance kinds affect the fingerprint. Omitted transfer durations remain omitted, without invented provenance. The codec currently supports schema version 1; historical migrations will need implementation when the format advances.
 - The complete output contracts, extended golden cases, large-scale benchmarks, and full keyboard-interaction acceptance remain unfinished.
 
@@ -97,7 +101,7 @@ Before submitting, complete substantive work in Kiro and document its actual con
 | `src/simulation/` | Simulation worker, event engine, and metrics |
 | `src/schemas/` | Input schemas, graph validation, and plan operations |
 | `src/i18n/` | English and Chinese interface text |
-| `tests/` | Schema, simulation, example, boundary, and template tests |
+| `tests/` | Schema, simulation, comparison, viewport, template, and workbench tests |
 | [examples/open-house.json](examples/open-house.json) | Synthetic two-plan Open House example |
 | [.kiro/specs/product-foundation/](.kiro/specs/product-foundation/) | Existing requirements, design, and task records |
 | [.kiro/hooks/](.kiro/hooks/) | Kiro usage-recording hook configuration |
@@ -111,7 +115,15 @@ Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人�
 
 首次使用先创建活动，填写名称、人数、活动时长和入场时间，再选择空白流程或万圣节预设。左侧按“活动 → 方案 → 节点”组织，可新建和切换活动；每个活动有独立方案。画布支持双击搜索节点、右键操作、框选与多选、抓手平移和滚轮缩放。
 
-三个模式的界面重点不同：搭建模式以可读、可编辑的节点为中心，子流程显示为阶段框；预演模式默认按阶段折叠流程，左侧收为阶段导航，顶部分开显示“此刻（回放时刻）”与“观察截止（最终结果）”，底部提供此刻最长队列、关键时刻和幽灵追踪；双未来模式左侧按“改了什么 → 哪些结果变化 → 哪些人受影响 → 为什么 → 付出什么代价”组织比较，两张画布联动展开同一阶段，并默认展示一位两个未来不同的幽灵。累计等待统一写作“人·分钟”。
+三个模式的界面重点不同：
+
+- **搭建：** 以可读、可编辑的节点为中心，子流程显示为阶段框。
+- **预演：** 默认按阶段折叠流程，左侧收为阶段导航，顶部分开显示“此刻（回放时刻）”与“观察截止（截止汇总）”，底部提供此刻最长队列、关键时刻和幽灵追踪。
+- **双未来：** 默认进入“总览”，同时展示两张联动画布和完成、等待、资源代价三项摘要。报告详情可展开，依次查看具体改动、结果变化、受影响的人群、等待变化集中在哪里以及资源使用情况。
+
+点击受影响人数或“访客旅程”，进入独立的全高详情视图。完整名单支持搜索、分页，以及少等、多等、变化不足一分钟、只在 A 完成、只在 B 完成等筛选；同一代表人物的多个故事合并显示。选择一位参与者后，可比较两个未来的时间带、结局、首次差异、逐站用时和事件证据，再通过“返回比较总览”回到整体方案。上述旅程记录统一使用观察截止，时间带和逐站表明确标注范围；即使全程运行及画布回放超过截止，也不会混入截止后的个人记录。累计等待统一写作“人·分钟”。
+
+本轮验证记录（**2026-11-15**）：**12 个测试文件、235 项自动化测试**、两项 TypeScript 检查和生产构建通过。当前桌面浏览器已检查新运行的流程居中、双画布总览、完整筛选名单，以及示例代表人物在 **03:30** 的首次可见差异：A 仍在排队，B 已开始服务。
 
 模板库的“导出全部”将所有节点与方案模板打成一个 JSON 文件。“批量导入”可以一次选择整库备份、多个单独文件或混合选择。导入追加独立副本，不覆盖已有内容；任一文件有误时整批不导入。单个模板仍可单独导出。节点文件保留原方案及场景作为资源上下文。项目 JSON 不包含模板库，需要分别导出。当前是可运行预览版，尚未完成全部规划需求、Kiro 使用证明、演示视频和 Devpost 正式提交。
 

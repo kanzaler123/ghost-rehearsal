@@ -25,6 +25,7 @@ const en = {
   brand: { name: 'Ghost Rehearsal', tagline: 'KIROWEEN · Rehearse the unknown', motto: 'Rehearse before reality.' },
   language: { label: 'Interface language', en: 'EN', zh: '中文' },
   common: { close: 'Close', cancel: 'Cancel', editable: 'Editable', readOnly: 'Read-only', closeDialog: 'Close dialog', unlimited: 'Unlimited' },
+  workspace: { focus: 'Comparison focus', overview: 'Overview', person: 'Guest journey', report: 'Report', canvas: 'Flow', editPlan: 'Edit this plan', checkingPlan: (name: string) => `Checking: ${name}` },
   header: {
     save: 'Save', saveTitle: 'Save in this browser (Ctrl+S)', import: 'Import', export: 'Export', about: 'About & scope',
     undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Shift+Z)', saved: 'Saved', unsaved: 'Unsaved', untitled: 'Untitled event',
@@ -68,7 +69,7 @@ const en = {
     active: 'Active event', settings: 'Event settings', new: 'New event',
   },
   stage: {
-    build: 'Design the event flow', rehearse: 'Replaying real events', compare: 'Same guests · two arrangements',
+    build: 'Design the event flow', rehearse: 'Simulation replay', compare: 'Same guests · two arrangements',
     counts: (nodes: number, edges: number) => `${nodes} nodes · ${edges} routes`,
     toFix: (n: number) => `${n} to fix`, notices: (n: number) => `${n} notices`, passed: 'Checks passed',
     arrange: 'Tidy by stage', fit: 'Reset view', overview: 'Whole flow',
@@ -80,7 +81,7 @@ const en = {
   live: {
     title: 'Now', replay: 'Replay', clock: (time: string) => `Replay ${time}`,
     inFlow: 'In the flow', waiting: 'Waiting', serving: 'Being served', finished: 'Finished',
-    finalTitle: 'At cutoff', finalClock: (time: string) => `Final results · ${time}`,
+    finalTitle: 'At cutoff', finalClock: (time: string) => `Snapshot · ${time}`,
   },
   metrics: {
     completed: 'Completed', completedHint: (arrived: number) => `of ${arrived} arrived`,
@@ -143,7 +144,7 @@ const en = {
   journey: {
     pick: 'Find a ghost', placeholder: 'Name or number, e.g. #20', jump: 'Jump to first difference', locate: 'Show on canvas',
     atCutoff: (outcome: string, wait: string) => `At cutoff: ${outcome} · waited ${wait}`,
-    hint: 'The same ghost is the same guest in every future. Start from a story on the left.',
+    hint: 'The same ghost is the same guest in every future. Choose someone from the guest list or stories.',
     stories: 'Start from a story', featured: 'Featured',
     picks: {
       queuedNow: 'Queuing right now', longest: 'Waited longest', unfinished: 'Not finished at cutoff', left: 'Left early or turned away',
@@ -193,7 +194,7 @@ const en = {
   navigator: { title: 'Flow stages', hint: 'Click a stage to zoom in. Numbers are people waiting now.', plans: 'Plans & nodes' },
   compare: {
     title: 'Read the two futures', basis: (time: string) => `Results at cutoff ${time}. The canvases replay earlier moments.`,
-    steps: { changed: 'What changed', outcomes: 'What the results did', people: 'Who was affected', why: 'Why', cost: 'What it costs' },
+    steps: { changed: 'What changed', outcomes: 'What the results did', people: 'Who was affected', why: 'Where waiting changed', cost: 'What it costs' },
     verdictTitle: 'In one sentence',
     verdict: (parts: { completed: string; average: string; relief?: string; pressure?: string; cost: string }) =>
       `At cutoff, B ${parts.completed} and changes the average wait by ${parts.average}.${parts.relief ? ` Biggest relief: ${parts.relief}.` : ''}${parts.pressure ? ` New pressure: ${parts.pressure}.` : ''} Cost: ${parts.cost}.`,
@@ -229,7 +230,7 @@ const en = {
     whyTitle: 'Total waiting by station',
     whyLead: (down: string, up: string) => `Waiting fell most at ${down}${up ? ` and grew most at ${up}` : ''}.`,
     whyNone: 'No station accumulated waiting in either future.',
-    peak: (a: number, b: number) => `peak queue ${a} → ${b}`,
+    peak: (a: number, b: number) => `peak waiting ${a} → ${b}`,
     costStaff: 'Staff', costStaffHours: 'Staffed time in the window', costDeviceHours: 'Device time in the window', costOvertime: 'Overtime',
     costUtilization: 'Busy share of available time',
     costDevicePart: (n: number, name: string) => `${n > 0 ? '+' : '−'}${Math.abs(n)} ${name}`,
@@ -290,7 +291,7 @@ const en = {
     computing: 'Computing every guest’s real journey…',
     runFailed: (error: string) => `Rehearsal failed: ${error}`, noResult: 'no result was returned',
     aborted: 'Event limit reached. Partial records can be replayed, but no statistics are produced.',
-    done: (people: number, events: string) => `Rehearsal complete · ${people} guests · ${events} real events`,
+    done: (people: number, events: string) => `Rehearsal complete · ${people} guests · ${events} simulation events`,
     workerFailed: 'The computing worker failed to start. Refresh and try again; the project and existing results are kept.',
     cancelled: 'Computation cancelled. The project and existing results are kept.',
     needSecond: 'Duplicate the current plan or choose another plan first.',
@@ -325,7 +326,7 @@ const en = {
     removePosts: 'Remove post limits', from: 'From (s)', to: 'To (s)', handover: 'Handover (s)', addPeriod: 'Add a shift change',
     postResource: 'Post a resource', chooseResource: 'Choose staff or a device…', applyResources: 'Apply resources',
     aboutTitle: 'About Ghost Rehearsal',
-    about1: 'This is a working preview. Build a flow, run a discrete-event simulation, inspect real events, and compare the same guests across plans.',
+    about1: 'This is a working preview. Build a flow, run a discrete-event simulation, inspect recorded simulation events, and compare the same guests across plans.',
     about2: 'Not every requirement has been formally accepted yet. Detailed bottleneck attribution, complete statistics and export formats, and large-scenario performance still need work.',
     about3: 'Projects are saved in this browser. Export a JSON file to move to another device. Rehearsals need to be run again after a refresh.',
     exportTitle: 'Save the model, take the plan',
@@ -379,6 +380,7 @@ const zh: Messages = {
   brand: { name: 'Ghost Rehearsal', tagline: 'KIROWEEN · 预演未知之夜', motto: '在现实之前，先预演一次。' },
   language: { label: '界面语言', en: 'EN', zh: '中文' },
   common: { close: '关闭', cancel: '取消', editable: '可编辑', readOnly: '只读', closeDialog: '关闭对话框', unlimited: '不限' },
+  workspace: { focus: '比较阅读重点', overview: '总览', person: '访客旅程', report: '报告', canvas: '流程画布', editPlan: '编辑此方案', checkingPlan: name => `正在检查：${name}` },
   header: {
     save: '保存', saveTitle: '保存到当前浏览器（Ctrl+S）', import: '导入', export: '导出', about: '关于与适用范围',
     undo: '撤销（Ctrl+Z）', redo: '重做（Ctrl+Shift+Z）', saved: '已保存', unsaved: '未保存', untitled: '新活动',
@@ -422,7 +424,7 @@ const zh: Messages = {
     active: '当前活动', settings: '活动设置', new: '新建活动',
   },
   stage: {
-    build: '设计活动流程', rehearse: '真实事件回放', compare: '同一批参与者 · 两种活动安排',
+    build: '设计活动流程', rehearse: '仿真回放', compare: '同一批参与者 · 两种活动安排',
     counts: (nodes, edges) => `${nodes} 节点 · ${edges} 连线`,
     toFix: n => `${n} 项待修正`, notices: n => `${n} 项提醒`, passed: '配置检查通过',
     arrange: '按阶段整理', fit: '默认视角', overview: '全图概览',
@@ -434,7 +436,7 @@ const zh: Messages = {
   live: {
     title: '此刻', replay: '回放', clock: time => `回放 ${time}`,
     inFlow: '在场人数', waiting: '排队等待', serving: '服务中', finished: '已完成',
-    finalTitle: '观察截止', finalClock: time => `最终结果 · ${time}`,
+    finalTitle: '观察截止', finalClock: time => `截止汇总 · ${time}`,
   },
   metrics: {
     completed: '完成参与者', completedHint: arrived => `共 ${arrived} 位已到达`,
@@ -491,7 +493,7 @@ const zh: Messages = {
   journey: {
     pick: '查找幽灵', placeholder: '名称或编号，例如 #20', jump: '跳到首次差异', locate: '在画布中定位',
     atCutoff: (outcome, wait) => `观察截止：${outcome} · 等待 ${wait}`,
-    hint: '同一个幽灵在每个未来里都是同一位参与者。可以从左侧的故事入口开始。',
+    hint: '同一个幽灵在每个未来里都是同一位参与者。从名单或故事中选择一位参与者。',
     stories: '从故事开始', featured: '推荐',
     picks: {
       queuedNow: '此刻正在排队', longest: '等待最久', unfinished: '截止时尚未完成', left: '中途离开或被拒',
@@ -541,7 +543,7 @@ const zh: Messages = {
   navigator: { title: '流程阶段', hint: '点击阶段即可放大查看，数字为此刻排队人数。', plans: '方案与节点' },
   compare: {
     title: '按顺序读懂两个未来', basis: time => `结果截至观察截止 ${time}，画布回放的是更早的时刻。`,
-    steps: { changed: '改了什么', outcomes: '哪些结果发生变化', people: '哪些人受到影响', why: '为什么', cost: '付出什么代价' },
+    steps: { changed: '改了什么', outcomes: '哪些结果发生变化', people: '哪些人受到影响', why: '等待变化在哪里', cost: '付出什么代价' },
     verdictTitle: '一句话结论',
     verdict: parts => `截至观察截止，B 相对 A ${parts.completed}，人均等待变化 ${parts.average}。${parts.relief ? `等待下降最多：${parts.relief}。` : ''}${parts.pressure ? `新的压力点：${parts.pressure}。` : ''}代价：${parts.cost}。`,
     completedMore: n => `多完成 ${n} 人`, completedLess: n => `少完成 ${n} 人`, completedSame: '完成人数持平',
@@ -576,7 +578,7 @@ const zh: Messages = {
     whyTitle: '各站点累计等待',
     whyLead: (down, up) => `等待下降最多的是${down}${up ? `，增加最多的是${up}` : ''}。`,
     whyNone: '两个未来中都没有站点产生累计等待。',
-    peak: (a, b) => `峰值队列 ${a} → ${b}`,
+    peak: (a, b) => `同时等候峰值 ${a} → ${b}`,
     costStaff: '工作人员', costStaffHours: '观察窗口内的人员工时', costDeviceHours: '观察窗口内的设备时长', costOvertime: '加班',
     costUtilization: '可用时间中的忙碌占比',
     costDevicePart: (n, name) => `${n > 0 ? '+' : '−'}${Math.abs(n)} 台${name}`,
@@ -636,7 +638,7 @@ const zh: Messages = {
     computing: '正在计算参与者的真实经历…',
     runFailed: error => `预演失败：${error}`, noResult: '没有返回结果',
     aborted: '事件数达到上限：可回放部分记录，不生成统计结论。',
-    done: (people, events) => `预演完成 · ${people} 位参与者 · ${events} 条真实事件`,
+    done: (people, events) => `预演完成 · ${people} 位参与者 · ${events} 条仿真事件`,
     workerFailed: '计算进程未能启动，请刷新页面重试。原项目与已有结果保留。',
     cancelled: '已取消计算，项目和已有结果保留。',
     needSecond: '先复制当前方案，或选择另一个方案。',
@@ -671,7 +673,7 @@ const zh: Messages = {
     removePosts: '取消排岗限制', from: '从（秒）', to: '至（秒）', handover: '交接（秒）', addPeriod: '添加调岗时段',
     postResource: '为资源添加排岗', chooseResource: '选择人员或设备…', applyResources: '应用资源安排',
     aboutTitle: '关于幽灵预演',
-    about1: '这是一个可操作的整体预览版：搭建流程、运行离散事件仿真、查看真实事件、比较同一批参与者的经历。',
+    about1: '这是一个可操作的整体预览版：搭建流程、运行离散事件仿真、查看仿真事件记录、比较同一批参与者的经历。',
     about2: '当前没有完成全部需求的逐条验收。精细瓶颈归因、完整统计与导出格式、复杂场景性能仍需继续打磨。',
     about3: '项目保存到当前浏览器，切换设备请导出 JSON 文件。刷新后需要重新运行预演。',
     exportTitle: '保存模型，带走安排',
