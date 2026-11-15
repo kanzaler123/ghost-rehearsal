@@ -26,7 +26,7 @@ jobs:
       - run: npm run check
       - run: npm run build -- --base=/ghost-rehearsal/
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser -- e2e/ci-artifact-probe.spec.ts
+      - run: npm run test:browser
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
       - name: Upload browser failure diagnostics
