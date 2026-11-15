@@ -24,7 +24,7 @@ import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Res
 import { comparisonContext, compatibleRuns, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
 import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
@@ -439,6 +439,13 @@ export function App() {
       setGuide({ ...guide, exported: true });
     }
   }
+  function exportGuideProject() {
+    if (!guide?.c) return;
+    const experiment = experimentProject(project, [guide.a, guide.b, guide.c]);
+    if (!experiment) { say(tr => tr.guide.projectUnavailable); return; }
+    download('ghost-rehearsal-abc.json', serializeDocument(experiment), 'application/json');
+    say(tr => tr.guide.projectDownloaded);
+  }
   function resetGuide(rerun: boolean) {
     if (!guide) return;
     const isBC = rerun && guide.step >= 4 && !!guide.c;
@@ -614,7 +621,7 @@ export function App() {
       onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} />
 
     {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
-      onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
+      onExportProject={exportGuideProject} onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
     {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
       <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>

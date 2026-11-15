@@ -1,0 +1,61 @@
+import { readFile } from 'node:fs/promises';
+import { expect, test } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import type { Messages } from '../../src/i18n/messages';
+import { MESSAGES } from '../../src/i18n/messages';
+import type { ProjectDocument } from '../../src/schemas';
+
+async function fullProject(page: Page, t: Messages) {
+  await page.locator('.workspace-menu > summary').click();
+  await page.getByRole('button', { name: t.header.export, exact: true }).click();
+  const pending = page.waitForEvent('download');
+  await page.getByRole('dialog').getByRole('button').filter({ has: page.getByText(t.dialogs.exportProject, { exact: true }) }).click();
+  return readFile((await (await pending).path())!, 'utf8');
+}
+
+test('guide exports only its reproducible A/B/C experiment and preserves existing events', async ({ page }, info) => {
+  const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+  if (info.project.name.startsWith('mobile')) await page.setViewportSize({ width: 320, height: 720 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
+  await page.goto('./');
+  await page.getByRole('dialog').getByRole('button', { name: t.common.closeDialog, exact: true }).click();
+  const original = JSON.parse(await fullProject(page, t)) as ProjectDocument;
+  await page.getByRole('button', { name: t.guide.start, exact: true }).click();
+  const guide = page.getByRole('region', { name: t.guide.title, exact: true });
+  for (const step of [0, 1, 2, 3, 4]) await guide.getByRole('button', { name: t.guide.actions[step], exact: true }).click();
+  const before = await fullProject(page, t);
+  const button = guide.getByRole('button', { name: t.guide.exportProject, exact: true });
+  await expect(button).toHaveAccessibleDescription(t.guide.exportProjectHint);
+  await guide.getByRole('button', { name: t.guide.actions[5], exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(button).toBeFocused();
+  expect(await button.evaluate(element => getComputedStyle(element).outlineStyle)).not.toBe('none');
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('experiment-export.png'), fullPage: true });
+  const pending = page.waitForEvent('download');
+  await button.press('Enter');
+  const download = await pending;
+  expect(download.suggestedFilename()).toBe('ghost-rehearsal-abc.json');
+  const text = await readFile((await download.path())!, 'utf8');
+  const experiment = JSON.parse(text) as ProjectDocument;
+  expect(experiment.plans).toHaveLength(3);
+  expect(experiment.scenarios).toHaveLength(1);
+  expect(experiment.plans.some(plan => original.plans.some(old => old.id === plan.id))).toBe(false);
+  expect(experiment.scenarios.some(scenario => original.scenarios.some(old => old.id === scenario.id))).toBe(false);
+  const all = JSON.parse(before) as ProjectDocument;
+  for (const plan of experiment.plans) expect(plan).toEqual(all.plans.find(item => item.id === plan.id));
+  expect(await fullProject(page, t)).toBe(before);
+  await info.attach('ABC-experiment', { body: text, contentType: 'application/json' });
+  await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
+  await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await page.locator('input[type=file]').first().setInputFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(text) });
+  expect(await fullProject(page, t)).toBe(text);
+  const worker = page.waitForEvent('worker');
+  await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
+  expect((await worker).url()).toMatch(/\/assets\/worker-[^/]+\.js$/);
+  await expect(page.getByLabel(t.dock.timeline, { exact: true })).toBeEnabled();
+  expect(errors).toEqual([]);
+});
