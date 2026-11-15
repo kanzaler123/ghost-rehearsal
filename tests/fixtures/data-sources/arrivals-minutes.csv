@@ -1,0 +1,4 @@
+id,arrival_time,attr:ticket,attr:visit
+guest-1,0,regular,full
+guest-2,1.5,vip,quick
+guest-3,3,regular,full

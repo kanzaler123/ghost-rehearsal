@@ -72,6 +72,7 @@ vi.mock('react', async importOriginal => ({
 }));
 
 import { App } from '../src/app/App';
+import { SHELL_COMPONENTS } from '../src/components/shell';
 import { Canvas } from '../src/components/Canvas';
 import { CompareReport } from '../src/components/CompareReport';
 import { Inspector } from '../src/components/Inspector';
@@ -90,7 +91,10 @@ let originalGraphA: Plan['graph'];
 function flatten(value: unknown, output: Element[] = []): Element[] {
   if (Array.isArray(value)) { value.forEach(item => flatten(item, output)); return output; }
   if (value && typeof value === 'object' && 'props' in value) {
-    output.push(value as Element); flatten((value as Element).props.children, output);
+    const element = value as Element;
+    output.push(element);
+    if (typeof element.type === 'function' && SHELL_COMPONENTS.has(element.type)) flatten((element.type as (props: Record<string, unknown>) => unknown)(element.props), output);
+    else flatten(element.props.children, output);
   }
   return output;
 }
@@ -103,7 +107,7 @@ function render() { tree = flatten(hooks.render(App)); }
 function component(type: unknown) { return tree.find(item => item.type === type)!; }
 function canvas(planId?: string) { return tree.find(item => item.type === Canvas && (!planId || item.props.plan.id === planId))!.props; }
 function button(label: string, startsWith = false) {
-  const found = tree.find(item => item.type === 'button' && (startsWith ? text(item).startsWith(label) : text(item) === label));
+  const found = tree.find(item => item.type === 'button' && (item.props['aria-label'] === label || (startsWith ? text(item).startsWith(label) : text(item) === label)));
   if (!found) throw new Error(`Missing button: ${label}`);
   return found;
 }
@@ -130,7 +134,7 @@ function renderJourney() {
   return flatten(child);
 }
 function browseMore() {
-  const browse = renderReport().find(item => item.type === 'button' && text(item).endsWith(t.compare.moreWait))!;
+  const browse = renderReport().find(item => item.type === 'button' && text(item).endsWith(t.evidence.groups.more))!;
   expect(browse.props.disabled).toBe(false);
   browse.props.onClick(); render();
 }

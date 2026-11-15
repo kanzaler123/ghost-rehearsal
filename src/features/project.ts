@@ -1,13 +1,13 @@
 import example from '../../examples/open-house.json';
 import { z } from 'zod';
-import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
+import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, duplicatePlan, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
 import type { Edge, Node, Plan, ProjectDocument, Scenario, ValidationIssue } from '../schemas';
 import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
 import { MESSAGES } from '../i18n/messages';
 import type { Lang, Messages } from '../i18n/messages';
-import { statisticsAt } from './analysis';
-import type { ResultBasis } from './analysis';
+import { comparisonContext, completedWaiting, costOf, statisticsAt } from './analysis';
+import type { ResultBasis, WaitThreshold } from './analysis';
 
 export const NODE_TYPES: Node['type'][] = ['entrance', 'service', 'decision', 'waiting_area', 'merge', 'exit', 'subflow'];
 
@@ -25,6 +25,20 @@ export function newId(prefix: string, used: string[]) {
   let index = 1;
   while (used.includes(`${prefix}-${index}`)) index++;
   return `${prefix}-${index}`;
+}
+
+export function createPackingExperiment(source: Plan, usedIds: Set<string>, t: Messages): Plan | null {
+  const original = source.staff.find(item => item.id === 'pack-staff');
+  if (!original || !source.graph.nodes.some(node => node.id === 'packing' && node.type === 'service')) return null;
+  const result = duplicatePlan(source, usedIds);
+  if (!result.ok) return null;
+  const target = result.plan;
+  target.name = t.review.demoName;
+  const staff = structuredClone(original);
+  staff.id = newId('packing-support', target.staff.map(item => item.id)); staff.name = t.review.demoStaff;
+  target.staff.push(staff);
+  target.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+  return target;
 }
 
 export function createNode(type: Node['type'], plan: Plan, scenario: Scenario, position: { x: number; y: number }, label: string = MESSAGES.zh.nodeTypes[type]): Node {
@@ -274,9 +288,42 @@ export function executionReport(plan: Plan, scenario: Scenario, run?: Simulation
     `${t.review.staff}: ${baseline.staff.length} → ${plan.staff.length}; ${t.review.devices}: ${baseline.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)} → ${plan.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)}`, '',
     ...plan.staff.filter(item => !baseline.staff.some(original => original.id === item.id)).map(item => `- + ${item.name}`),
     ...plan.deviceTypes.filter(item => item.quantity !== (baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0)).map(item => `- ${item.name}: ${baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0} → ${item.quantity}`), '');
-  if (run?.status === 'succeeded' && stats && !stale) lines.push(r.record, '', r.under, r.model(run.modelVersion, scenario.id, `${t.review[basis]} (${formatTime(stats.until)})`),
-    r.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join(sep)), r.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)), '', r.synthetic, '');
+  if (run?.status === 'succeeded' && stats && !stale) {
+    const completed = completedWaiting(stats);
+    lines.push(r.record, '', r.under, r.model(run.modelVersion, scenario.id, `${t.review[basis]} (${formatTime(stats.until)})`),
+      r.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join(sep)),
+      `${t.evidence.population} n=${stats.arrived}`, r.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)),
+      `${t.evidence.completed}: n=${completed.n}`, r.waits(t.formatWait(completed.average), t.formatWait(completed.p90)),
+      ...(basis === 'completion' && stats.until >= scenario.horizon && stats.outcomes.unfinished + stats.outcomes.not_arrived > 0 ? [t.evidence.limit] : []), '', r.synthetic, '');
+  }
   else lines.push(r.noRun, '');
   lines.push(r.scope, '', t.lang === 'zh' ? PRODUCT_STATEMENT.zh : PRODUCT_STATEMENT.en, '', t.lang === 'zh' ? PRODUCT_STATEMENT.en : PRODUCT_STATEMENT.zh, '');
   return lines.join('\n');
+}
+
+export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun | undefined, ready: boolean, t: Messages, basis: ResultBasis, threshold: WaitThreshold): string {
+  const context = comparisonContext(a, b, basis, threshold, ready), { a: left, b: right, counts: people } = context;
+  if (!a || !b || !left || !right || !people) return t.report.noRun;
+  const costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
+  const groups = threshold ? t.evidence.groups : t.evidence.anyGroups, bins = threshold ? t.evidence.bins : t.evidence.anyBins;
+  return [`## ${t.evidence.comparison}`, '', `A: ${a.request.plan.name} (${a.request.plan.id})`, `B: ${b.request.plan.name} (${b.request.plan.id})`,
+    `${t.review.basis}: ${t.review[basis]}`, `${t.evidence.threshold}: ${threshold ? t.evidence.minute : t.evidence.any}`, t.evidence.rule,
+    t.evidence.population, t.evidence.paired(people.total),
+    ...[left, right].flatMap((stats, index) => {
+      const completed = completedWaiting(stats), run = index ? b : a;
+      return [`${index ? 'B' : 'A'}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
+        t.report.model(run.modelVersion, run.request.scenario.id, t.review[basis]), `Input SHA-256: ${run.inputKey}`, `Scenario SHA-256: ${run.scenarioKey}`,
+        t.report.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join('; ')),
+        t.report.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)),
+        `${t.evidence.completed}: n=${completed.n}`, t.report.waits(t.formatWait(completed.average), t.formatWait(completed.p90)),
+        ...(basis === 'completion' && stats.until >= run.request.scenario.horizon && stats.outcomes.unfinished + stats.outcomes.not_arrived > 0 ? [t.evidence.limit] : [])];
+    }), t.evidence.subgroupNote, `${groups.less}: ${people.better}; ${groups.more}: ${people.worse}; ${groups.same}: ${people.same}`,
+    t.compare.rescued(people.rescued), t.compare.lost(people.lost), t.review.caveat,
+    `${t.compare.histogram}: ${people.bins.map((count, i) => `${bins[i]}: ${count}`).join('; ')}`,
+    `${t.review.staff}: ${costs.staff[0]} → ${costs.staff[1]}`,
+    ...costs.devices.map(device => `${device.name}: ${device.a} → ${device.b}`),
+    `${t.compare.costStaffHours}: ${t.formatHours(costs.staffHours[0])} → ${t.formatHours(costs.staffHours[1])}`,
+    `${t.compare.costDeviceHours}: ${t.formatHours(costs.deviceHours[0])} → ${t.formatHours(costs.deviceHours[1])}`,
+    `${t.compare.costOvertime}: ${t.formatWait(costs.overtime[0])} → ${t.formatWait(costs.overtime[1])}`,
+    t.compare.costNote, t.review.noBudget, t.report.synthetic, ''].join('\n\n');
 }

@@ -8,6 +8,9 @@ import { liveSummary, waitingAt } from '../features/analysis';
 import { NODE_SIZE, boxOf, displayBounds, displayLayout, stageIndex, unionBox } from '../features/stages';
 import type { Box, Display } from '../features/stages';
 import { createViewportPlacement } from '../features/viewport';
+import { motionDuration } from '../features/motion';
+import { layoutGhosts } from './ghostRow';
+import { StatusMarker } from './shell/StatusMarker';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { PlaybackState, SimulationRun } from '../simulation/types';
@@ -17,7 +20,7 @@ type NodeState = PlaybackState['nodes'][string];
 type GhostKind = 'working' | 'waiting' | 'blocked';
 type Tracked = { id: string; name: string };
 type Shared = { running: boolean; tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string };
-type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; exits: number };
+type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; connected: boolean; exits: number };
 type StageData = Shared & {
   id: string; name: string; issues: number; changed: boolean;
   waiting: number; serving: number; blocked: number; trend: number; exits: number; hasExit: boolean;
@@ -30,7 +33,7 @@ type FrameNode = FlowNode<FrameData, 'frame'>;
 type AnyNode = CardNode | StageNode | FrameNode;
 
 export const TYPE_COLORS: Record<Node['type'], string> = {
-  entrance: '#7ef0c4', service: '#8cc8ff', decision: '#b99bff', waiting_area: '#ffc46b', merge: '#6fdbe0', exit: '#e9dcbf', subflow: '#8d84a8',
+  entrance: '#c3d4f0', service: '#8cc8ff', decision: '#f58ad6', waiting_area: '#f2d56b', merge: '#b1a7c5', exit: '#c9b79c', subflow: '#8999bb',
 };
 
 /** Below this zoom the default view stops shrinking and starts from the beginning of the flow instead. */
@@ -70,16 +73,13 @@ const ghostsOf = (state?: NodeState): [string, GhostKind][] => state ? [
 function GhostRow({ ghosts, limit, data }: { ghosts: [string, GhostKind][]; limit: number; data: Shared }) {
   const { t } = useI18n();
   if (!ghosts.length) return <div className="ghost-line empty" aria-hidden="true" />;
-  const pinned = data.tracked ? ghosts.find(([id]) => id === data.tracked!.id) : undefined;
-  const others = ghosts.filter(([id]) => id !== pinned?.[0]);
-  const shown = others.slice(0, Math.max(0, limit - (pinned ? 1 : 0)));
-  const rest = others.length - shown.length;
+  const { pinned, shown, undrawn: rest } = layoutGhosts(ghosts, limit, data.tracked?.id);
   return <div className="ghost-line nodrag">
     {pinned && <button type="button" className={cls('visitor', `is-${pinned[1]}`, 'is-tracked')} aria-label={t.canvas.follow(data.tracked!.name)} title={data.tracked!.name}
-      onClick={event => { event.stopPropagation(); data.chooseVisitor(pinned[0]); }}><Ghost size={22} /><span className="tracked-tag">{data.tracked!.name}</span></button>}
+      onClick={event => { event.stopPropagation(); data.chooseVisitor(pinned[0]); }}><Ghost size={22} /><StatusMarker id="tracked" compact /><span className="tracked-tag">{data.tracked!.name}</span></button>}
     {shown.map(([id, kind], index) => <button key={id} type="button" aria-label={t.canvas.follow(data.visitorName(id))} title={data.visitorName(id)}
       className={cls('visitor', `is-${kind}`)} style={{ animationDelay: `${(index % 5) * -0.37}s` }}
-      onClick={event => { event.stopPropagation(); data.chooseVisitor(id); }}><Ghost size={17} /></button>)}
+      onClick={event => { event.stopPropagation(); data.chooseVisitor(id); }}><StatusMarker id={kind === 'working' ? 'serve' : kind === 'waiting' ? 'queue' : 'blocked'} compact /></button>)}
     {rest > 0 && <span className="ghost-more">{t.canvas.more(rest)}</span>}
   </div>;
 }
@@ -105,26 +105,26 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
   const trackedHere = !!data.tracked && ghosts.some(([id]) => id === data.tracked!.id);
   const live = data.running && !!state;
   const isExit = node.type === 'exit';
-  return <div className={cls('flow-card', `type-${node.type}`, `lod-${detail}`, selected && 'selected', data.changed && 'changed', live && 'running',
+  return <div className={cls('flow-card', `type-${node.type}`, `lod-${detail}`, selected && 'selected', data.connected && 'is-connected', data.changed && 'changed', live && 'running',
     live && stateClass(waiting, serving, blocked, data.trend), live && isExit && data.exits > 0 && 'st-done', trackedHere && 'has-tracked')}>
     {node.type !== 'entrance' && node.type !== 'subflow' && <Handle type="target" position={Position.Left} />}
     <div className="card-head">
       <span className="card-icon"><NodeIcon type={node.type} size={detail === 'near' ? 15 : 22} /></span>
       <span className="card-type">{t.nodeTypes[node.type]}</span>
       <span className="card-flags">
-        {data.issues > 0 && <span className="card-flag issue"><TriangleAlert size={11} aria-hidden="true" />{data.issues}</span>}
-        {data.changed && <span className="card-flag changed" title={t.canvas.changedTitle}>{t.canvas.changed}</span>}
+        {data.issues > 0 && <span className="card-flag issue"><StatusMarker id="error" compact />{data.issues}</span>}
+        {data.changed && <span className="card-flag changed"><StatusMarker id="diff" compact title={t.canvas.changedTitle} /></span>}
         {live && waiting > 10 && <span className="card-flag hot"><Flame size={11} aria-hidden="true" />{t.canvas.crowded}</span>}
       </span>
     </div>
-    <strong className="card-name">{node.name}</strong>
+    <strong className="card-name" title={node.name} aria-label={node.name}>{node.name}</strong>
     <div className="card-detail">{detailOf(node, t)}</div>
     {live && (isExit
-      ? <div className="card-live"><span className="is-done"><b>{data.exits}</b><small>{node.countsAsCompleted === false ? t.canvas.left : t.canvas.finished}</small></span></div>
+      ? <div className="card-live"><span className="is-done"><b>{data.exits}</b><small><StatusMarker id={node.countsAsCompleted === false ? 'left' : 'finished'} label={node.countsAsCompleted === false ? t.canvas.left : t.canvas.finished} /></small></span></div>
       : <div className="card-live">
-        <span className={cls('is-wait', waiting > 0 && 'is-on')}><b>{waiting}</b><Trend value={data.trend} /><small>{t.canvas.waiting}</small></span>
-        <span className={cls('is-serve', serving > 0 && 'is-on')}><b>{serving}</b><small>{t.canvas.serving}</small></span>
-        {blocked > 0 ? <span className="is-block is-on"><b>{blocked}</b><small>{t.canvas.blocked}</small></span>
+        <span className={cls('is-wait', waiting > 0 && 'is-on')}><b>{waiting}</b><Trend value={data.trend} /><small><StatusMarker id="queue" label={t.canvas.waiting} /></small></span>
+        <span className={cls('is-serve', serving > 0 && 'is-on')}><b>{serving}</b><small><StatusMarker id="serve" label={t.canvas.serving} /></small></span>
+        {blocked > 0 ? <span className="is-block is-on"><b>{blocked}</b><small><StatusMarker id="blocked" label={t.canvas.blocked} /></small></span>
           : <span className="is-pass"><b>{state.completed}</b><small>{t.canvas.passed}</small></span>}
       </div>)}
     {live && !isExit && <GhostRow ghosts={ghosts} limit={detail === 'near' ? 8 : detail === 'mid' ? 5 : 1} data={data} />}
@@ -145,11 +145,11 @@ function StageCard({ data, selected }: NodeProps<StageNode>) {
     <div className="card-head">
       <span className="card-icon"><Boxes size={detail === 'near' ? 15 : 22} aria-hidden="true" /></span>
       <span className="card-flags">
-        {data.issues > 0 && <span className="card-flag issue"><TriangleAlert size={11} aria-hidden="true" />{data.issues}</span>}
-        {data.changed && <span className="card-flag changed" title={t.canvas.changedTitle}>{t.canvas.changed}</span>}
+        {data.issues > 0 && <span className="card-flag issue"><StatusMarker id="error" compact />{data.issues}</span>}
+        {data.changed && <span className="card-flag changed"><StatusMarker id="diff" compact title={t.canvas.changedTitle} /></span>}
       </span>
     </div>
-    <strong className="card-name">{data.name}</strong>
+    <strong className="card-name" title={data.name} aria-label={data.name}>{data.name}</strong>
     {data.running && <div className="stage-summary">
       <div className={cls('stage-queue', data.waiting > 0 && 'is-on')}><b>{data.waiting}</b><span>{t.canvas.waiting}</span><Trend value={data.trend} /></div>
       <div className="stage-secondary"><span className="is-serve"><b>{data.serving}</b> {t.canvas.serving}</span>
@@ -189,7 +189,7 @@ function RouteEdge(props: EdgeProps<FlowEdge<RouteData>>) {
   return <>
     <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} label={props.label} labelX={labelX} labelY={labelY}
       labelStyle={props.labelStyle} labelBgStyle={props.labelBgStyle} labelBgPadding={props.labelBgPadding} labelBgBorderRadius={props.labelBgBorderRadius} />
-    {props.data?.travelers.map(visitor => <circle key={visitor.id} r={visitor.selected ? 7 : 5} fill={visitor.selected ? '#ffc46b' : '#8ef5d0'} stroke="#1d1833" strokeWidth={2}
+    {props.data?.travelers.map(visitor => <circle key={visitor.id} r={visitor.selected ? 7 : 5} fill={visitor.selected ? 'var(--tone-track)' : 'var(--tone-neutral)'} stroke="#1d1833" strokeWidth={2}
       role="button" tabIndex={0} aria-label={t.canvas.follow(visitor.id)} style={{ offsetPath: `path('${path}')`, offsetDistance: `${visitor.progress * 100}%`, cursor: 'pointer' }}
       onClick={event => { event.stopPropagation(); props.data?.chooseVisitor(visitor.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); props.data?.chooseVisitor(visitor.id); } }}><title>{visitor.id}</title></circle>)}
   </>;
@@ -204,7 +204,7 @@ interface Props {
   tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string; changed?: Set<string>;
   request: ViewRequest; stageView: boolean; expanded: Set<string> | 'all'; onStage: (id: string, open: boolean) => void;
   label?: { badge: string; name: string; note?: string; status?: string };
-  compact?: boolean;
+  compact?: boolean; reducedMotion?: boolean; onManual?: () => void;
 }
 
 const PADDING = { left: 40, right: 40, top: 64, bottom: 28 };
@@ -215,6 +215,7 @@ function CanvasInner(props: Props) {
   const { t } = useI18n();
   const api = useReactFlow<AnyNode>();
   const shell = useRef<HTMLDivElement>(null);
+  const menuTrigger = useRef<HTMLElement | null>(null);
   const selection = useRef({ planId: plan.id, id: props.selected });
   const zoom = useStore(store => store.transform[2]);
   const width = useStore(store => store.width);
@@ -260,7 +261,7 @@ function CanvasInner(props: Props) {
       const position = node.type === 'subflow' ? display.placeholders.get(node.id) : display.positions.get(node.id);
       if (!position) return [];
       return [{ id: node.id, type: 'workflow' as const, position, selected: props.selected === node.id, draggable,
-        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0 } }];
+        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0 } }];
     });
     return [...frames, ...stages, ...cards];
   }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, props.chooseVisitor, props.visitorName, props.changed, props.editable, running, draggable]);
@@ -296,7 +297,7 @@ function CanvasInner(props: Props) {
     return ids === 'all' ? displayBounds(display, nodeSize) : unionBox(ids.map(id => boxOf(display, id, nodeSize)));
   }
   function apply(target: ViewTarget, duration: number): boolean {
-    if (!instance || !width || !height) return false;
+    if (!instance || !width || !height || !shell.current?.clientWidth || !shell.current.clientHeight) return false;
     const box = boundsOf(target === 'default' || target === 'all' ? 'all' : resolve(target));
     if (!box) return true;
     const room = { w: Math.max(40, width - padding.left - padding.right), h: Math.max(40, height - padding.top - padding.bottom) };
@@ -308,12 +309,14 @@ function CanvasInner(props: Props) {
     // Too long to read at once: keep the readable zoom and start where guests enter.
     if (box.w * level > room.w) x = padding.left - box.x * level;
     if (box.h * level > room.h) y = padding.top - box.y * level;
-    void instance.setViewport({ x, y, zoom: level }, { duration });
+    void instance.setViewport({ x, y, zoom: level }, { duration: motionDuration(!!props.reducedMotion, duration) });
     return true;
   }
   const latestApply = useRef(apply);
   latestApply.current = apply;
-  const placement = useMemo(() => createViewportPlacement<ViewTarget>((target, duration) => latestApply.current(target, duration)), []);
+  const reducedRef = useRef(props.reducedMotion); reducedRef.current = props.reducedMotion;
+  const placement = useMemo(() => createViewportPlacement<ViewTarget>((target, duration) => latestApply.current(target, duration), { reduced: () => !!reducedRef.current }), []);
+  function userMove() { placement.userMove(); props.onManual?.(); }
   useEffect(() => {
     placement.request(props.request.target);
     return placement.cancelPending;
@@ -338,19 +341,20 @@ function CanvasInner(props: Props) {
       const travelers = running ? Object.values(view.visitors).filter(event => event.type === 'ROUTE_TRANSITION' && edge.ids.includes(event.edgeId ?? '') && Number(event.details?.arrivalAt) > props.time)
         .map(event => ({ id: event.participantId!, progress: (props.time - event.time) / (Number(event.details!.arrivalAt) - event.time), selected: event.participantId === props.tracked?.id })) : [];
       const active = travelers.length > 0;
-      const isSelected = props.selected === edge.id;
+      const isSelected = props.selected === edge.id || edge.source === props.selected || edge.target === props.selected;
       const changed = edge.ids.some(id => props.changed?.has(id));
-      const color = isSelected ? '#8ef5d0' : changed ? '#ff9a4d' : active ? '#8cc8ff' : '#84709b';
+      const color = isSelected ? 'var(--text-primary)' : changed ? 'var(--tone-diff)' : active ? 'var(--tone-serve)' : 'var(--text-muted)';
       return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', data: { travelers, chooseVisitor: props.chooseVisitor }, label: edge.label,
-        selected: isSelected, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
-        markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
-        style: { stroke: color, strokeWidth: isSelected ? 2.4 : active ? 2 : 1.6 },
-        labelStyle: { fill: '#d9d1ee', fontSize: 11, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
+        selected: props.selected === edge.id, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
+        markerEnd: { type: MarkerType.ArrowClosed, color, width: isSelected ? 20 : 16, height: isSelected ? 20 : 16 },
+        style: { stroke: color, strokeWidth: isSelected ? 3 : active || changed ? 2 : 1.6 },
+        labelStyle: { fill: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
       };
     });
   }, [plan.graph.edges, display, view, running, props.time, props.tracked, props.chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
+    menuTrigger.current = document.activeElement as HTMLElement | null;
     const bounds = shell.current!.getBoundingClientRect();
     setQuery('');
     setMenu({ left: Math.max(8, Math.min(x - bounds.left, bounds.width - 276)), top: Math.max(8, Math.min(y - bounds.top, bounds.height - 380)), position: api.screenToFlowPosition({ x, y }), nodeId });
@@ -361,15 +365,15 @@ function CanvasInner(props: Props) {
   }
   const isRealNode = (id: string) => plan.graph.nodes.some(node => node.id === id);
   return <div ref={shell} className={cls('canvas-shell', props.compact && 'compact-canvas', running && 'is-running')}
-    onWheelCapture={() => placement.userMove()}
-    onPointerDownCapture={event => { if ((event.target as Element).closest('.react-flow__minimap, .react-flow__controls')) placement.userMove(); }}
+    onWheelCapture={userMove} onKeyDownCapture={event => { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '-'].includes(event.key) && !(event.target as HTMLElement).closest('input, select, textarea')) userMove(); }}
+    onPointerDownCapture={event => { if ((event.target as Element).closest('.react-flow__minimap, .react-flow__controls')) userMove(); }}
     onDoubleClick={event => {
     if (props.editable && (event.target as HTMLElement).classList.contains('react-flow__pane')) openMenu(event.clientX, event.clientY);
   }} onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={event => {
     event.preventDefault(); const type = event.dataTransfer.getData('application/ghost-node') as Node['type'];
     if (props.editable && NODE_TYPES.includes(type)) props.onAdd(type, api.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
   }}>
-    {!props.compact && <HauntedBackdrop />}
+    {!props.compact && <HauntedBackdrop quiet={!!plan.graph.nodes.length} />}
     <ReactFlow<AnyNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode="dark" onInit={setInstance} elevateNodesOnSelect={false}
       onNodesChange={changes => {
         setFlowNodes(nodes => applyNodeChanges(changes, nodes));
@@ -386,15 +390,15 @@ function CanvasInner(props: Props) {
       onPaneClick={() => { setMenu(null); props.onSelect('', 'node'); }} onConnect={props.onConnect} connectionLineType={ConnectionLineType.Bezier}
       onPaneContextMenu={event => { event.preventDefault(); if (props.editable) openMenu(event.clientX, event.clientY); }}
       onNodeContextMenu={(event, node) => { event.preventDefault(); if (node.type === 'workflow') openMenu(event.clientX, event.clientY, node.id); }}
-      onMoveStart={event => { setMenu(null); if (event) placement.userMove(); }}
-      onNodeDragStart={() => placement.userMove()}
+      onMoveStart={event => { setMenu(null); if (event) userMove(); }}
+      onNodeDragStart={userMove}
       onDelete={({ nodes, edges: removed }) => props.onDelete(nodes.filter(node => node.type === 'workflow').map(node => node.id), removed.filter(edge => !edge.id.startsWith('agg:')).map(edge => edge.id))}
       nodesDraggable={draggable} nodesConnectable={props.editable && !panMode} elementsSelectable={!panMode} edgesReconnectable={false} deleteKeyCode={props.editable && !panMode ? ['Backspace', 'Delete'] : null}
       minZoom={0.1} maxZoom={2.5} zoomOnDoubleClick={false}
       panOnDrag={panMode || !props.editable ? [0, 1] : [1]} panActivationKeyCode={props.editable ? 'Space' : null}
       selectionOnDrag={!panMode && props.editable} selectionKeyCode={panMode ? null : 'Shift'} multiSelectionKeyCode={['Control', 'Meta', 'Shift']}>
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} color="rgba(185, 155, 255, 0.14)" />
-      <Controls showInteractive={false} showFitView={false} onZoomIn={() => placement.userMove()} onZoomOut={() => placement.userMove()} position={props.compact ? 'bottom-right' : 'bottom-left'} orientation={props.compact ? 'horizontal' : 'vertical'} />
+      <Controls showInteractive={false} showFitView={false} onZoomIn={userMove} onZoomOut={userMove} position={props.compact ? 'bottom-right' : 'bottom-left'} orientation={props.compact ? 'horizontal' : 'vertical'} />
       {!props.compact && <MiniMap position="bottom-right" pannable zoomable nodeBorderRadius={6}
         nodeColor={node => node.type === 'frame' ? 'rgba(141, 132, 168, 0.12)' : node.type === 'stage' ? '#8d84a866' : `${TYPE_COLORS[(node.data as CardData).node.type]}66`}
         nodeStrokeColor={node => node.type === 'frame' ? 'rgba(141, 132, 168, 0.5)' : node.type === 'stage' ? '#b9b0d8' : TYPE_COLORS[(node.data as CardData).node.type]} nodeStrokeWidth={2} maskColor="rgba(8, 6, 16, 0.72)" />}
@@ -404,10 +408,10 @@ function CanvasInner(props: Props) {
         <button type="button" className={cls('icon-btn', !panMode && 'active')} aria-label={t.canvas.select} title={t.canvas.select} aria-pressed={!panMode} onClick={() => { setPanMode(false); setMenu(null); }}><MousePointer2 size={16} /></button>
         <button type="button" className={cls('icon-btn', panMode && 'active')} aria-label={t.canvas.pan} title={t.canvas.pan} aria-pressed={panMode} onClick={() => { setPanMode(true); setMenu(null); }}><Hand size={16} /></button>
       </>}
-      <button type="button" className="canvas-zoom" aria-label={t.canvas.resetZoom} title={t.canvas.resetZoom} onClick={() => { placement.userMove(); void api.zoomTo(1); }}>{Math.round(zoom * 100)}%</button>
+      <button type="button" className="canvas-zoom" aria-label={t.canvas.resetZoom} title={t.canvas.resetZoom} onClick={() => { userMove(); void api.zoomTo(1, { duration: motionDuration(!!props.reducedMotion, 0) }); }}>{Math.round(zoom * 100)}%</button>
       {props.editable && <button type="button" className="icon-btn" aria-label={t.sidebar.addNode} title={t.sidebar.addNode} onClick={() => { const bounds = shell.current!.getBoundingClientRect(); setPanMode(false); openMenu(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2); }}><Plus size={17} /></button>}
     </div>}
-    {menu && <div className="canvas-menu nodrag nopan" role="dialog" aria-label={menu.nodeId ? t.canvas.nodeMenu : t.sidebar.addNode} style={{ left: menu.left, top: menu.top }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setMenu(null); } }}>
+    {menu && <div className="canvas-menu nodrag nopan" role="dialog" aria-label={menu.nodeId ? t.canvas.nodeMenu : t.sidebar.addNode} style={{ left: menu.left, top: menu.top }} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setMenu(null); menuTrigger.current?.focus(); } }}>
       {menu.nodeId ? <>
         <b className="canvas-menu-title">{plan.graph.nodes.find(node => node.id === menu.nodeId)?.name}</b>
         <button type="button" autoFocus onClick={() => { props.onSelect(menu.nodeId!, 'node'); setMenu(null); }}>{t.canvas.inspect}</button>
@@ -420,7 +424,7 @@ function CanvasInner(props: Props) {
       </>}
       <button type="button" className="canvas-menu-fit" onClick={() => { placement.request('default'); setMenu(null); }}>{t.stage.fit}</button>
     </div>}
-    {props.label && <div className={cls('pane-label', props.label.badge === 'B' && 'alt')}><span>{props.label.badge}</span><b>{props.label.name}</b>
+    {props.label && <div className={cls('pane-label', props.label.badge === 'B' && 'alt')}><span>{props.label.badge}</span><b title={props.label.name} aria-label={props.label.name} tabIndex={0}>{props.label.name}</b><small className="read-only-chip">{t.studioUi.readOnly}</small>
       {props.label.note && <em>{props.label.note}</em>}
       {props.label.status && <i className="pane-tracked"><Ghost size={13} />{props.label.status}</i>}
     </div>}
