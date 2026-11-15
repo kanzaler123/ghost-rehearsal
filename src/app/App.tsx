@@ -154,6 +154,7 @@ export function App() {
   const thresholdInput = useRef<HTMLSelectElement>(null);
   const checksTrigger = useRef<HTMLButtonElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const comparisonSettingsRef = useRef<HTMLDivElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<Worker | null>(null);
   const say = (next: Notice) => setNoticeState(() => next);
@@ -482,7 +483,19 @@ export function App() {
     requestView('default');
   }, [mode]);
   useEffect(() => {
+    const header = comparisonSettingsRef.current, workspace = workspaceRef.current;
+    if (!header || !workspace) return;
+    const update = () => workspace.style.setProperty('--comparison-header-height', `${header.getBoundingClientRect().height}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => { observer.disconnect(); workspace.style.removeProperty('--comparison-header-height'); };
+  }, [comparing]);
+  useEffect(() => {
     if (!window.matchMedia?.('(max-width: 980px)')?.matches) return;
+    // View changes can wrap the sticky controls before ResizeObserver runs.
+    // Measure synchronously so this navigation uses the current header height.
+    workspaceRef.current?.style.setProperty('--comparison-header-height', `${comparisonSettingsRef.current?.getBoundingClientRect().height ?? 0}px`);
     workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'auto' : undefined });
     if (guide && (mobilePanel === 'person' || mobilePanel === 'report')) workspaceRef.current?.querySelector(mobilePanel === 'person' ? '.journey-header' : '.report-head')?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' });
   }, [mobilePanel, guide?.step, comparisonReady]);
@@ -572,7 +585,7 @@ export function App() {
     {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
-    {comparing && <div className="comparison-settings">
+    {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
       <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>
       <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · A {selectedStats ? formatTime(selectedStats.until) : '—'} / B {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
