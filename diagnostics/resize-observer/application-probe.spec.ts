@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { MESSAGES } from '../src/i18n/messages';
+import { MESSAGES } from '../../src/i18n/messages';
 
 for (const variant of ['native', 'size-state-frame', 'extent-cache-frame']) test(`resize probe ${variant}`, async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];

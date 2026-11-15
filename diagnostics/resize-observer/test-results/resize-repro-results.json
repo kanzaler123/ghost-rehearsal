@@ -1,0 +1,288 @@
+{
+  "config": {
+    "argv": [
+      "/opt/codex/runtimes/codex-primary-runtime/dependencies/node/bin/node",
+      "/tmp/ghost-rehearsal-inspect/node_modules/.bin/playwright",
+      "test",
+      "--config",
+      "diagnostics/resize-observer/playwright.config.ts",
+      "--list"
+    ],
+    "configFile": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer/playwright.config.ts",
+    "rootDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 240000,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium-en",
+        "name": "chromium-en",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": [
+          "repro.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium-zh",
+        "name": "chromium-zh",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": [
+          "repro.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit-en",
+        "name": "webkit-en",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": [
+          "repro.spec.ts"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit-zh",
+        "name": "webkit-zh",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": [
+          "repro.spec.ts"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "filteredProjects": [
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "chromium-en",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "snapshotDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": "repro.spec.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4180",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium-en"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "chromium-zh",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "snapshotDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": "repro.spec.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4180",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "browserName": "chromium",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "chromium-zh"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "webkit-en",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "snapshotDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": "repro.spec.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4180",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "webkit-en"
+      },
+      {
+        "grep": {},
+        "grepInvert": null,
+        "outputDir": "/tmp/ghost-rehearsal-inspect/test-results/resize-repro",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "name": "webkit-zh",
+        "testDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "snapshotDir": "/tmp/ghost-rehearsal-inspect/diagnostics/resize-observer",
+        "testIgnore": [],
+        "testMatch": "repro.spec.ts",
+        "timeout": 60000,
+        "use": {
+          "baseURL": "http://127.0.0.1:4180",
+          "trace": "retain-on-failure",
+          "screenshot": "only-on-failure",
+          "browserName": "webkit",
+          "viewport": {
+            "width": 1440,
+            "height": 1000
+          }
+        },
+        "dependencies": [],
+        "ignoreSnapshots": false,
+        "__projectId": "webkit-zh"
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results/resize-repro-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "default",
+    "updateSourceMethod": "patch",
+    "version": "1.65.1",
+    "workers": 1,
+    "webServer": {
+      "command": "npx vite build --config diagnostics/resize-observer/vite.config.ts && npx vite preview --config diagnostics/resize-observer/vite.config.ts --host 127.0.0.1 --port 4180 --strictPort",
+      "cwd": "../..",
+      "url": "http://127.0.0.1:4180",
+      "timeout": 120000
+    }
+  },
+  "suites": [
+    {
+      "title": "repro.spec.ts",
+      "file": "repro.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "isolated Canvas survives repeated geometry and mode changes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium-en",
+              "projectName": "chromium-en",
+              "results": [],
+              "status": "skipped"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium-zh",
+              "projectName": "chromium-zh",
+              "results": [],
+              "status": "skipped"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit-en",
+              "projectName": "webkit-en",
+              "results": [],
+              "status": "skipped"
+            },
+            {
+              "timeout": 60000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "webkit-zh",
+              "projectName": "webkit-zh",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "39a77a05e0c54e188911-7074907fb4a218d17e12",
+          "file": "repro.spec.ts",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-15T21:35:08.757Z",
+    "duration": 35.64700000000005,
+    "expected": 0,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}
