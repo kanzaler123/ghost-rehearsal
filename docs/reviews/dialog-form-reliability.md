@@ -2,6 +2,8 @@
 
 Implementation: `094e9e5`; additional keyboard coverage: `bd446f7`. Status: module available for independent review; A0 integration remains pending. This is not final release acceptance.
 
+Delivery: [Draft PR #5](https://github.com/kanzaler123/ghost-rehearsal/pull/5), `kiro/dialog-form-reliability` → `kiro/release-integration`. Evidence commit: `57379c9`. Awaiting independent review.
+
 ## Reproduction
 
 Runtime baseline `ca28c07`, tested with A0 infrastructure `9462cc9`, Chromium on Windows, English, at 390×568, 390×844 and 1280×720. The initial 9 browser cases failed as expected: the import error was painted beneath the welcome modal; one Escape dismissed both; clearing Guests restored 100; arrow keys did not activate the second resource tab and no associated panel existed. [Raw baseline results](dialog-form-reliability/baseline-results.json), [stack screenshot](dialog-form-reliability/baseline-stack-390x568.png), [stack trace](dialog-form-reliability/baseline-stack-trace.zip).

@@ -7,5 +7,5 @@
 - [x] Implement tabs and independent checkbox groups.
 - [x] Complete bilingual browser cases at all three target viewports and inspect screenshots (44/44 across two final runs).
 - [x] Run type/unit/build checks, inspect each changed hunk and record limitations (standalone `check` awaits A0; B + A0 passes).
-- [ ] Commit actual review and Kiro/tool attribution, push B, open Draft PR targeting integration.
+- [x] Commit actual review and Kiro/tool attribution, push B, open Draft PR targeting integration ([#5](https://github.com/kanzaler123/ghost-rehearsal/pull/5)).
 - [ ] Independent review; A0 integration and final combined acceptance (A/E/reviewer).
