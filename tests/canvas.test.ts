@@ -99,6 +99,7 @@ function flatten(value: unknown, output: Element[] = []): Element[] {
 function render() {
   const child = (Canvas(props).props.children as ReactElement<Props>);
   tree = flatten(hooks.render(() => (child.type as (props: Props) => ReactElement)(props)));
+  tree[0].props.ref.current = { get clientWidth() { return hooks.dimensions.width; }, get clientHeight() { return hooks.dimensions.height; } };
 }
 function flow() { return tree.find(item => item.type === ReactFlow)!.props; }
 function viewport() { return setViewport.mock.calls.at(-1)![0]; }
@@ -123,6 +124,18 @@ beforeEach(() => {
 afterEach(() => { hooks.unmount(); vi.useRealTimers(); });
 
 describe('Canvas placement during workbench changes', () => {
+  it('defers placement while the canvas is hidden even if the store retains its size', () => {
+    mount(); vi.advanceTimersByTime(1000);
+    rehearse();
+    tree[0].props.ref.current = { clientWidth: 0, clientHeight: 0 };
+    const count = setViewport.mock.calls.length;
+    vi.advanceTimersByTime(1000);
+    expect(setViewport).toHaveBeenCalledTimes(count);
+    render(); props = { ...props, request: { token: 2, target: 'default' } }; render();
+    vi.advanceTimersByTime(500);
+    expect(setViewport.mock.calls.length).toBeGreaterThan(count);
+  });
+
   it('keeps the first rehearsal centered after the results dock reduces canvas height', () => {
     mount(); vi.advanceTimersByTime(1000);
     rehearse();

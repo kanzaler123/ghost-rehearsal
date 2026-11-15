@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { ArrowRight, CircleMinus, CirclePlus, Coins, Crosshair, PencilLine, Route, Star, Users } from 'lucide-react';
 import type { Node, Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, comparePicks, costOf, DELTA_BINS, stationWaits, statisticsAt, totalWait } from '../features/analysis';
-import type { ResultBasis, AffectedFilter, ChangeItem, StationRow } from '../features/analysis';
+import { comparisonContext, costOf, stationWaits, totalWait, THRESHOLD } from '../features/analysis';
+import type { ResultBasis, AffectedFilter, ChangeItem, StationRow, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { SimulationRun, Statistics } from '../simulation/types';
@@ -12,6 +12,7 @@ import { Ghost, NodeIcon } from './Icons';
 import { groupPicks, pickValue } from './Journey';
 import { resourceName } from './Results';
 import { changeText } from './comparisonText';
+import { StatisticsScope } from './StatisticsScope';
 
 export { changeText } from './comparisonText';
 
@@ -32,22 +33,24 @@ interface Props {
   planA: Plan; planB: Plan; runA?: SimulationRun; runB?: SimulationRun; scenario: Scenario; ready: boolean; changes: ChangeItem[];
   visitorId: string; featured?: string; nameOf: (id: string) => string;
   onFocus: (nodeIds: string[]) => void; onChoose: (id: string) => void;
-  compact?: boolean; basis?: ResultBasis;
+  compact?: boolean; guided?: boolean; basis?: ResultBasis; threshold?: WaitThreshold;
   onBrowsePeople?: (filter: AffectedFilter) => void;
   onInspect?: (nodeIds: string[], planId: string) => void;
   onMoment?: (nodeIds: string[]) => void;
 }
 
-export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, basis = 'cutoff', onBrowsePeople, onInspect, onMoment }: Props) {
+export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, guided = false, basis = 'cutoff', threshold = THRESHOLD, onBrowsePeople, onInspect, onMoment }: Props) {
   const { t } = useI18n();
   const c = t.compare;
-  const a = ready ? statisticsAt(runA, basis) : null;
-  const b = ready ? statisticsAt(runB, basis) : null;
+  const groups = threshold ? t.evidence.groups : t.evidence.anyGroups;
+  const bins = threshold ? t.evidence.bins : t.evidence.anyBins;
+  const context = useMemo(() => comparisonContext(runA, runB, basis, threshold, ready), [runA, runB, basis, threshold, ready]);
+  const { a, b } = context;
   const routes = changes.filter(item => item.kind === 'edge');
   const main = changes.filter(item => item.kind !== 'edge');
   const data = useMemo(() => a && b ? {
-    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: affected(a, b), cost: costOf(planA, planB, scenario, a, b, basis), picks: groupPicks(comparePicks(a, b, 1)),
-  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis]);
+    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: context.counts!, cost: costOf(planA, planB, scenario, a, b, basis), picks: groupPicks(context.picks(1)),
+  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis, context]);
   const stationName = (row: StationRow) => list([...new Set([...row.a.map(id => nameIn([planA], id)), ...row.b.map(id => nameIn([planB], id))])], t);
   const signed = (value: number, format: (value: number) => string) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`;
   const cutoff = formatTime(scenario.observationCutoff);
@@ -60,7 +63,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   };
   function browse(filter: AffectedFilter) {
     if (!a || !b) return;
-    const people = affectedVisitors(a, b, filter);
+    const people = context.select(filter);
     if (people.length && !people.some(person => person.id === visitorId)) onChoose(people[0].id);
     // Choosing a person may clear an earlier group; the requested group is the final state.
     onBrowsePeople?.(filter);
@@ -70,11 +73,12 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
       <span className="eyebrow">{t.modes.Compare}</span>
       <h2>{c.title}</h2>
       <div className="report-plans"><span className="ab-badge">A</span><b>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b>{planB.name}</b></div>
-      <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : `${t.review.completion} · A ${formatTime(a?.until ?? 0)} · B ${formatTime(b?.until ?? 0)}`}</p>
+      <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : t.review.completion}</p>
     </header>
+    {ready && runA && runB && <StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} />}
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && !compact && <Verdict a={a} b={b} data={data} stationName={stationName} />}
-    {!ready && <p className="report-stale">{c.stale}</p>}
+    {!ready && <p className="report-stale">{t.evidence.unavailable[context.status]}</p>}
 
     <Step key={`changes-${compact}`} index={1} title={`${c.steps.changed} · ${changes.length}`} icon={<PencilLine size={15} aria-hidden="true" />}>
       {!changes.length && <p className="subtle">{c.noChanges}</p>}
@@ -95,7 +99,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
     </Step>
 
     {data && a && b && <>
-      <Step key={`outcomes-${compact}`} index={2} title={c.steps.outcomes} icon={<Crosshair size={15} aria-hidden="true" />}>
+      <Step key={`outcomes-${compact}`} index={2} title={c.steps.outcomes} initiallyOpen={guided} icon={<Crosshair size={15} aria-hidden="true" />}>
         <Outcomes a={a} b={b} />
         <p className="report-note">{text.waitNote}</p>
       </Step>
@@ -103,15 +107,16 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
       <Step key={`people-${compact}`} index={3} title={c.steps.people} icon={<Ghost size={15} />} initiallyOpen={!compact}>
         <p className="report-lead">{c.of(data.people.total)}</p>
         <div className="people-stats">
-          <button type="button" className="good" disabled={!data.people.better} onClick={() => browse('less')} title={text.browse}><b>{data.people.better}</b>{c.lessWait}</button>
-          <button type="button" className="bad" disabled={!data.people.worse} onClick={() => browse('more')} title={text.browse}><b>{data.people.worse}</b>{c.moreWait}</button>
-          <button type="button" disabled={!data.people.same} onClick={() => browse('same')} title={text.browse}><b>{data.people.same}</b>{c.sameWait}</button>
+          <button type="button" className="good" disabled={!data.people.better} onClick={() => browse('less')} title={text.browse}><b>{data.people.better}</b>{groups.less}</button>
+          <button type="button" className="bad" disabled={!data.people.worse} onClick={() => browse('more')} title={text.browse}><b>{data.people.worse}</b>{groups.more}</button>
+          <button type="button" disabled={!data.people.same} onClick={() => browse('same')} title={text.browse}><b>{data.people.same}</b>{groups.same}</button>
         </div>
-        <div className="histogram" role="img" aria-label={`${c.histogram}: ${data.people.bins.map((count, index) => `${c.bins[index]} ${count}`).join(', ')}`}>
+        <p className="report-note">{t.evidence.rule}</p>
+        <div className="histogram" role="img" aria-label={`${c.histogram}: ${data.people.bins.map((count, index) => `${bins[index]} ${count}`).join(', ')}`}>
           {data.people.bins.map((count, index) => {
             const peak = Math.max(1, ...data.people.bins);
-            const side = index < DELTA_BINS.indexOf(-1) + 1 ? 'good' : index === DELTA_BINS.indexOf(1) ? 'same' : 'bad';
-            return <div key={index} className={cls('bin', side)}><span className="bin-count">{count}</span><i style={{ height: `${Math.max(count ? 6 : 0, count / peak * 100)}%` }} /><small>{c.bins[index]}</small></div>;
+            const side = index < 3 ? 'good' : index === 3 ? 'same' : 'bad';
+            return <div key={index} className={cls('bin', side)}><span className="bin-count">{count}</span><i style={{ height: `${Math.max(count ? 6 : 0, count / peak * 100)}%` }} /><small>{bins[index]}</small></div>;
           })}
         </div>
         <small className="histogram-caption">{c.histogram}</small>
@@ -151,7 +156,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
         </> : <p className="subtle">{c.whyNone}</p>}
       </Step>
 
-      <Step key={`cost-${compact}`} index={5} title={c.steps.cost} icon={<Coins size={15} aria-hidden="true" />}>
+      <Step key={`cost-${compact}`} index={5} title={c.steps.cost} initiallyOpen={guided} icon={<Coins size={15} aria-hidden="true" />}>
         <dl className="cost-list">
           {data.cost.devices.filter(item => item.a !== item.b).map(item => <div key={item.id} className="cost-row changed"><dt>{item.name}</dt><dd>{c.value(String(item.a), String(item.b))}<b className="cost-delta">{signed(item.b - item.a, String)}</b></dd></div>)}
           <div className={cls('cost-row', data.cost.staff[0] !== data.cost.staff[1] && 'changed')}><dt>{c.costStaff}</dt><dd>{c.value(String(data.cost.staff[0]), String(data.cost.staff[1]))}</dd></div>

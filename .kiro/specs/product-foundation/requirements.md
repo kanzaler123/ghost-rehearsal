@@ -110,7 +110,7 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 - **Scenario_Fingerprint**：一个 Scenario 全部 Simulation_Relevant_Field 与 Model_Version 的指纹。
 - **Stale_Result**：记录的 Input_Fingerprint 与当前输入不一致的 Run_Result。
 - **Comparison**：同一 Scenario 下两个 Plan 的 Run_Result 对照。
-- **First_Divergence**：将同一 Participant 在两个 Run_Result 中按 seq 排列、不含 RUN_WARNING 的 Simulation_Event 序列逐位置比较时，首个满足以下任一条件的位置：两侧事件 type 不同；time 不同；两侧 nodeId 所指 Node 既不相同也不按 Node_Correspondence 相互对应；只有一侧在该位置有事件。First_Divergence 的时刻为该位置两侧事件 time 中的较早者，只有一侧有事件时取该事件的 time。
+- **First_Divergence**：在所选统计口径下两侧实际结束时刻的较早者之前（含该时刻），按时间递增检查同一 Participant 的事件时间戳并集。每个时间戳先处理两侧该时刻全部 Simulation_Event（不含 RUN_WARNING），再比较最终可见状态：是否到达、所处阶段、Node_Correspondence 对应节点，以及转移状态下的目的节点。首次可见状态不一致的时间戳即 First_Divergence；同刻中间转换或事件序列长度/位置差异不单独构成差异。全程一致则无差异点。
 - **Provenance**：数据来源标签，取值为 synthetic（合成）、user_estimate（用户估计）、measured（现场测量）、historical（历史记录）。
 - **Assumption_Override**：Scenario 中对所有 Plan 同等生效的假设调整项，包括服务时长系数和资源中断。
 - **Example_Scenario**：本 Spec 交付的示例 Project_Document 文件。
@@ -188,7 +188,7 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 5. WHILE Canvas_Mode 为 Compare，THE Workbench SHALL 在两侧以两类可相互区分的差异标记标出 Node、Edge、Staff、Device_Type 和 Assignment：第一类标出 ID 在两个 Plan 中都存在但至少一个 Simulation_Relevant_Field 取值不同的对象，第二类标出 ID 只存在于其中一个 Plan 的对象；Assignment 以所属 Resource_Unit ID 配对；只在 Layout_Field、显示名称、描述或备注上不同的对象不加差异标记。
 6. WHILE Canvas_Mode 为 Compare，THE Workbench SHALL 将方案 A、方案 B 及二者所引用 Scenario 的 Simulation_Relevant_Field、显示名称、描述和备注显示为只读，仅允许修改 Layout_Field（含画布级视口），并按 Requirement 2 第 3 条的规则记录这些修改：视口以外的 Layout_Field 修改记录为可撤销、可重做的操作，视口的缩放与平移不记录为操作。
 7. WHEN 用户在 Compare 模式中于任一侧选中一个 Participant，THE Workbench SHALL 在两侧同时高亮该 Participant ID 对应的幽灵；若某侧在当前回放时刻未显示该 Participant 的幽灵，则在该侧标注该 Participant 在当前回放时刻尚未到达、已结束，或所在的 Node 或 Edge。
-8. WHEN 用户在 Compare 模式中已选中一个 Participant 并请求跳转到差异点，THE Workbench SHALL 将回放时钟定位到该 Participant 的 First_Divergence 时刻（两侧事件 time 中的较早者，只有一侧在该位置有事件时取该事件的 time），并在该位置有 Simulation_Event 的每一侧选中该事件所在的 Node。
+8. WHEN 用户在 Compare 模式中已选中一个 Participant 并请求跳转到差异点，THE Workbench SHALL 将回放时钟定位到该 Participant 的 First_Divergence 时间戳，并定位两侧在同刻事件收敛后可见状态对应的 Node；没有差异点时明确说明，不定位到中间转换事件。默认示例 side-stream:10 的首次可见差异为 210 秒。
 9. WHEN 用户在 Compare 模式中选中一侧的 Node，THE Workbench SHALL 在另一侧高亮按 Node_Correspondence 规则（Requirement 23 第 2 条）与该 Node 对应的全部 Node。
 10. IF 用户在 Compare 模式中选中的 Node 按 Node_Correspondence 规则在另一侧没有对应 Node，THEN THE Workbench SHALL 在该 Node 上标注“仅存在于方案 A”（该 Node 位于左侧时）或“仅存在于方案 B”（该 Node 位于右侧时），且不在另一侧高亮任何 Node。
 11. WHEN 用户在 Compare 模式中请求编辑，THE Workbench SHALL 要求用户选择方案 A 或方案 B，在用户选定后退出 Compare 模式并以所选 Plan 进入单画布 Build 模式；用户取消选择时保持 Compare 模式不变。
@@ -760,6 +760,8 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 6. THE Golden_Case_Suite SHALL 包含标注 Requirement 39、Run_Mode 为 cutoff 的 Golden_Case，给出第 2 至第 5 条的期望输出（含每个区间的 s、e、开始 seq 与结束 seq），共同覆盖以下情形：(a) 至少 2 位 Participant 在 Service 节点第一个 Open_Window 的 openAt 之前入队，且 openAt 时只有 1 位能开始服务，openAt 之前的时段只计入关闭期间积压，自 openAt 起的时段只计入受限；(b) Close_Policy 排队者处理方式为 serve 的节点在最后一个 Open_Window 的 closeAt 仍有排队者，受限区间跨过 closeAt，止于该节点排队中与受阻人数均为 0 的时刻；(c) 资源空闲时 Participant 在同一时刻记录 QUEUE_ENTER 与 SERVICE_START，不产生受限区间；(d) 瓶颈阈值为 2 时，排队中与受阻人数之和为 1 的时段不计入受限；(e) 在 Observation_Cutoff 时仍受限的区间，其 e 为 Observation_Cutoff 且结束 seq 为 null；(f) 资源不足需求项列表非空的受限区间，以及 Requirement 27 第 2 条示例中仅 X 可分配、列表为空且可完整满足标志为 false 的受限区间；(g) Queue_Capacity 不为 null 的 Waiting Area 节点的满员区间。
 
 ### Requirement 40: 运行到完成模式
+
+2026-11-15 比较产品口径补充：`comparison-evidence-contract` 将全部已到达者保留为 cutoff 与 completion 的主要等待统计，同时单列下方 40.3(a) 的仅 completed 子群、平均值、P90 与样本数。此补充扩展 40.2 的输出范围，不删除原 completed 要求；两侧子群可能不是同一批人，必须明确标注。下列原条款保留用于追溯，完整输出契约仍需单独验收。
 
 **User Story:** 作为活动组织者，我希望在截止时刻统计之外，还能看到全部参与者完成流程后的最终结果，并区分两种口径。
 

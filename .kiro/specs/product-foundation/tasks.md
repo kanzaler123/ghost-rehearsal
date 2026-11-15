@@ -41,3 +41,36 @@
 ## Kiro 证据
 
 - [ ] 在 Kiro 中导出对应原始会话并核对贡献记录；Codex 不补写无法验证的 Kiro 历史
+
+## 2026-11-15 合并后接手核验（Codex）
+
+基线为 `6309d5f`（已与 origin/main 核对），开发分支 `codex/comparison-guided-demo`。以上历史验证记录保留，以下为本次重新核验，不追溯改写作者。
+
+| 范围 | 当前状态与依据 | 尚未验收 |
+| --- | --- | --- |
+| 输入、校验、复制、规范化文件、指纹（5–25、41–42、47 的输入部分） | 已实现；Schema、codec、fingerprint、example、boundaries 测试通过 | 完整输出运行时校验、未来版本迁移 |
+| 编辑、模板、多活动、三模式（1–4、43） | 可运行；workbench、templates、canvas、stages 测试通过 | 正式 Workbench_Spec、完整键盘与所有恢复状态验收 |
+| 排队、到达、岗位、班次、关闭、回放（26–39） | 部分实现；simulation、analysis 有手算案例与事件一致性测试 | 完整语义文档、完整 Golden_Case_Suite、输出契约、规模性能 |
+| 比较、旅程、统计与安排导出（4、34–40） | 部分实现；总览/名单按 60 秒，Insights 按非零差值；最终主指标为全部已到达，与原 40.3(a) 仅 completed 有冲突 | 由 comparison-evidence-contract 统一并补充 completed 子群 |
+| 示例与演示（44、46） | 示例 A/B 可运行；已有 packingExperiment，但入口隐蔽且测试复制了构造代码 | 由 guided-decision-demo 完成可发现的 A/B/C 引导；原 46 的完整七场景机器可读分镜仍未验收 |
+| 浏览器与 CI | CI 有测试/构建；既有浏览器记录保留；本次基线只重新跑了自动检查与构建 | 真实 Worker 的自动浏览器 smoke、390px 与双语路径 |
+| Kiro 证据 | 日志仍为模板、Hook 配置存在 | 实际执行须核对日志/会话；不能把 Codex 创建的 Spec 算作 Kiro 工作 |
+
+本次基线 `npm run check`：12 文件、263 项测试及两组 TypeScript 检查通过；`npm run build` 通过，保留主包超过 500 kB 的提示。既有组件测试含模拟 React hooks/Worker 传输，不能代替真实浏览器测试。没有组织者试用、实地校准或完整 47 项验收。
+
+## 2026-11-15 本轮最终进展（Codex）
+
+- [x] comparison-evidence-contract：默认含边界 60 秒，支持任何变化；人数、名单、筛选、故事、直方图与导出共用规则。区分 cutoff/final、全部已到达主样本、已完成次样本、未到达/未配对人数及每侧实际结束时间；缺少 final 或结果过期时不产生当前比较证据。
+- [x] guided-decision-demo：欢迎页和搭建侧栏入口，A/B → 同一访客 → 首次差异 → 岗位与资源 → 共享构造逻辑创建 C → B/C 全部结局及代价 → 导出；可退出、重置和重跑，保留自由编辑与已有活动。
+- [x] 真实 Worker 浏览器 smoke：桌面 1440×1000 和 390×844、中英文、统计切换、实验与导入导出、未到达/空完成样本、过期和缺少最终结果。
+- [x] 建立 comparison-evidence Steering 并完成日志 Hook 核对；日志只证明加载/注册，**不代表实际执行通过**。
+
+提交：盘点与 Spec 为 `aef3baf`，比较实现为 `1da5495`，引导实现为 `a38917d`；最终测试、CI、中文措辞和记录在本段所在提交。最终 `npm run check` 为 12 文件、272 项及两组 TypeScript 检查通过；Pages 生产构建通过；浏览器 8/8 通过、75.972 秒、无重试或跳过。完整记录及中间失败见 [验证记录](../../../docs/validation-2026-11-15.md)。
+
+原先未勾选的完整输出契约、仿真语义/完整金标准、工作台正式键盘与恢复验收、原 Requirement 46 七场景分镜，以及实际 Kiro 会话证据仍未完成；没有把本轮 Codex 工作计入 Kiro 贡献。
+
+## 2026-11-15 并行发布 A 续作映射（Codex）
+
+比较任务继续沿用 `comparison-evidence-contract`（requirements 4、34–40）与 `guided-decision-demo`（44、46 的本次引导范围）。新增共享比较上下文与无效人物清理规则，修订 First_Divergence 定义及 4.8，保留同刻收敛和 210 秒回归。引导入口现位于比较总览与搭建侧栏；历史欢迎页入口已移除，Dialogs/Inspector 由 B 独占。A0 测试基础设施独立提交 `9462cc9` / Draft PR #4。历史 159、263、272 项记录原样保留；本次验证及集成需求见 `docs/reviews/comparison-demo.md`，独立 review 仍待完成。
+
+本次追加验证：`30bb3cb` 完整浏览器 12/12 通过；最终应用提交 `bef5694` 的 278 项单元测试、两组类型检查、生产子路径构建，以及中英文桌面/移动端引导与名称可见性 4/4 通过。后续证据提交不改变应用或测试；以上为 A 模块自测，不代表独立 review 或统一产品验收完成。

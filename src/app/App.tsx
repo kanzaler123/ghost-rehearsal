@@ -11,16 +11,18 @@ import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario, Validatio
 import { Canvas } from '../components/Canvas';
 import type { ViewRequest, ViewTarget } from '../components/Canvas';
 import { CompareReport } from '../components/CompareReport';
+import { GuidedDemo } from '../components/GuidedDemo';
+import type { DemoProgress } from '../components/GuidedDemo';
 import { Inspector } from '../components/Inspector';
 import { EventCreator, JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
 import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
 import { describeStatus, GhostJourney } from '../components/Journey';
 import { FlowNavigator, keyEventText, NowPanel } from '../components/Rehearse';
 import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Results';
-import { comparePicks, featuredGhost, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, visitorName } from '../features/analysis';
-import type { AffectedFilter } from '../features/analysis';
+import { comparisonContext, compatibleRuns, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
+import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
@@ -78,6 +80,9 @@ export function App() {
   const [mode, setMode] = useState<Mode>('Build');
   const [runMode, setRunMode] = useState<RunRequest['runMode']>('cutoff');
   const [basis, setBasis] = useState<ResultBasis>('cutoff');
+  const [threshold, setThreshold] = useState<WaitThreshold>(THRESHOLD);
+  const [guide, setGuide] = useState<DemoProgress | null>(null);
+  const [evidenceTarget, setEvidenceTarget] = useState<{ id: string; owner: string }>();
   const [draftSaved, setDraftSaved] = useState(false);
   const [planName, setPlanName] = useState('');
   const [resourceLimits, setResourceLimits] = useState({ staff: '', devices: '' });
@@ -95,7 +100,7 @@ export function App() {
   const [railExpanded, setRailExpanded] = useState(false);
   const [compareFocus, setCompareFocus] = useState<'overview' | 'person'>('overview');
   const [peopleGroup, setPeopleGroup] = useState<AffectedFilter>();
-  const [mobilePanel, setMobilePanel] = useState<'report' | 'canvas' | 'person'>('report');
+  const [mobilePanel, setMobilePanel] = useState<'report' | 'canvas' | 'person' | 'evidence'>('report');
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ token: 0, target: 'default' });
   const [dockOpen, setDockOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -131,8 +136,8 @@ export function App() {
   const requestFor = (target: Plan, document = project): RunRequest => ({ schemaVersion: 1, scenario: document.scenarios.find(item => item.id === target.scenarioId)!, plan: target, runMode });
   const stale = useMemo(() => !!run && run.inputKey !== inputKey(requestFor(plan)), [run, plan, scenario, runMode]);
   const secondStale = useMemo(() => !!secondRun && !!second && secondRun.inputKey !== inputKey(requestFor(second)), [secondRun, second, project.scenarios, runMode]);
-  const comparisonReady = !!second && !!run && !!secondRun && run.status === 'succeeded' && secondRun.status === 'succeeded'
-    && run.scenarioKey === secondRun.scenarioKey && run.request.runMode === secondRun.request.runMode && !stale && !secondStale;
+  const comparisonReady = !!second && !!run && !!secondRun && compatibleRuns(run, secondRun) && !stale && !secondStale;
+  const comparison = useMemo(() => comparisonContext(run, secondRun, basis, threshold, !stale && !secondStale), [run, secondRun, basis, threshold, stale, secondStale]);
   const endTime = Math.max(run?.coveredUntil ?? scenario.observationCutoff, mode === 'Compare' ? secondRun?.coveredUntil ?? 0 : 0);
   const issues = useMemo(() => [...validateScenario(scenario), ...validatePlan(plan), ...validateGraph(scenario, plan)], [scenario, plan]);
   const ownerIssues = owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(project.scenarios.find(item => item.id === owner.scenarioId)!, owner)];
@@ -159,9 +164,9 @@ export function App() {
   const trackedStatus = trackedJourneys.map((journey, index) => journey ? describeStatus(statusAt(journey, time), (index ? secondRun : run)!.request.plan, time, t) : '');
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
   const selectedStats = statisticsAt(run, basis), selectedSecondStats = statisticsAt(secondRun, basis);
-  const featured = useMemo(() => comparisonReady && selectedStats && selectedSecondStats ? featuredGhost(selectedStats, selectedSecondStats) : undefined, [comparisonReady, selectedStats, selectedSecondStats]);
-  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && selectedStats && selectedSecondStats ? comparePicks(selectedStats, selectedSecondStats) : [])
-    : rehearsePicks(run, view, time), [run, selectedStats, selectedSecondStats, comparing, comparisonReady, view, time]);
+  const featured = comparison.featured;
+  const picks = useMemo(() => !run ? [] : comparing ? comparison.picks()
+    : rehearsePicks(run, view, time), [run, comparing, comparison, view, time]);
   const unsaved = JSON.stringify(project) !== savedText;
 
   function commit(next: ProjectDocument) {
@@ -178,7 +183,7 @@ export function App() {
   }
   /** All editing entry points reset the selection to the plan being edited. */
   function enterBuild(targetId = plan.id, setup?: 'scenario' | 'resources') {
-    selectPlan(targetId); setMode('Build'); setDialog(setup ?? null);
+    setGuide(null); selectPlan(targetId); setMode('Build'); setDialog(setup ?? null);
   }
   function showOverview() {
     setCompareFocus('overview'); setMobilePanel('report'); setDockOpen(false); setInspectorOpen(false); setRailExpanded(false);
@@ -278,7 +283,7 @@ export function App() {
     setTime(Math.min(at, endTime)); setPlaying(false);
     if (nodeId) { setSelection({ id: nodeId, kind: 'node', owner: ownerId }); focusNodes([nodeId]); }
   }
-  function launch(targets: Plan[], destination: Mode, document = project) {
+  function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
     worker.current?.terminate();
@@ -297,7 +302,7 @@ export function App() {
       say(results.some(result => result.status === 'aborted') ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
     };
     active.onerror = () => { setBusy(false); say(tr => tr.notices.workerFailed); active.terminate(); };
-    active.postMessage({ requests: targets.map(target => requestFor(target, document)) });
+    active.postMessage({ requests: targets.map(target => ({ ...requestFor(target, document), runMode: scope })) });
   }
   function switchMode(next: Mode) {
     setPlaying(false);
@@ -319,15 +324,56 @@ export function App() {
   }
   function packingExperiment() {
     if (!second) return;
-    const result = duplicatePlan(second, new Set(project.plans.map(item => item.id)));
-    const original = second.staff.find(item => item.id === 'pack-staff');
-    if (!result.ok || !original) return;
-    const target = result.plan;
-    target.name = t.review.demoName;
-    const staff = structuredClone(original); staff.id = newId('packing-support', target.staff.map(item => item.id)); staff.name = t.review.demoStaff;
-    target.staff.push(staff); target.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
-    const next = { ...project, plans: [...project.plans, target] };
-    commit(next); setPlanId(second.id); setSecondId(target.id); launch([second, target], 'Compare', next);
+    const existing = guide?.c ? project.plans.find(item => item.id === guide.c) : undefined;
+    const target = existing ?? createPackingExperiment(second, new Set(project.plans.map(item => item.id)), t);
+    if (!target) return;
+    const next = existing ? project : { ...project, plans: [...project.plans, target] };
+    commit(next); setPlanId(second.id); setSecondId(target.id);
+    if (guide) setGuide({ ...guide, step: 4, c: target.id, exported: false });
+    launch([second, target], 'Compare', next);
+  }
+  function startGuide() {
+    const next = addEvent(project, localizeDocument(initialDocument(), 'zh', lang));
+    const [a, b] = next.plans.slice(-2);
+    commit(next); setPlanId(a.id); setSecondId(b.id); setGuide({ step: 0, a: a.id, b: b.id });
+    setBasis('cutoff'); setThreshold(THRESHOLD); setRunMode('run_to_completion'); setDialog(null); setVisitorId('');
+    setEvidenceTarget(undefined); showOverview(); launch([a, b], 'Compare', next, 'run_to_completion');
+  }
+  function showGuideEvidence(id: string) {
+    if (!guide) return;
+    setEvidenceTarget({ id, owner: guide.b }); setBottomTab('insights'); setDockOpen(true); setPlaying(false);
+    setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); focusNodes([id]);
+  }
+  function advanceGuide() {
+    if (!guide || !comparisonReady || !run || !secondRun || !selectedStats || !selectedSecondStats) return;
+    if (guide.step === 0) {
+      if (!featured) { say(tr => tr.journey.noDiff); return; }
+      chooseVisitor(featured); setGuide({ ...guide, step: 1, visitor: featured });
+    } else if (guide.step === 1) {
+      const id = visitorId;
+      if (!comparison.visitors.some(person => person.id === id)) { say(tr => tr.journey.noDiff); return; }
+      const difference = firstDifference(journeyOf(run, id, selectedStats.until), journeyOf(secondRun, id, selectedSecondStats.until), run.request.plan, secondRun.request.plan);
+      if (!difference) { say(tr => tr.journey.noDiff); return; }
+      chooseVisitor(id); jumpTo(difference.time, difference.a?.nodeId ?? difference.b?.nodeId, difference.a ? plan.id : second!.id);
+      setGuide({ ...guide, step: 2, visitor: id });
+    } else if (guide.step === 2) { setGuide({ ...guide, step: 3 }); showGuideEvidence('checkin-extra'); }
+    else if (guide.step === 3) packingExperiment();
+    else if (guide.step === 4) { setGuide({ ...guide, step: 5 }); showOverview(); }
+    else {
+      const c = project.plans.find(item => item.id === guide.c)!, b = project.plans.find(item => item.id === guide.b)!;
+      download(`${c.id}-execution.md`, executionReport(c, scenario, runs[c.id], false, t, b, basis) + '\n' + comparisonReport(runs[b.id], runs[c.id], comparisonReady, t, basis, threshold), 'text/markdown;charset=utf-8');
+      setGuide({ ...guide, exported: true });
+    }
+  }
+  function resetGuide(rerun: boolean) {
+    if (!guide) return;
+    const isBC = rerun && guide.step >= 4 && !!guide.c;
+    const a = project.plans.find(item => item.id === (isBC ? guide.b : guide.a));
+    const b = project.plans.find(item => item.id === (isBC ? guide.c : guide.b));
+    if (!a || !b) { setGuide(null); return; }
+    setPlanId(a.id); setSecondId(b.id); setMode('Compare'); setVisitorId(''); setTime(0); setPlaying(false);
+    setGuide({ ...guide, step: isBC ? 4 : 0, exported: false }); setEvidenceTarget(undefined); showOverview();
+    if (rerun) launch([a, b], 'Compare');
   }
   function addNode(type: Node['type'], position?: { x: number; y: number }) {
     if (mode !== 'Build') return;
@@ -386,6 +432,7 @@ export function App() {
     setExpanded([]); setRailExpanded(false); setBottomTab(mode === 'Compare' ? 'journey' : 'now');
     setCompareFocus('overview'); setPeopleGroup(undefined); setMobilePanel('report');
     if (mode === 'Compare') setDockOpen(false);
+    if (mode === 'Build') { setGuide(null); setEvidenceTarget(undefined); }
     if (mode !== 'Build') setInspectorOpen(false);
     requestView('default');
   }, [mode]);
@@ -394,7 +441,7 @@ export function App() {
   }, [mobilePanel]);
   useEffect(() => { requestView('default'); }, [plan.id, canvasView]);
   // Two Futures opens on a ghost whose futures differ, so the story is visible without searching.
-  useEffect(() => { if (mode === 'Compare' && featured && !visitorId) setVisitorId(featured); }, [mode, featured]);
+  useEffect(() => { if (mode === 'Compare') setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup]);
   useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
@@ -410,9 +457,6 @@ export function App() {
     const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect);
   }, [unsaved, draftSaved]);
-  useEffect(() => {
-    if (basis === 'completion' && (!run?.completion || (mode === 'Compare' && !secondRun?.completion))) setBasis('cutoff');
-  }, [basis, run, secondRun, mode]);
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if (dialog) return;
@@ -508,10 +552,20 @@ export function App() {
       </div>
     </header>
 
+    {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
+      onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
+      onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
+    {comparing && <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>}
+    {comparing && <div className="comparison-settings">
+      <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
+      <label>{t.evidence.threshold}<select aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
+      <small>{t.review.completionHint}</small>
+    </div>}
     {comparing && <nav className="mobile-compare-nav" aria-label={t.workspace.focus}>
       <button type="button" aria-pressed={mobilePanel === 'report'} onClick={showOverview}>{t.workspace.report}</button>
       <button type="button" aria-pressed={mobilePanel === 'canvas'} onClick={() => { showOverview(); setMobilePanel('canvas'); }}>{t.workspace.canvas}</button>
       <button type="button" aria-pressed={mobilePanel === 'person'} onClick={() => showJourney(peopleGroup)}>{t.workspace.person}</button>
+      <button type="button" aria-pressed={mobilePanel === 'evidence'} onClick={() => { setCompareFocus('overview'); setMobilePanel('evidence'); setBottomTab('insights'); setDockOpen(true); }}>{t.review.evidence}</button>
     </nav>}
     <div className="workspace" ref={workspaceRef}>
       {!fullSidebar && mode === 'Rehearse' && <aside className="sidebar is-rail" aria-label={t.navigator.title}>
@@ -519,8 +573,8 @@ export function App() {
           onStage={id => toggleStage(id, !(expandedSet === 'all' || expandedSet.has(id)) || canvasView === 'full')} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onExpandSidebar={() => setRailExpanded(true)} />
       </aside>}
       {!fullSidebar && comparing && second && <aside className="sidebar is-report" aria-label={t.compare.title}>
-        <div className="report-toolbar">{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button></div>
-        <CompareReport basis={basis} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <div className="report-toolbar">{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}</div>
+        <CompareReport basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
@@ -560,6 +614,7 @@ export function App() {
           </button>)}{!planNodes.length && <p className="subtle">{plan.graph.nodes.length ? t.sidebar.noMatch : t.sidebar.emptyNodes}</p>}</div>
         </section>
         <section className="side-section side-footer">
+          <button type="button" className="side-action" disabled={busy} onClick={startGuide}><Ghost size={17} />{t.guide.start}</button>
           <button type="button" className="side-action template-launch" disabled={busy} onClick={() => openLibrary('plans')}><BookOpen size={17} aria-hidden="true" />{t.templates.browse}<span>↗</span></button>
         </section>
       </aside>}
@@ -568,7 +623,7 @@ export function App() {
         <div className="stage-head">
           <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
           <div className="stage-tools">
-            {mode !== 'Build' && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
+            {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
             {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
@@ -637,15 +692,15 @@ export function App() {
           </div>
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
-            {run && bottomTab === 'insights' && <Insights key={`${run.inputKey}-${secondRun?.inputKey}-${basis}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />}
+            {run && bottomTab === 'insights' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <Insights initialEvidence={evidenceTarget} threshold={threshold} key={`${run.inputKey}-${secondRun?.inputKey}-${basis}-${evidenceTarget?.owner}-${evidenceTarget?.id}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />)}
             {run && bottomTab === 'now' && <NowPanel plan={run.request.plan} view={view} previous={previousView} time={time} moments={moments} picks={picks} nameOf={nameOf}
               tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
               onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
             {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
-            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.compare.stale}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.evidence.unavailable[comparison.status]}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
               picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)}
               group={peopleGroup} onGroupChange={setPeopleGroup} onOverview={comparing ? showOverview : undefined} />)}
-            {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.compare.stale}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
+            {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
           </div>}
         </section>}
       </main>
@@ -739,6 +794,7 @@ export function App() {
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
+      {comparing && <button type="button" className="option-card" disabled={!comparisonReady || !selectedStats || !selectedSecondStats} onClick={() => { download('comparison-evidence.md', comparisonReport(run, secondRun, comparisonReady, t, basis, threshold), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.evidence.comparison}</b><small>{t.review[basis]} · {threshold ? t.evidence.minute : t.evidence.any}</small></span></button>}
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}

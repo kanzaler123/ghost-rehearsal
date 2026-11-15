@@ -296,7 +296,7 @@ function CanvasInner(props: Props) {
     return ids === 'all' ? displayBounds(display, nodeSize) : unionBox(ids.map(id => boxOf(display, id, nodeSize)));
   }
   function apply(target: ViewTarget, duration: number): boolean {
-    if (!instance || !width || !height) return false;
+    if (!instance || !width || !height || !shell.current?.clientWidth || !shell.current.clientHeight) return false;
     const box = boundsOf(target === 'default' || target === 'all' ? 'all' : resolve(target));
     if (!box) return true;
     const room = { w: Math.max(40, width - padding.left - padding.right), h: Math.max(40, height - padding.top - padding.bottom) };

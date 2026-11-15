@@ -130,7 +130,7 @@ function renderJourney() {
   return flatten(child);
 }
 function browseMore() {
-  const browse = renderReport().find(item => item.type === 'button' && text(item).endsWith(t.compare.moreWait))!;
+  const browse = renderReport().find(item => item.type === 'button' && text(item).endsWith(t.evidence.groups.more))!;
   expect(browse.props.disabled).toBe(false);
   browse.props.onClick(); render();
 }
