@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addNodeFromTemplate, addPlanFromTemplate, emptyProject, halloweenProject, initialDocument, templateLibrarySchema } from '../src/features/project';
+import { addNodeFromTemplate, addPlanFromTemplate, emptyProject, halloweenProject, importTemplate, initialDocument, serializeTemplate, templateLibrarySchema } from '../src/features/project';
 import type { SavedTemplate } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { planSchema, projectDocumentSchema, validateGraph } from '../src/schemas';
@@ -76,4 +76,68 @@ it('template storage round-trips snapshots and rejects missing nodes or multiple
   expect(templateLibrarySchema.safeParse([{ ...template, nodeId: 'missing' }]).success).toBe(false);
   expect(templateLibrarySchema.safeParse([{ ...template, document: initialDocument() }]).success).toBe(false);
   expect(templateLibrarySchema.safeParse([{ ...template, name: '   ' }]).success).toBe(false);
+});
+
+it('a plan file preserves its flow, arrivals and resources and can run on another project', () => {
+  const document = initialDocument();
+  document.plans = [document.plans[0]];
+  const original: SavedTemplate = { id: 'template-7', name: '我的活动 👻', document };
+  const [imported] = importTemplate(serializeTemplate(original), []);
+  expect(imported.name).toBe(original.name);
+  expect(imported.document).toEqual(original.document);
+  expect(imported.nodeId).toBeUndefined();
+  const target = emptyProject();
+  const next = addPlanFromTemplate(target, imported.document, imported.name);
+  const plan = next.plans.at(-1)!;
+  const scenario = next.scenarios.at(-1)!;
+  expect(target.plans).toHaveLength(1);
+  expect(plan.graph).toEqual(document.plans[0].graph);
+  expect(plan.assignments).toEqual(document.plans[0].assignments);
+  expect(scenario.arrivalStreams).toEqual(document.scenarios[0].arrivalStreams);
+  expect(simulate({ schemaVersion: 1, scenario, plan, runMode: 'cutoff' }).status).toBe('succeeded');
+});
+
+it('a node file can restore the selected service and its resource dependencies', () => {
+  const document = initialDocument();
+  document.plans = [document.plans[0]];
+  const original: SavedTemplate = { id: 'template-1', name: 'Portable check-in', nodeId: 'checkin', document };
+  const [imported] = importTemplate(serializeTemplate(original), []);
+  expect(imported.nodeId).toBe('checkin');
+  expect(imported.document).toEqual(original.document);
+  const target = emptyProject();
+  const restored = addNodeFromTemplate(target.plans[0], target.scenarios[0], imported);
+  expect(restored.plan.graph.nodes).toHaveLength(1);
+  expect(restored.plan.staff.length).toBeGreaterThan(0);
+  expect(restored.plan.deviceTypes.length).toBeGreaterThan(0);
+  expect(restored.node.name).toBe('Portable check-in');
+  expect(validateGraph(target.scenarios[0], restored.plan).filter(issue => ['unknown_requirement_resource', 'insufficient_resources', 'unknown_staff_skill', 'unknown_assignment_resource', 'invalid_assignment_node'].includes(issue.code))).toEqual([]);
+});
+
+it('repeated imports keep existing templates and create independent copies with distinct IDs', () => {
+  const original: SavedTemplate = { id: 'template-1', name: 'Same name', document: halloweenProject('haunted', MESSAGES.en) };
+  const existing = [original];
+  const before = JSON.stringify(existing);
+  const file = serializeTemplate(original);
+  const once = importTemplate(file, existing);
+  const twice = importTemplate(file, once);
+  expect(twice.map(item => item.id)).toEqual(['template-1', 'template-2', 'template-3']);
+  expect(twice.map(item => item.name)).toEqual(['Same name', 'Same name', 'Same name']);
+  twice[2].document.plans[0].graph.nodes[0].name = 'Edited import';
+  expect(JSON.stringify(existing)).toBe(before);
+  expect(once[1].document).toEqual(original.document);
+});
+
+it.each([
+  ['invalid JSON', (file: string) => file.slice(0, -1)],
+  ['a project file', () => JSON.stringify(emptyProject())],
+  ['an unsupported version', (file: string) => JSON.stringify({ ...JSON.parse(file), schemaVersion: 2 })],
+  ['an unknown format', (file: string) => JSON.stringify({ ...JSON.parse(file), format: 'different-tool' })],
+  ['a missing node', (file: string) => { const value = JSON.parse(file); value.template.nodeId = 'missing'; return JSON.stringify(value); }],
+  ['invalid parameters', (file: string) => { const value = JSON.parse(file); value.template.document.plans[0].graph.nodes[2].duration.value = -1; return JSON.stringify(value); }],
+  ['an empty name', (file: string) => { const value = JSON.parse(file); value.template.name = ' '; return JSON.stringify(value); }],
+] as const)('rejects %s without changing the current library', (_label, corrupt) => {
+  const existing: SavedTemplate[] = [{ id: 'template-1', name: 'My tour', nodeId: 'stop-3', document: halloweenProject('haunted', MESSAGES.en) }];
+  const before = JSON.stringify(existing);
+  expect(() => importTemplate(corrupt(serializeTemplate(existing[0])), existing)).toThrow();
+  expect(JSON.stringify(existing)).toBe(before);
 });

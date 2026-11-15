@@ -14,7 +14,7 @@ import { JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../component
 import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
 import { EmptyResults, EventLog, Insights, Journey, ResourceUse } from '../components/Results';
 import type { PlanChange } from '../components/Results';
-import { addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, readProject, templateLibrarySchema } from '../features/project';
+import { addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { errorText, issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
 import type { Lang, Messages } from '../i18n';
@@ -81,6 +81,7 @@ export function App() {
   const [fitToken, setFitToken] = useState(0);
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
+  const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<Worker | null>(null);
   const say = (next: Notice) => setNoticeState(() => next);
   const plan = project.plans.find(item => item.id === planId) ?? project.plans[0];
@@ -486,6 +487,14 @@ export function App() {
       if (dialog === 'plan-json') { const next = result.data as Plan; if (next.id !== plan.id || !project.scenarios.some(item => item.id === next.scenarioId)) return t.dialogs.keepPlanId; changePlan(next); }
       if (dialog === 'scenario-json') { const next = result.data as Scenario; if (next.id !== scenario.id) return t.dialogs.keepScenarioId; commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item) }); }
     }} />}
+    <input ref={templateInput} type="file" accept=".json,application/json" hidden onChange={async event => {
+      const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (!file) return;
+      setTemplateError('');
+      try {
+        const next = importTemplate(await file.text(), templates);
+        if (persistTemplates(next)) { setLibraryTab(next.at(-1)!.nodeId ? 'nodes' : 'plans'); say(tr => tr.templates.imported); }
+      } catch { setTemplateError(t.templates.importFailed); }
+    }} />
     {dialog === 'templates' && <Modal title={t.templates.title} icon={<BookOpen size={18} />} onClose={() => setDialog(null)} wide>
       <div className="spellbook-intro"><div><span className="eyebrow">KIROWEEN / GHOST REHEARSAL</span><p>{t.templates.subtitle}</p></div><Pumpkin size={64} /></div>
       <div className="dialog-tabs" role="tablist">{(['plans', 'nodes'] as const).map(tab => <button type="button" role="tab" aria-selected={libraryTab === tab} className={libraryTab === tab ? 'active' : ''} key={tab} onClick={() => setLibraryTab(tab)}>{t.templates[tab]}</button>)}</div>
@@ -501,9 +510,13 @@ export function App() {
           <button type="button" className="template-card" onClick={() => { const document = localizeDocument(initialDocument(), 'zh', lang); usePlanTemplate(document, document.plans[0].name); }}><div className="template-art"><LayoutGrid size={38} /><span>03</span></div><b>{t.dialogs.example}</b><small>{t.stage.counts(15, 15)}</small></button>
           <button type="button" className="template-card blank" onClick={() => usePlanTemplate(emptyProject(t.defaults), t.defaults.plan)}><Plus size={28} /><b>{t.templates.blank}</b><small>{t.templates.blankHint}</small></button>
         </div>}
-        <div className="section-heading"><h3 className="eyebrow">{t.templates.saved}</h3>{libraryTab === 'plans' && <button type="button" className="text-btn" onClick={() => prepareTemplate()}><BookmarkPlus size={15} />{t.templates.savePlan}</button>}</div>
+        <div className="section-heading"><h3 className="eyebrow">{t.templates.saved}</h3><div className="section-actions">
+          <button type="button" className="text-btn" onClick={() => { setTemplateError(''); templateInput.current?.click(); }}><Upload size={15} />{t.templates.import}</button>
+          {libraryTab === 'plans' && <button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} onClick={() => prepareTemplate()}><BookmarkPlus size={15} /></button>}
+        </div></div>
         <div className="saved-templates">{templates.filter(item => libraryTab === 'nodes' ? !!item.nodeId : !item.nodeId).map(item => <div className="saved-template" key={item.id}>
           <button type="button" className="side-action" disabled={!!item.nodeId && readOnly} onClick={() => item.nodeId ? useNodeTemplate(item) : usePlanTemplate(item.document, item.name)}>{item.nodeId ? <NodeIcon type={item.document.plans[0].graph.nodes.find(node => node.id === item.nodeId)!.type} size={18} /> : <BookOpen size={18} />}<span>{item.name}</span><Plus size={15} /></button>
+          <button type="button" className="icon-btn" aria-label={`${t.templates.export}: ${item.name}`} title={t.templates.export} onClick={() => download(`ghost-rehearsal-${item.nodeId ? 'node' : 'plan'}-${item.id}.json`, serializeTemplate(item), 'application/json')}><Download size={14} /></button>
           <button type="button" className="icon-btn danger" aria-label={`${t.templates.remove}: ${item.name}`} title={t.templates.remove} onClick={() => { if (persistTemplates(templates.filter(saved => saved.id !== item.id))) say(tr => tr.templates.removed); }}><Trash2 size={14} /></button>
         </div>)}</div>
         {!templates.some(item => libraryTab === 'nodes' ? !!item.nodeId : !item.nodeId) && <p className="template-empty">{t.templates.empty}</p>}

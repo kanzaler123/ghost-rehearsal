@@ -27,7 +27,9 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 4. Return to **Build** and open **Templates**. Add **Haunted house** for a smaller Halloween flow, or start a blank plan.
 5. Select a node to edit it. Save a node or plan as a template to reuse it later; use the save button to persist the current project.
 
-Templates are stored separately from the current project in the same browser. Project JSON exports contain the project, not the saved-template library. Export a project before switching devices or clearing browser storage. Simulation results are recalculated after a reload.
+Templates are stored separately from the current project in the same browser. In **Templates → My templates**, use the download button beside a saved node or plan to export it as a JSON file. On another device, choose **Import template** in the same library. Imports add a new copy without replacing existing templates or the current project.
+
+Plan template files include the flow, arrivals, and resources. Node template files retain the source plan and scenario as context for resource reuse; applying one adds the selected node and its resource dependencies. Project JSON exports do not include the saved-template library, so export the templates you want to keep separately. Simulation results are recalculated after a reload.
 
 ## Run locally
 
@@ -100,7 +102,7 @@ Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
 
 Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人员设备安排，并比较不同方案。可直接打开上方在线演示，右上角切换中文；也可使用 Node.js 24，执行 `npm ci`、`npm run dev` 本地运行。
 
-支持每个方案独立的节点列表、弧形连线、万圣节预设，以及保存节点和整套方案作为模板。项目和模板保存在当前浏览器中；换设备前请导出项目 JSON，模板库不随项目 JSON 导出。当前是可运行预览版，尚未完成全部规划需求，也尚未完成 Kiro 使用证明、演示视频和 Devpost 正式提交。
+支持每个方案独立的节点列表、弧形连线、万圣节预设，以及保存节点和整套方案作为模板。在“模板库 → 我的模板”中，点击模板旁的下载按钮即可导出；换设备后选择“导入模板”。导入会追加新副本，不覆盖已有模板或当前项目。节点模板文件保留原方案及场景作为资源上下文，使用时只添加所选节点及所需资源。项目 JSON 不包含模板库，需要分别导出。当前是可运行预览版，尚未完成全部规划需求，也尚未完成 Kiro 使用证明、演示视频和 Devpost 正式提交。
 
 ## License
 

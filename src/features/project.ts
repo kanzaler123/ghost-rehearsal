@@ -55,6 +55,19 @@ export const templateLibrarySchema = z.array(z.strictObject({
   && (!item.nodeId || item.document.plans[0].graph.nodes.some(node => node.id === item.nodeId))));
 export type SavedTemplate = z.infer<typeof templateLibrarySchema>[number];
 
+const templateFileSchema = z.strictObject({
+  format: z.literal('ghost-rehearsal-template'), schemaVersion: z.literal(1), template: templateLibrarySchema.element,
+});
+
+export function serializeTemplate(template: SavedTemplate): string {
+  return JSON.stringify(templateFileSchema.parse({ format: 'ghost-rehearsal-template', schemaVersion: 1, template }), null, 2);
+}
+
+export function importTemplate(text: string, existing: SavedTemplate[]): SavedTemplate[] {
+  const { template } = templateFileSchema.parse(JSON.parse(text));
+  return [...existing, { ...template, id: newId('template', existing.map(item => item.id)) }];
+}
+
 export function halloweenProject(kind: 'haunted' | 'candy', t: Messages): ProjectDocument {
   const names = t.templates[kind];
   const document = emptyProject({ event: names.name, plan: names.name });
