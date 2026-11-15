@@ -64,7 +64,6 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis, context]);
   const stationName = (row: StationRow) => list([...new Set([...row.a.map(id => nameIn([planA], id)), ...row.b.map(id => nameIn([planB], id))])], t);
   const signed = (value: number, format: (value: number) => string) => Number.isFinite(value) ? `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}` : '—';
-  const cutoff = formatTime(scenario.observationCutoff);
   const text = t.reportUi;
   const emptyState = data && data.people.total > 0 ? deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: !data.people.better && !data.people.worse, evidenceCount: (runA?.events.length ?? 0) + (runB?.events.length ?? 0) }) : null;
   const unavailable = context.status === 'missing-run' ? text.missingPlans(t.list.join([!runA ? `A · ${planA.name}` : '', !runB ? `B · ${planB.name}` : ''].filter(Boolean))) : context.status === 'stale' ? c.stale : t.evidence.unavailable[context.status];
@@ -77,15 +76,16 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   }
   return <div className={cls('compare-report', compact && 'is-compact')}>
     <header className="report-head">
-      <span className="eyebrow">{t.modes.Compare}</span>
       <h2>{c.title}</h2>
-      <div className="report-plans"><span className="ab-badge">A</span><b tabIndex={0} title={planA.name} aria-label={planA.name}>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b tabIndex={0} title={planB.name} aria-label={planB.name}>{planB.name}</b></div>
       <p className="report-note">{text.sameGuests} · {text.direction}</p>
-      <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : t.review.completion}</p>
     </header>
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && <ConclusionGroups metrics={comparisonMetrics(a, b, data.cost, t)} onEvidence={onEvidence} />}
-    {context.status === 'ready' && runA && runB && <details className="snapshot-scope" open><summary>{t.review[basis]} · A {formatTime(a!.until)} / B {formatTime(b!.until)} · {t.evidence.sample} {context.sampleSize}</summary><StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} /></details>}
+    {context.status === 'ready' && runA && runB && <details className="snapshot-scope"><summary>{t.evidence.sample} {context.sampleSize} · {t.review[basis]} · A {formatTime(a!.until)} / B {formatTime(b!.until)}</summary>
+      <div className="report-plans"><span className="ab-badge">A</span><b tabIndex={0} title={planA.name} aria-label={planA.name}>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b tabIndex={0} title={planB.name} aria-label={planB.name}>{planB.name}</b></div>
+      <StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} />
+      <p className="report-note">{t.reportUi.resourceWindow}</p>
+    </details>}
     {emptyState && <RunStateCard kind={emptyState.kind} action={emptyState.action} detail={threshold ? t.evidence.minute : t.evidence.any} onAction={() => emptyState.action === 'choose-rule' ? onChooseRule?.() : onRerun?.()} />}
     {context.status !== 'ready' && (onRerun ? <RunStateCard kind={runState ?? (context.status === 'stale' ? 'stale' : 'not-run')} action="rerun" detail={unavailable} detailClassName="report-stale" onAction={onRerun} /> : <p className="report-stale">{unavailable}</p>)}
 

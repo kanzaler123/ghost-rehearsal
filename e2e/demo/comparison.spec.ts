@@ -14,6 +14,12 @@ async function exportFromMenu(page: Page, t: Messages, title: string) {
   return readFile((await download.path())!, 'utf8');
 }
 
+async function selectComparisonOption(page: Page, label: string, value: string) {
+  await page.locator('.comparison-options > summary').click();
+  await page.getByLabel(label, { exact: true }).selectOption(value);
+  await page.locator('.comparison-options > summary').click();
+}
+
 test('real Worker: guided A/B/C, scopes, bilingual evidence and project round trip', async ({ page }, info) => {
   const lang = info.project.name.endsWith('zh') ? 'zh' : 'en';
   const t = MESSAGES[lang];
@@ -37,14 +43,14 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
   await expect(page.locator('.bin-count')).toHaveText(['7', '2', '3', '279', '1', '1', '7']);
   const initialWorkerCount = workers.length;
-  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('0');
+  await selectComparisonOption(page, t.evidence.threshold, '0');
   await expect(page.locator('.people-stats b')).toHaveText(['66', '26', '208']);
   await expect(page.locator('.bin-count')).toHaveText(['7', '2', '57', '208', '18', '1', '7']);
-  await page.getByLabel(t.review.basis, { exact: true }).selectOption('completion');
+  await selectComparisonOption(page, t.review.basis, 'completion');
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('149');
   await expect(page.locator('.is-report .statistics-scope')).toContainText('120:00');
   await expect(page.locator('.is-report .statistics-scope')).toContainText(t.evidence.limit);
-  await page.getByLabel(t.review.basis, { exact: true }).selectOption('cutoff');
+  await selectComparisonOption(page, t.review.basis, 'cutoff');
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   expect(workers).toHaveLength(initialWorkerCount);
 
@@ -59,7 +65,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   const report = await exportFromMenu(page, t, t.evidence.comparison);
   expect(report).toContain(`${t.evidence.anyGroups.less}: 66`);
   expect(report).toContain(`${t.evidence.completed}: n=43`);
-  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('60');
+  await selectComparisonOption(page, t.evidence.threshold, '60');
   await page.locator('.people-stats button').first().click();
   await expect(page.locator('.ghost-id code')).toHaveText('main-stream:20');
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
@@ -71,8 +77,9 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(page.locator('.evidence-card')).toContainText('check-staff');
   await expect(page.locator('.evidence-card')).toContainText(t.review.states.unposted);
   await expect(page.locator('.pair-groups b')).toHaveText(['12', '9', '279']);
-  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('0');
+  await selectComparisonOption(page, t.evidence.threshold, '0');
   await expect(page.locator('.pair-groups b')).toHaveText(['66', '26', '208']);
+  await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.packing, exact: true }).click();
   await expect(page.locator('.evidence-card')).toContainText('pack-staff');
   await guide.getByRole('button', { name: t.guide.actions[3], exact: true }).click();
@@ -86,6 +93,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   const identities = page.locator('.comparison-identities');
   const names = await page.locator('.report-plans b').allTextContents();
   await expect(identities).toHaveText(`A · ${names[0]}B · ${names[1]}`);
+  await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.resources, exact: true }).click();
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').first().locator('td')).toHaveText(['3', '4', '+1']);
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').nth(1).locator('td')).toHaveText(['1.50', '2.00', '+0.50']);
@@ -117,9 +125,11 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   expect(c.deviceTypes).toEqual(b.deviceTypes);
   await info.attach('project', { body: projectText, contentType: 'application/json' });
 
+  await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.reset, exact: true }).click();
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   const beforeRerun = workers.length;
+  await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.rerun, exact: true }).click();
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   expect(workers.length).toBeGreaterThan(beforeRerun);
@@ -178,6 +188,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await expect(scope).toContainText(t.evidence.side('00:05', 2, 1, 0));
   await expect(scope).toContainText(t.evidence.paired(2));
   await expect(page.getByLabel(t.review.basis, { exact: true }).locator('option[value=completion]')).toBeDisabled();
+  await page.locator('.snapshot-scope > summary').click();
   await scope.getByText(t.evidence.completed, { exact: true }).click();
   await expect(scope.locator('details')).toContainText(`${t.evidence.sample}=0`);
   await expect(scope.locator('details')).toContainText(`${t.compare.rows.average}: —`);
@@ -188,7 +199,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await page.locator('.people-filter select').selectOption('less');
   await expect(page.locator('.people-list .people-result')).toHaveCount(0);
   await expect(page.locator('.ghost-id')).toHaveCount(0);
-  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('0');
+  await selectComparisonOption(page, t.evidence.threshold, '0');
   await expect(page.locator('.ghost-id')).toHaveCount(0);
   await page.locator('.people-filter select').selectOption('all');
   await expect(page.locator('.ghost-id code')).toHaveText('guests:p0');
@@ -205,12 +216,12 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await page.getByRole('dialog').getByRole('button', { name: t.common.closeDialog, exact: true }).click();
   await page.getByRole('button', { name: t.run.start, exact: true }).click();
   await expect(scope).toContainText(t.evidence.paired(2));
-  await page.getByLabel(t.review.basis, { exact: true }).selectOption('completion');
+  await selectComparisonOption(page, t.review.basis, 'completion');
   await expect(scope).toContainText(t.evidence.side('00:25', 2, 1, 0));
   await expect(scope).toContainText(t.evidence.limit);
   await page.locator('.people-stats button').first().click();
   await expect(page.locator('.ghost-id code')).toHaveText('guests:p1');
-  await page.getByLabel(t.evidence.threshold, { exact: true }).selectOption('60');
+  await selectComparisonOption(page, t.evidence.threshold, '60');
   await expect(page.locator('.people-list .people-result')).toHaveCount(0);
   await expect(page.locator('.ghost-id')).toHaveCount(0);
   await page.locator('.journey-header button').first().click();
@@ -228,7 +239,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await expect(page.getByLabel(t.review.basis, { exact: true })).toHaveValue('completion');
   await expect(page.locator('.is-report')).toContainText(t.evidence.missing);
   await expect(page.locator('.people-stats')).toHaveCount(0);
-  await page.getByLabel(t.review.basis, { exact: true }).selectOption('cutoff');
+  await selectComparisonOption(page, t.review.basis, 'cutoff');
   await expect(scope).toContainText(t.evidence.side('00:05', 2, 1, 0));
   expect(workers).toHaveLength(3);
   expect(workers.every(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
