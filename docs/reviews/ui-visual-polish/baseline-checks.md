@@ -32,3 +32,7 @@ The baseline contains the A/B/C guide, waiting thresholds and the real-Worker br
 - `npm run test:browser` therefore does not exit 0 on the unmodified baseline in this environment. The first full run's raw `browser-results.json` was overwritten by the isolated rerun before it was copied, so it is not preserved; the counts above come from the terminal output and from reading that file right after the first run. `baseline-browser-rerun-results.json` holds the isolated rerun only (2 passed).
 
 Nothing in this file is taken from README or earlier review notes.
+
+## Codex continuation: before screenshots
+
+Before editing any `src/` file, Codex added the capture spec and saved 28 PNGs (English/Chinese, 1366×768 and 390×844). Evidence commit: `4ef1d01`. `$env:CAPTURE='before'; npm run test:browser -- e2e/ui/capture.spec.ts` exited 0 with 4 passed, 0 failed, 0 skipped (about 1.8 minutes); raw report: `before-capture-results.json`. An initial capture attempt was interrupted after a strict-selector error: searching `side-stream:10` also matched `side-stream:100`–`109`. The capture selector now selects the exact displayed #10; no application behavior changed to obtain the capture.
