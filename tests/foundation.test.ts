@@ -88,7 +88,7 @@ describe('结构校验与输入契约', () => {
     document.plans[0].graph.nodes.push(structuredClone(document.plans[0].graph.nodes[0]));
     const issues = validateDocument(document).filter(issue => issue.code === 'duplicate_id');
     expect(issues.map(issue => issue.path)).toContainEqual(['plans', 1, 'id']);
-    expect(issues.map(issue => issue.path)).toContainEqual(['plans', 0, 'graph', 'nodes', 15, 'id']);
+    expect(issues.map(issue => issue.path)).toContainEqual(['plans', 0, 'graph', 'nodes', document.plans[0].graph.nodes.length - 1, 'id']);
   });
 
   it('Scenario 引用检查不把来源 ID 当作有效性约束', () => {

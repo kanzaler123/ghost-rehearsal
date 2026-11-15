@@ -1,4 +1,4 @@
-import { deviceUnitIds, flattenSubflows } from '../schemas';
+import { deviceUnitIds, fingerprintRunRequest, scenarioFingerprint } from '../schemas';
 import type { Participant, Plan, RunRequest, Scenario, ServiceNode } from '../schemas';
 import type { Unit } from './types';
 
@@ -100,8 +100,8 @@ function canonical(value: unknown, field = ''): unknown {
   return value;
 }
 
-export const scenarioKey = (scenario: Scenario) => JSON.stringify(canonical({ scenario, modelVersion: MODEL_VERSION }));
+export const scenarioKey = (scenario: Scenario) => scenarioFingerprint(scenario, MODEL_VERSION).fingerprint;
 export const semanticKey = (value: unknown) => JSON.stringify(canonical(value));
 export function inputKey(request: RunRequest): string {
-  return JSON.stringify(canonical({ ...request, plan: flattenSubflows(request.plan), maxSteps: request.maxSteps ?? 1000, maxEvents: request.maxEvents ?? 1000000, modelVersion: MODEL_VERSION }));
+  return fingerprintRunRequest(request, MODEL_VERSION).inputFingerprint;
 }

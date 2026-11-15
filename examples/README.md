@@ -45,7 +45,9 @@
 | visit-choice | 双方 | decision | 按参与方式决定继续或中途离开 |
 | finish | 双方 | exit | 正常完成出口 |
 | leave | 双方 | exit | 非正常完成出口、容量溢出去向 |
-| verification | 双方 | subflow | 核验与复检的视觉组合；连线仍连接成员 |
+| arrival | 双方 | subflow | “入场”阶段：两个入口、入口汇合与票种分流 |
+| verification | 双方 | subflow | “核验与复检”阶段；连线仍连接成员 |
+| activities | 双方 | subflow | “参与活动”阶段：参与方式、活动环节与两个出口 |
 | orientation | baseline | service | A 独有工序，有限并发且无资源需求 |
 | lane-choice | alternative | decision | 并行核验通道的概率分流 |
 | checkin-extra | alternative | service | 相同 Stage_Key 的第二条核验通道 |
@@ -64,7 +66,7 @@
 
 | 类别 | 新增 | 删除 | 修改 |
 |---|---|---|---|
-| Node | lane-choice、checkin-extra、briefing | orientation | checked.incomingPriority 增加 extra-checked；verification.memberNodeIds 增加 lane-choice、checkin-extra |
+| Node | lane-choice、checkin-extra、briefing | orientation | checked.incomingPriority 增加 extra-checked；verification.memberNodeIds 增加 lane-choice、checkin-extra；activities.memberNodeIds 以 briefing 替换 orientation |
 | Edge | lane-first、lane-second、extra-checked、briefing-finish | orientation-finish | regular-checkin.target 从 checkin 改为 lane-choice；full-activity.target 从 orientation 改为 briefing |
 | Staff | 无 | 无 | 无 |
 | Device_Type | 无 | 无 | scanner.quantity 从 1 改为 2 |

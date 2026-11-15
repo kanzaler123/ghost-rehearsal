@@ -1,35 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Connection } from '@xyflow/react';
 import {
-  BookOpen, BookmarkPlus, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Columns2, Copy, Download, FileText, Flame, Gauge, Hammer,
-  Hourglass, LayoutGrid, Maximize, Pause, Play, Redo2, RotateCcw, Save, ScrollText, Search, Sparkles, Square, Timer, TriangleAlert,
-  MoreHorizontal, Plus, Settings2, Trash2, Undo2, Upload, Users, WandSparkles,
+  BookOpen, BookmarkPlus, Boxes, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Columns2, Copy, Download, FileText, Flame, Gauge, Hammer,
+  Hourglass, LayoutGrid, LocateFixed, Maximize, Pause, Play, Redo2, RotateCcw, Save, ScrollText, Search, Sparkles, Square, Timer, TriangleAlert,
+  MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Radio, Settings2, Trash2, Undo2, Upload, Users, WandSparkles, Workflow,
 } from 'lucide-react';
-import { duplicatePlan, edgeSchema, nodeSchema, planSchema, PRODUCT_STATEMENT, scenarioSchema, validateGraph, validatePlan, validateScenario } from '../schemas';
-import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario } from '../schemas';
+import { duplicatePlan, edgeSchema, nodeSchema, planSchema, PRODUCT_STATEMENT, scenarioSchema, serializeDocument, validateGraph, validatePlan, validateScenario } from '../schemas';
+import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario, ValidationIssue } from '../schemas';
 import { Canvas } from '../components/Canvas';
+import type { ViewRequest, ViewTarget } from '../components/Canvas';
+import { CompareReport } from '../components/CompareReport';
 import { Inspector } from '../components/Inspector';
 import { EventCreator, JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
 import { Ghost, NodeIcon, Pumpkin } from '../components/Icons';
-import { EmptyResults, EventLog, Insights, Journey, ResourceUse } from '../components/Results';
-import type { PlanChange } from '../components/Results';
+import { describeStatus, GhostJourney } from '../components/Journey';
+import { FlowNavigator, keyEventText, NowPanel } from '../components/Rehearse';
+import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Results';
+import { comparePicks, featuredGhost, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, visitorName } from '../features/analysis';
+import { arrangeLayout, stageIndex } from '../features/stages';
 import { addEvent, addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
 import { errorText, issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
 import type { Lang, Messages } from '../i18n';
-import { inputKey, populationSize, semanticKey } from '../simulation/input';
+import { inputKey, populationSize } from '../simulation/input';
 import { playbackAt } from '../simulation/metrics';
 import type { SimulationRun } from '../simulation/types';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
 type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | null;
 type Notice = ((t: Messages) => string) | null;
-type Tab = 'insights' | 'events' | 'journey' | 'resources';
+type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const STORAGE_KEY = 'ghost-rehearsal.project.v1';
 const TEMPLATES_KEY = 'ghost-rehearsal.templates.v1';
 const MODES: { mode: Mode; icon: typeof Hammer }[] = [{ mode: 'Build', icon: Hammer }, { mode: 'Rehearse', icon: Play }, { mode: 'Compare', icon: Columns2 }];
-const TABS: { tab: Tab; icon: typeof Sparkles }[] = [{ tab: 'insights', icon: Sparkles }, { tab: 'events', icon: ScrollText }, { tab: 'journey', icon: Users }, { tab: 'resources', icon: Gauge }];
+const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]> = {
+  Rehearse: [{ tab: 'now', icon: Radio }, { tab: 'journey', icon: Users }, { tab: 'insights', icon: Sparkles }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
+  Compare: [{ tab: 'journey', icon: Users }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
+};
+/** Trend arrows compare the queue with one scenario minute earlier. */
+const TREND_WINDOW = 60;
+const LEGEND = ['serving', 'waiting', 'growing', 'blocked', 'done', 'tracked'] as const;
 const other = (lang: Lang): Lang => lang === 'en' ? 'zh' : 'en';
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
@@ -65,7 +76,11 @@ export function App() {
   const [speed, setSpeed] = useState(1);
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(loaded.setup ? 'welcome' : null);
-  const [bottomTab, setBottomTab] = useState<Tab>('insights');
+  const [bottomTab, setBottomTab] = useState<Tab>('now');
+  const [canvasView, setCanvasView] = useState<'stages' | 'full'>('stages');
+  const [expanded, setExpanded] = useState<string[]>([]);
+  const [railExpanded, setRailExpanded] = useState(false);
+  const [viewRequest, setViewRequest] = useState<ViewRequest>({ token: 0, target: 'default' });
   const [dockOpen, setDockOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -80,7 +95,7 @@ export function App() {
   const currentTemplates = useRef(templates);
   const [notice, setNoticeState] = useState<Notice>(() => loaded.notice);
   const [showIssues, setShowIssues] = useState(false);
-  const [fitToken, setFitToken] = useState(0);
+  const [documentIssues, setDocumentIssues] = useState<ValidationIssue[]>([]);
   const [stressFactor, setStressFactor] = useState(1.25);
   const fileInput = useRef<HTMLInputElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
@@ -95,8 +110,8 @@ export function App() {
   const run = runs[plan.id];
   const secondRun = second ? runs[second.id] : undefined;
   const requestFor = (target: Plan, document = project): RunRequest => ({ schemaVersion: 1, scenario: document.scenarios.find(item => item.id === target.scenarioId)!, plan: target, runMode });
-  const stale = !!run && run.inputKey !== inputKey(requestFor(plan));
-  const secondStale = !!secondRun && !!second && secondRun.inputKey !== inputKey(requestFor(second));
+  const stale = useMemo(() => !!run && run.inputKey !== inputKey(requestFor(plan)), [run, plan, scenario, runMode]);
+  const secondStale = useMemo(() => !!secondRun && !!second && secondRun.inputKey !== inputKey(requestFor(second)), [secondRun, second, project.scenarios, runMode]);
   const comparisonReady = !!second && !!run && !!secondRun && run.status === 'succeeded' && secondRun.status === 'succeeded'
     && run.scenarioKey === secondRun.scenarioKey && run.request.runMode === secondRun.request.runMode && !stale && !secondStale;
   const endTime = Math.max(run?.coveredUntil ?? scenario.observationCutoff, mode === 'Compare' ? secondRun?.coveredUntil ?? 0 : 0);
@@ -105,23 +120,25 @@ export function App() {
   const errorCount = issues.filter(issue => issue.severity === 'error').length;
   const view = useMemo(() => playbackAt(run?.events ?? [], run?.request.plan ?? plan, time), [run, plan, time]);
   const secondView = useMemo(() => playbackAt(secondRun?.events ?? [], secondRun?.request.plan ?? second ?? plan, time), [secondRun, second, plan, time]);
-  const changes = useMemo(() => {
-    if (!second) return [];
-    const result: PlanChange[] = [];
-    const groups = [
-      ['node', plan.graph.nodes, second.graph.nodes], ['edge', plan.graph.edges, second.graph.edges],
-      ['staff', plan.staff, second.staff], ['device', plan.deviceTypes, second.deviceTypes],
-    ] as const;
-    for (const [kind, a, b] of groups) for (const id of new Set([...a.map(item => item.id), ...b.map(item => item.id)])) {
-      const left = a.find(item => item.id === id); const right = b.find(item => item.id === id);
-      if (semanticKey(left) !== semanticKey(right)) result.push({ id, kind, label: !left ? 'added' : !right ? 'removed' : 'modified' });
-    }
-    for (const id of new Set([...plan.assignments.map(item => item.resourceUnitId), ...second.assignments.map(item => item.resourceUnitId)])) {
-      if (semanticKey(plan.assignments.find(item => item.resourceUnitId === id)) !== semanticKey(second.assignments.find(item => item.resourceUnitId === id))) result.push({ id, label: 'modified', kind: 'assignment' });
-    }
-    return result;
-  }, [plan, second]);
-  const changedIds = useMemo(() => new Set(changes.map(change => change.id)), [changes]);
+  const reportChanges = useMemo(() => second ? planChanges(plan, second) : [], [plan, second]);
+  /** Changed nodes and routes are highlighted on both canvases; stage cards light up when a member changed. */
+  const changedIds = useMemo(() => new Set(reportChanges.flatMap(change => change.kind === 'node' || change.kind === 'edge' ? [change.id] : [])), [reportChanges]);
+  const comparing = mode === 'Compare' && !!second;
+  const indexA = useMemo(() => stageIndex(plan), [plan]);
+  const indexB = useMemo(() => second ? stageIndex(second) : undefined, [second]);
+  const hasStages = indexA.stages.length > 0 || (comparing && !!indexB?.stages.length);
+  const stageView = mode !== 'Build' && canvasView === 'stages' && hasStages;
+  const expandedSet = useMemo<Set<string> | 'all'>(() => canvasView === 'full' ? 'all' : new Set(expanded), [canvasView, expanded]);
+  const previousView = useMemo(() => mode === 'Build' || !run ? undefined : playbackAt(run.events, run.request.plan, time - TREND_WINDOW), [mode, run, time]);
+  const secondPrevious = useMemo(() => !comparing || !secondRun ? undefined : playbackAt(secondRun.events, secondRun.request.plan, time - TREND_WINDOW), [comparing, secondRun, time]);
+  const nameOf = useCallback((id: string) => visitorName(id, run?.request.plan ?? plan, scenario), [run, plan, scenario]);
+  const tracked = useMemo(() => visitorId ? { id: visitorId, name: nameOf(visitorId) } : undefined, [visitorId, nameOf]);
+  const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
+  const trackedStatus = trackedJourneys.map((journey, index) => journey ? describeStatus(statusAt(journey, time), (index ? secondRun : run)!.request.plan, time, t) : '');
+  const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
+  const featured = useMemo(() => comparisonReady && run?.statistics && secondRun?.statistics ? featuredGhost(run.statistics, secondRun.statistics) : undefined, [comparisonReady, run, secondRun]);
+  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && run.statistics && secondRun?.statistics ? comparePicks(run.statistics, secondRun.statistics) : [])
+    : rehearsePicks(run, view, time), [run, secondRun, comparing, comparisonReady, view, time]);
   const unsaved = JSON.stringify(project) !== savedText;
 
   function commit(next: ProjectDocument) {
@@ -139,7 +156,7 @@ export function App() {
   function save() {
     const result = readProject(JSON.stringify(project), lang);
     if (result.error) { const error = result.error; say(tr => tr.notices.fixBeforeSave(error)); return; }
-    try { const text = JSON.stringify(project); localStorage.setItem(STORAGE_KEY, text); setSavedText(text); say(tr => tr.notices.saved); }
+    try { localStorage.setItem(STORAGE_KEY, serializeDocument(project)); setSavedText(JSON.stringify(project)); say(tr => tr.notices.saved); }
     catch { say(tr => tr.notices.saveFailed); }
   }
   function openLibrary(tab: 'nodes' | 'plans') { setLibraryTab(tab); setTemplateError(''); setTemplateNotice(''); setDialog('templates'); }
@@ -163,7 +180,7 @@ export function App() {
   function useNodeTemplate(template: SavedTemplate) {
     if (mode !== 'Build') return;
     const added = addNodeFromTemplate(plan, scenario, template);
-    changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); setFitToken(value => value + 1); setDialog(null); say(tr => tr.templates.added);
+    changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); requestView('default'); setDialog(null); say(tr => tr.templates.added);
   }
   function switchLanguage(next: Lang) {
     if (next === lang) return;
@@ -176,7 +193,36 @@ export function App() {
     })));
     setLang(next);
   }
-  function chooseVisitor(id: string) { setVisitorId(id); setBottomTab('journey'); setDockOpen(true); setPlaying(false); }
+  function requestView(target: ViewTarget) { setViewRequest(previous => ({ token: previous.token + 1, target })); }
+  /** Zooms both canvases to the given nodes. Stages that contain them are opened first; service nodes match across plans by stage key. */
+  function focusNodes(ids: string[], byPlan?: Record<string, string[]>) {
+    const plans = [plan, ...(comparing && second ? [second] : [])];
+    const indexes = [indexA, ...(comparing && indexB ? [indexB] : [])];
+    const stageKeys = [...new Set(ids.flatMap(id => plans.flatMap(target => { const node = target.graph.nodes.find(item => item.id === id); return node?.type === 'service' ? [node.stageKey] : []; })))];
+    const stages = [...new Set(ids.flatMap(id => indexes.flatMap(index => { const top = index.top.get(id); return top ? [top] : index.stages.includes(id) ? [id] : []; })))];
+    if (canvasView === 'stages') setExpanded(stages);
+    requestView({ ids, stageKeys, stages, byPlan });
+  }
+  function toggleStage(id: string, open: boolean) {
+    if (open) { setExpanded([id]); requestView({ ids: [id], stages: [id] }); }
+    else { setExpanded(list => list.filter(item => item !== id)); requestView('default'); }
+  }
+  /** Locates a ghost at the replay moment, separately in each future. */
+  function locateVisitor(id: string) {
+    const where = (target?: SimulationRun) => {
+      if (!target) return undefined;
+      const journey = journeyOf(target, id); const status = statusAt(journey, time);
+      return ('nodeId' in status ? status.nodeId : undefined) ?? journey.entranceId;
+    };
+    const a = where(run), b = comparing ? where(secondRun) : undefined;
+    const ids = [...new Set([a, b].filter((item): item is string => !!item))];
+    if (ids.length) focusNodes(ids, { [plan.id]: a ? [a] : [], ...(comparing && second ? { [second.id]: b ? [b] : [] } : {}) });
+  }
+  function chooseVisitor(id: string) { setVisitorId(id); setBottomTab('journey'); setDockOpen(true); setPlaying(false); locateVisitor(id); }
+  function jumpTo(at: number, nodeId?: string, ownerId = plan.id) {
+    setTime(Math.min(at, endTime)); setPlaying(false);
+    if (nodeId) { setSelection({ id: nodeId, kind: 'node', owner: ownerId }); focusNodes([nodeId]); }
+  }
   function launch(targets: Plan[], destination: Mode, document = project) {
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
@@ -219,7 +265,7 @@ export function App() {
     if (mode !== 'Build') return;
     const node = createNode(type, plan, scenario, position ?? { x: 350 + (plan.graph.nodes.length % 3) * 240, y: 180 + Math.floor(plan.graph.nodes.length / 3) * 150 }, t.nodeTypes[type]);
     changePlan({ ...plan, graph: { ...plan.graph, nodes: [...plan.graph.nodes, node] } }); setSelection({ id: node.id, kind: 'node', owner: plan.id });
-    if (!position) setFitToken(value => value + 1);
+    if (!position) requestView('default');
   }
   function connect(connection: Connection) {
     if (mode !== 'Build') return;
@@ -236,13 +282,11 @@ export function App() {
       assignments: plan.assignments.map(assignment => ({ ...assignment, periods: assignment.periods.map(period => ({ ...period, nodeIds: period.nodeIds.filter(id => !nodeIds.includes(id)) })) })) });
     setSelection({ id: '', kind: 'node', owner: plan.id });
   }
+  /** Lays each stage out on its own, then places stages left to right. Loop-back steps sit under their decision. */
   function arrange() {
-    const levels = new Map<string, number>();
-    const pending = plan.graph.nodes.filter(node => node.type === 'entrance').map(node => ({ id: node.id, level: 0 }));
-    while (pending.length) { const item = pending.shift()!; if (levels.has(item.id)) continue; levels.set(item.id, item.level); plan.graph.edges.filter(edge => edge.source === item.id).forEach(edge => pending.push({ id: edge.target, level: item.level + 1 })); }
-    const rows = new Map<number, number>();
-    changePlan({ ...plan, graph: { ...plan.graph, nodes: plan.graph.nodes.map(node => { const column = levels.get(node.id) ?? 0; const row = rows.get(column) ?? 0; rows.set(column, row + 1); return { ...node, layout: { ...node.layout, x: column * 260, y: row * 180 + (node.type === 'subflow' ? 600 : 80) } }; }) } });
-    setFitToken(value => value + 1);
+    const positions = arrangeLayout(plan);
+    changePlan({ ...plan, graph: { ...plan.graph, nodes: plan.graph.nodes.map(node => { const point = positions.get(node.id); return point ? { ...node, layout: { ...node.layout, x: point.x, y: point.y } } : node; }) } });
+    requestView('default');
   }
   function stress() {
     if (!second) { say(tr => tr.notices.stressNeedsTwo); return; }
@@ -253,19 +297,6 @@ export function App() {
     for (const original of [plan, second]) { const result = duplicatePlan(original, ids); if (!result.ok) { say(tr => tr.notices.planFormat); return; } result.plan.scenarioId = newScenario.id; result.plan.name = t.dialogs.stressPlan(original.name.slice(0, 75)); ids.add(result.plan.id); copies.push(result.plan); }
     const next = { ...project, scenarios: [...project.scenarios, newScenario], plans: [...project.plans, ...copies] };
     commit(next); setPlanId(copies[0].id); setSecondId(copies[1].id); setDialog(null); launch(copies, 'Compare', next);
-  }
-  function jumpDifference() {
-    if (!visitorId || !run || !secondRun) return;
-    const a = run.events.filter(event => event.participantId === visitorId && event.type !== 'RUN_WARNING');
-    const b = secondRun.events.filter(event => event.participantId === visitorId && event.type !== 'RUN_WARNING');
-    for (let i = 0; i < Math.max(a.length, b.length); i++) {
-      const left = a[i], right = b[i];
-      const leftNode = run.request.plan.graph.nodes.find(node => node.id === left?.nodeId);
-      const rightNode = secondRun.request.plan.graph.nodes.find(node => node.id === right?.nodeId);
-      const corresponding = left?.nodeId === right?.nodeId || (leftNode?.type === 'service' && rightNode?.type === 'service' && leftNode.stageKey === rightNode.stageKey);
-      if (!left || !right || left.type !== right.type || left.time !== right.time || !corresponding) { setTime(Math.min(left?.time ?? Infinity, right?.time ?? Infinity)); setPlaying(false); setSelection({ id: left?.nodeId ?? '', kind: 'node', owner: plan.id }); return; }
-    }
-    say(tr => tr.notices.noDifference);
   }
   function startNew(event: ProjectDocument) {
     const next = dialog === 'welcome' ? event : addEvent(project, event);
@@ -280,8 +311,16 @@ export function App() {
     return () => clearInterval(timer);
   }, [playing, speed, endTime]);
   useEffect(() => { if (time >= endTime) setPlaying(false); }, [time, endTime]);
-  useEffect(() => { setFitToken(value => value + 1); }, [mode]);
-  useEffect(() => { if (selection.id) setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
+  // Each mode gets its own layout: Build edits, Rehearse watches the queues, Two Futures compares.
+  useEffect(() => {
+    setExpanded([]); setRailExpanded(false); setBottomTab(mode === 'Compare' ? 'journey' : 'now');
+    if (mode !== 'Build') setInspectorOpen(false);
+    requestView('default');
+  }, [mode]);
+  useEffect(() => { requestView('default'); }, [plan.id, canvasView]);
+  // Two Futures opens on a ghost whose futures differ, so the story is visible without searching.
+  useEffect(() => { if (mode === 'Compare' && featured && !visitorId) setVisitorId(featured); }, [mode, featured]);
+  useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
@@ -296,7 +335,6 @@ export function App() {
   });
 
   const stats = run?.statistics;
-  const secondStats = mode === 'Compare' && comparisonReady ? secondRun?.statistics : undefined;
   const planNodes = plan.graph.nodes.filter(node => `${node.name} ${t.nodeTypes[node.type]}`.toLowerCase().includes(search.toLowerCase()));
   const activeEvents = (run?.events ?? []).filter(event => event.time <= time).slice(-80).reverse();
   const readOnly = mode !== 'Build';
@@ -304,41 +342,41 @@ export function App() {
   const deviceCount = plan.deviceTypes.reduce((sum, item) => sum + item.quantity, 0);
   const progress = endTime ? Math.min(100, time / endTime * 100) : 0;
   const bounds = plan.graph.nodes.reduce((box, node) => ({ minX: Math.min(box.minX, node.layout.x), maxX: Math.max(box.maxX, node.layout.x), minY: Math.min(box.minY, node.layout.y), maxY: Math.max(box.maxY, node.layout.y) }), { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity });
-  const splitRows = !plan.graph.nodes.length || (bounds.maxX - bounds.minX + 240) >= (bounds.maxY - bounds.minY + 140);
+  const splitRows = stageView || !plan.graph.nodes.length || (bounds.maxX - bounds.minX + 240) >= (bounds.maxY - bounds.minY + 140);
   const scenarioNameOf = (target: Plan) => project.scenarios.find(item => item.id === target.scenarioId)?.name ?? target.scenarioId;
+  const live = liveSummary(view);
+  const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second);
+  const cutoffLabel = formatTime(stats?.until ?? scenario.observationCutoff);
 
-  type Metric = { key: string; label: string; icon: ReactNode; value: string; hint: string; b?: string; delta?: { text: string; good: boolean } | null };
-  const delta = (a: number | null | undefined, b: number | null | undefined, higherIsBetter: boolean, format: (value: number) => string) => {
-    if (a == null || b == null || Math.abs(b - a) < 1e-9) return null;
-    return { text: `${b > a ? '+' : '−'}${format(Math.abs(b - a))}`, good: higherIsBetter ? b > a : b < a };
-  };
-  const metrics: Metric[] = run ? [
-    { key: 'completed', label: t.metrics.completed, icon: <CircleCheck size={14} aria-hidden="true" />, value: stats ? String(stats.outcomes.completed) : '—', hint: stats ? t.metrics.completedHint(stats.arrived) : '',
-      b: secondStats ? String(secondStats.outcomes.completed) : undefined, delta: secondStats && stats ? delta(stats.outcomes.completed, secondStats.outcomes.completed, true, String) : null },
-    { key: 'average', label: t.metrics.average, icon: <Hourglass size={14} aria-hidden="true" />, value: t.formatWait(stats?.averageWaiting), hint: t.metrics.averageHint,
-      b: secondStats ? t.formatWait(secondStats.averageWaiting) : undefined, delta: secondStats ? delta(stats?.averageWaiting, secondStats.averageWaiting, false, t.formatWait) : null },
-    { key: 'p90', label: t.metrics.p90, icon: <Timer size={14} aria-hidden="true" />, value: t.formatWait(stats?.p90Waiting), hint: t.metrics.p90Hint,
-      b: secondStats ? t.formatWait(secondStats.p90Waiting) : undefined, delta: secondStats ? delta(stats?.p90Waiting, secondStats.p90Waiting, false, t.formatWait) : null },
-    { key: 'unfinished', label: t.metrics.unfinished, icon: <Ghost size={14} />, value: stats ? String(stats.outcomes.unfinished) : '—', hint: stats ? t.metrics.unfinishedHint(stats.outcomes.rejected + stats.outcomes.dismissed + stats.outcomes.diverted + stats.outcomes.loop_limit) : '',
-      b: secondStats ? String(secondStats.outcomes.unfinished) : undefined, delta: secondStats && stats ? delta(stats.outcomes.unfinished, secondStats.outcomes.unfinished, false, String) : null },
-  ] : [
-    { key: 'guests', label: t.metrics.guests, icon: <Ghost size={14} />, value: String(populationSize(scenario)), hint: t.metrics.guestsHint(plan.graph.nodes.filter(node => node.type === 'entrance').length) },
-    { key: 'window', label: t.metrics.window, icon: <Timer size={14} aria-hidden="true" />, value: t.metrics.minutes(Math.round(scenario.observationCutoff / 60)), hint: t.metrics.windowHint(Math.round(scenario.horizon / 60)) },
-    { key: 'team', label: t.metrics.team, icon: <Users size={14} aria-hidden="true" />, value: String(staffCount + deviceCount), hint: t.metrics.teamHint(staffCount, deviceCount) },
-    { key: 'flow', label: t.metrics.flow, icon: <LayoutGrid size={14} aria-hidden="true" />, value: t.metrics.nodesValue(plan.graph.nodes.filter(node => node.type !== 'subflow').length), hint: t.metrics.flowHint(plan.graph.edges.length) },
+  type Metric = { key: string; label: string; icon: ReactNode; value: string; hint?: string };
+  /** Rehearse shows two clocks side by side: the replay moment and the final results at cutoff. */
+  const liveMetrics: Metric[] = [
+    { key: 'flow', label: t.live.inFlow, icon: <Ghost size={14} />, value: String(live.inFlow) },
+    { key: 'wait', label: t.live.waiting, icon: <Hourglass size={14} aria-hidden="true" />, value: String(live.waiting) },
+    { key: 'serve', label: t.live.serving, icon: <Users size={14} aria-hidden="true" />, value: String(live.serving) },
+    { key: 'done', label: t.live.finished, icon: <CircleCheck size={14} aria-hidden="true" />, value: String(live.completed) },
+  ];
+  const finalMetrics: Metric[] = [
+    { key: 'completed', label: t.metrics.completed, icon: <CircleCheck size={14} aria-hidden="true" />, value: stats ? String(stats.outcomes.completed) : '—', hint: stats ? t.metrics.completedHint(stats.arrived) : '' },
+    { key: 'average', label: t.metrics.average, icon: <Hourglass size={14} aria-hidden="true" />, value: t.formatWait(stats?.averageWaiting), hint: t.metrics.averageHint },
+    { key: 'p90', label: t.metrics.p90, icon: <Timer size={14} aria-hidden="true" />, value: t.formatWait(stats?.p90Waiting), hint: t.metrics.p90Hint },
+    { key: 'unfinished', label: t.metrics.unfinished, icon: <Ghost size={14} />, value: stats ? String(stats.outcomes.unfinished) : '—', hint: stats ? t.metrics.unfinishedHint(stats.outcomes.rejected + stats.outcomes.dismissed + stats.outcomes.diverted + stats.outcomes.loop_limit) : '' },
   ];
 
-  function canvasProps(target: Plan, targetRun: SimulationRun | undefined, targetView: typeof view, outdated: boolean) {
+  function canvasProps(target: Plan, targetRun: SimulationRun | undefined, targetView: typeof view, targetPrevious: typeof view | undefined, outdated: boolean) {
     let selected = selection.id;
     if (selectedNode && !target.graph.nodes.some(node => node.id === selected) && selectedNode.type === 'service') selected = target.graph.nodes.find(node => node.type === 'service' && node.stageKey === selectedNode.stageKey)?.id ?? '';
-    return { plan: target, selected, onSelect: (id: string, kind: 'node' | 'edge') => setSelection({ id, kind, owner: target.id }),
+    return { plan: target, selected, onSelect: (id: string, kind: 'node' | 'edge') => { setSelection({ id, kind, owner: target.id }); if (id) setInspectorOpen(true); },
       onMove: (positions: { id: string; x: number; y: number }[]) => changePlan({ ...target, graph: { ...target.graph, nodes: target.graph.nodes.map(node => { const position = positions.find(item => item.id === node.id); return position ? { ...node, layout: { ...node.layout, x: position.x, y: position.y } } : node; }) } }),
       onConnect: connect, onDelete: deleteElements, onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
-      run: mode === 'Build' ? undefined : targetRun, stale: outdated, selectedVisitor: visitorId, chooseVisitor, changed: mode === 'Compare' ? changedIds : undefined, fitToken };
+      previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
+      chooseVisitor, visitorName: nameOf, changed: comparing ? changedIds : undefined,
+      request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage };
   }
 
   const stageTitle = mode === 'Build' ? plan.name : mode === 'Compare' ? t.stage.compare : t.stage.rehearse;
-  const stageSub = mode === 'Build' ? t.stage.counts(plan.graph.nodes.length, plan.graph.edges.length) : `${formatTime(time)} / ${formatTime(endTime)}`;
+  const stageSub = mode === 'Build' ? t.stage.counts(plan.graph.nodes.length, plan.graph.edges.length) : `${t.live.clock(formatTime(time))} / ${formatTime(endTime)}`;
+  const exampleCounts = useMemo(() => { const example = initialDocument().plans[0]; return t.stage.counts(example.graph.nodes.length, example.graph.edges.length); }, [t]);
 
   return <div className={`app mode-${mode.toLowerCase()}`}>
     <header className="topbar">
@@ -380,7 +418,17 @@ export function App() {
     </header>
 
     <div className="workspace">
-      <aside className="sidebar">
+      {!fullSidebar && mode === 'Rehearse' && <aside className="sidebar is-rail" aria-label={t.navigator.title}>
+        <FlowNavigator plan={plan} index={indexA} view={view} previous={previousView} expanded={expandedSet} selected={selection.id}
+          onStage={id => toggleStage(id, !(expandedSet === 'all' || expandedSet.has(id)) || canvasView === 'full')} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onExpandSidebar={() => setRailExpanded(true)} />
+      </aside>}
+      {!fullSidebar && comparing && second && <aside className="sidebar is-report" aria-label={t.compare.title}>
+        <div className="report-toolbar"><button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button></div>
+        <CompareReport planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+          visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => focusNodes(ids)} onChoose={chooseVisitor} />
+      </aside>}
+      {fullSidebar && <aside className="sidebar">
+        {mode !== 'Build' && <button type="button" className="side-collapse" onClick={() => setRailExpanded(false)}><PanelLeftClose size={15} aria-hidden="true" />{t.sidebar.collapse}</button>}
         <section className="side-section event-card">
           <div className="event-eyebrow"><span className="eyebrow">{t.sidebar.event}</span><span className={cls('save-pill', unsaved && 'unsaved')}>{unsaved ? t.header.unsaved : t.header.saved}</span></div>
           <div className="event-picker">
@@ -409,75 +457,96 @@ export function App() {
         <section className="side-section palette-section">
           <div className="section-heading"><h2>{t.sidebar.nodes}<span className="node-count">{plan.graph.nodes.length}</span></h2><button type="button" className="icon-btn add-node" disabled={readOnly} aria-label={t.sidebar.addNode} title={t.sidebar.addNode} onClick={() => openLibrary('nodes')}><Plus size={17} /></button></div>
           <label className="search-box"><Search size={14} aria-hidden="true" /><input aria-label={t.sidebar.searchLabel} placeholder={t.sidebar.search} value={search} onChange={event => setSearch(event.target.value)} /></label>
-          <div className="plan-nodes">{planNodes.map(node => <button type="button" key={node.id} className={cls('plan-node', `type-${node.type}`, selection.id === node.id && selection.owner === plan.id && 'active')} onClick={() => setSelection({ id: node.id, kind: 'node', owner: plan.id })}>
+          <div className="plan-nodes">{planNodes.map(node => <button type="button" key={node.id} className={cls('plan-node', `type-${node.type}`, selection.id === node.id && selection.owner === plan.id && 'active')} onClick={() => { setSelection({ id: node.id, kind: 'node', owner: plan.id }); focusNodes([node.id]); }}>
             <NodeIcon type={node.type} size={15} /><span>{node.name}</span>
           </button>)}{!planNodes.length && <p className="subtle">{plan.graph.nodes.length ? t.sidebar.noMatch : t.sidebar.emptyNodes}</p>}</div>
         </section>
         <section className="side-section side-footer">
           <button type="button" className="side-action template-launch" disabled={busy} onClick={() => openLibrary('plans')}><BookOpen size={17} aria-hidden="true" />{t.templates.browse}<span>↗</span></button>
         </section>
-      </aside>
+      </aside>}
 
       <main className="stage">
         <div className="stage-head">
           <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
           <div className="stage-tools">
-            <button type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => setShowIssues(value => !value)}>
+            {(mode === 'Build' || errorCount > 0) && <button type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => setShowIssues(value => !value)}>
               {errorCount ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}{errorCount ? t.stage.toFix(errorCount) : issues.length ? t.stage.notices(issues.length) : t.stage.passed}
-            </button>
-            <button type="button" className="btn ghost small" title={t.stage.arrange} onClick={arrange} disabled={busy}><WandSparkles size={14} aria-hidden="true" /><span className="btn-label">{t.stage.arrange}</span></button>
-            <button type="button" className="btn ghost small" title={t.stage.fit} onClick={() => setFitToken(value => value + 1)}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
+            </button>}
+            {mode !== 'Build' && hasStages && <div className="view-switch" role="group" aria-label={t.stage.views.label} title={t.stage.viewsHint}>
+              <button type="button" aria-pressed={canvasView === 'stages'} className={cls(canvasView === 'stages' && 'active')} onClick={() => { setCanvasView('stages'); setExpanded([]); }}><Boxes size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.stages}</span></button>
+              <button type="button" aria-pressed={canvasView === 'full'} className={cls(canvasView === 'full' && 'active')} onClick={() => setCanvasView('full')}><Workflow size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.full}</span></button>
+            </div>}
+            {mode === 'Build' && <button type="button" className="btn ghost small" title={t.stage.arrange} onClick={arrange} disabled={busy}><WandSparkles size={14} aria-hidden="true" /><span className="btn-label">{t.stage.arrange}</span></button>}
+            <button type="button" className="btn ghost small" title={t.stage.fit} onClick={() => requestView('default')}><LocateFixed size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
+            <button type="button" className="btn ghost small" title={t.stage.overview} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
           </div>
         </div>
-        {mode !== 'Build' && <div className={cls('metrics-strip', !run && 'is-summary', secondStats && 'is-compare')}>{metrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
-          <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span>{run && stale && <em>{t.metrics.stale}</em>}</span>
-          {item.b !== undefined ? <div className="ab-stack">
-            <strong className="metric-value"><span className="ab-value"><i>A</i>{item.value}</span></strong>
-            <strong className="metric-value"><span className="ab-value alt"><i>B</i>{item.b}</span>{item.delta && <span className={cls('delta', item.delta.good ? 'good' : 'bad')}>{item.delta.text}</span>}</strong>
-          </div> : <>
-            <strong className="metric-value">{item.value}</strong>
-            <small className="metric-hint">{item.hint}</small>
-          </>}
-        </div>)}</div>}
-        <div className={cls('canvas-area', mode === 'Compare' && second && (splitRows ? 'split rows' : 'split cols'))}>
+        {mode === 'Rehearse' && run && <div className="metrics-strip two-clocks">
+          <div className="metric-group is-live">
+            <span className="group-label"><span className="live-dot on" />{t.live.title}<time>{t.live.clock(formatTime(time))}</time></span>
+            <div className="group-cells">{liveMetrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
+              <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span></span><strong className="metric-value">{item.value}</strong>
+            </div>)}</div>
+          </div>
+          <div className="metric-group is-final">
+            <span className="group-label"><CircleCheck size={13} aria-hidden="true" />{t.live.finalTitle}<time>{t.live.finalClock(cutoffLabel)}</time>{stale && <em>{t.metrics.stale}</em>}</span>
+            <div className="group-cells">{finalMetrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
+              <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span></span><strong className="metric-value">{item.value}</strong><small className="metric-hint">{item.hint}</small>
+            </div>)}</div>
+          </div>
+        </div>}
+        <div className={cls('canvas-area', comparing && (splitRows ? 'split rows' : 'split cols'))}>
         {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle}>
           <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => setShowIssues(false)}>×</button></div>
           {!issues.length ? <p className="checks-ok"><CircleCheck size={15} aria-hidden="true" />{t.stage.noIssues}</p> : issues.map((issue, index) => <button type="button" key={index} className={`check-item ${issue.severity}`} onClick={() => { const id = issue.entityIds.find(entity => plan.graph.nodes.some(node => node.id === entity)); if (id) setSelection({ id, kind: 'node', owner: plan.id }); }}>
             <b>{issue.severity === 'error' ? t.stage.fix : t.stage.notice}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.')}</small>
           </button>)}
         </div>}
-          <div className="canvas-pane"><Canvas {...canvasProps(plan, run, view, stale)} label={mode === 'Compare' && second ? { badge: 'A', name: plan.name } : undefined} compact={mode === 'Compare' && !!second} /></div>
-          {mode === 'Compare' && second && <div className="canvas-pane"><Canvas {...canvasProps(second, secondRun, secondView, secondStale)} label={{ badge: 'B', name: second.name, note: t.canvas.changes(changes.length) }} compact /></div>}
+          <div className="canvas-pane"><Canvas {...canvasProps(plan, run, view, previousView, stale)} label={comparing ? { badge: 'A', name: plan.name, status: tracked && trackedStatus[0] ? `${tracked.name} · ${trackedStatus[0]}` : undefined } : undefined} compact={comparing} /></div>
+          {comparing && second && <div className="canvas-pane"><Canvas {...canvasProps(second, secondRun, secondView, secondPrevious, secondStale)} label={{ badge: 'B', name: second.name, note: t.canvas.changes(reportChanges.length), status: tracked && trackedStatus[1] ? `${tracked.name} · ${trackedStatus[1]}` : undefined }} compact /></div>}
         </div>
-        {mode !== 'Build' && <section className={cls('dock', dockOpen && 'open')}>
+        {mode !== 'Build' && <section className={cls('dock', dockOpen && 'open', `tab-${bottomTab}`)}>
           <div className="timeline">
             <button type="button" className="play-btn" aria-label={playing ? t.dock.pause : t.dock.play} disabled={!run} onClick={() => { if (time >= endTime) setTime(0); setPlaying(value => !value); }}>{playing ? <Pause size={16} /> : <Play size={16} />}</button>
             <button type="button" className="icon-btn" aria-label={t.dock.reset} disabled={!run} onClick={() => { setTime(0); setPlaying(false); }}><RotateCcw size={16} /></button>
-            <time className="clock-now">{formatTime(time)}</time>
-            <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => { setTime(Number(event.target.value)); setPlaying(false); }} />
+            <time className="clock-now"><small>{t.live.replay}</small>{formatTime(time)}</time>
+            <div className="scrubber-wrap">
+              <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => { setTime(Number(event.target.value)); setPlaying(false); }} />
+              {mode === 'Rehearse' && run && endTime > 0 && <div className="markers" aria-label={t.dock.markers}>{moments.map((item, index) => <button type="button" key={index} className={`marker k-${item.kind}`} style={{ left: `${Math.min(100, item.time / endTime * 100)}%` }}
+                title={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} aria-label={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} onClick={() => jumpTo(item.time, item.nodeId)} />)}</div>}
+            </div>
             <time className="clock-end">{formatTime(endTime)}</time>
             <label className="select-pill small" title={t.dock.speedHint}><select aria-label={t.dock.speed} value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 2, 4, 8].map(value => <option key={value} value={value}>{value}×</option>)}</select><ChevronDown size={12} aria-hidden="true" /></label>
             <span className="clock-label">{t.dock.clock}</span>
           </div>
           <div className="dock-tabs" role="tablist">
-            {TABS.map(({ tab, icon: Icon }) => <button type="button" role="tab" aria-selected={dockOpen && bottomTab === tab} key={tab} className={dockOpen && bottomTab === tab ? 'active' : ''} onClick={() => { setBottomTab(tab); setDockOpen(true); }}>
-              {tab === 'journey' ? <Ghost size={14} /> : <Icon size={14} aria-hidden="true" />}{t.dock.tabs[tab]}
+            {TABS[mode === 'Compare' ? 'Compare' : 'Rehearse'].map(({ tab, icon: Icon }) => <button type="button" role="tab" aria-selected={dockOpen && bottomTab === tab} key={tab} className={cls(dockOpen && bottomTab === tab && 'active', tab === 'journey' && comparing && 'is-hero')} onClick={() => { setBottomTab(tab); setDockOpen(true); }}>
+              {tab === 'journey' ? <Ghost size={14} /> : <Icon size={14} aria-hidden="true" />}{tab === 'journey' && comparing ? t.dock.tabs.futures : t.dock.tabs[tab]}
             </button>)}
             <span className="dock-spacer" />
+            {run && <div className="legend" role="note" aria-label={t.legend.label}>{LEGEND.map(key => <span key={key} className={`lg-${key}`}><i aria-hidden="true" />{t.legend[key]}</span>)}</div>}
+            {(stale || (mode === 'Compare' && secondStale)) && <span role="status">{t.metrics.stale}{mode === 'Compare' ? ` · ${[stale && 'A', secondStale && 'B'].filter(Boolean).join(', ')}` : ''}</span>}
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => setDockOpen(value => !value)}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
           </div>
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
-            {run && bottomTab === 'insights' && <Insights run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={changes} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={id => setSelection({ id, kind: 'node', owner: plan.id })} />}
-            {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={plan} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); if (event.nodeId) setSelection({ id: event.nodeId, kind: 'node', owner: plan.id }); }} />}
-            {run && bottomTab === 'journey' && <Journey runs={mode === 'Compare' ? [run, secondRun] : [run]} compare={mode === 'Compare'} visitorId={visitorId} population={run.population.map(person => person.id)} onChoose={chooseVisitor} onJumpDifference={jumpDifference} onJump={(event, ownerId) => { setTime(event.time); setPlaying(false); setSelection({ id: event.nodeId ?? '', kind: 'node', owner: ownerId }); }} />}
-            {run && bottomTab === 'resources' && <ResourceUse run={run} />}
+            {run && bottomTab === 'now' && <NowPanel plan={run.request.plan} view={view} previous={previousView} time={time} moments={moments} picks={picks} nameOf={nameOf}
+              tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
+              onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
+            {run && bottomTab === 'insights' && <Insights run={run} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />}
+            {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
+            {run && bottomTab === 'journey' && <GhostJourney runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+              picks={picks} featured={featured} nameOf={nameOf} onChoose={chooseVisitor} onLocate={() => locateVisitor(visitorId)} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)} />}
+            {run && bottomTab === 'resources' && (comparing && secondRun ? <div className="resource-compare">{[run, secondRun].map((item, column) => <div key={column}>
+              <h4><span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>{item.request.plan.name}</h4><ResourceUse run={item} />
+            </div>)}</div> : <ResourceUse run={run} />)}
           </div>}
         </section>}
       </main>
 
-      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly} issues={ownerIssues} run={runs[owner.id]} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [])} onResources={() => { setMode('Build'); setPlaying(false); setDialog('resources'); }} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
+      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly} issues={ownerIssues} run={runs[owner.id]} stale={owner.id === plan.id ? stale : secondStale} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [])} onResources={() => { setMode('Build'); setPlaying(false); setDialog('resources'); }} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
     </div>
 
     <footer className="status-bar">
@@ -486,7 +555,12 @@ export function App() {
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
-    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); setDocumentIssues(result.issues); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    {!!documentIssues.length && <Modal title={t.stage.checksTitle} onClose={() => setDocumentIssues([])} wide>
+      <div className="modal-body">{documentIssues.map((issue, index) => <div key={index} className={`check-item ${issue.severity}`}>
+        <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
+      </div>)}</div>
+    </Modal>}
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
     {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {
@@ -528,7 +602,7 @@ export function App() {
           {(['haunted', 'candy'] as const).map(kind => <button type="button" key={kind} className={`template-card ${kind}`} onClick={() => usePlanTemplate(halloweenProject(kind, t), t.templates[kind].name)}>
             <div className="template-art">{kind === 'haunted' ? <Ghost size={42} /> : <Pumpkin size={50} />}<span>0{kind === 'haunted' ? 1 : 2}</span></div><b>{t.templates[kind].name}</b><small>{t.templates[kind].hint}</small>
           </button>)}
-          <button type="button" className="template-card" onClick={() => { const document = localizeDocument(initialDocument(), 'zh', lang); usePlanTemplate(document, document.plans[0].name); }}><div className="template-art"><LayoutGrid size={38} /><span>03</span></div><b>{t.dialogs.example}</b><small>{t.stage.counts(15, 15)}</small></button>
+          <button type="button" className="template-card" onClick={() => { const document = localizeDocument(initialDocument(), 'zh', lang); usePlanTemplate(document, document.plans[0].name); }}><div className="template-art"><LayoutGrid size={38} /><span>03</span></div><b>{t.dialogs.example}</b><small>{exampleCounts}</small></button>
           <button type="button" className="template-card blank" onClick={() => usePlanTemplate(emptyProject(t.defaults), t.defaults.plan)}><Plus size={28} /><b>{t.templates.blank}</b><small>{t.templates.blankHint}</small></button>
         </div>}
         <div className="section-heading"><h3 className="eyebrow">{t.templates.saved}</h3><div className="section-actions">
@@ -557,7 +631,7 @@ export function App() {
       <p>{t.dialogs.about3}</p>
     </div></Modal>}
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
-      <button type="button" className="option-card" onClick={() => { download('ghost-rehearsal.json', JSON.stringify(project, null, 2) + '\n', 'application/json'); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
+      <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}

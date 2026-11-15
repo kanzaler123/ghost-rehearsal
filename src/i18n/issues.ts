@@ -6,6 +6,10 @@ import type { Lang } from './messages';
  * The interface translates them by their stable issue code.
  */
 const EN_BY_CODE: Record<string, string> = {
+  invalid_json: 'The project file is not valid JSON.',
+  invalid_document: 'The project must be a JSON object.',
+  invalid_document_format: 'The project format must be ghost-rehearsal.',
+  invalid_schema_version: 'The project version must be a positive integer.',
   scenario_mismatch: 'The plan references a different scenario than the one supplied.',
   unknown_subflow_member: 'A subflow member does not exist.',
   multiple_subflow_parents: 'A node can belong to only one direct subflow.',
@@ -83,6 +87,10 @@ const EN_BY_MESSAGE: Record<string, string> = {
 
 export function issueText(issue: Pick<ValidationIssue, 'code' | 'message'>, lang: Lang): string {
   if (lang === 'zh') return issue.message;
+  if (issue.code === 'unsupported_schema_version') {
+    const versions = issue.message.match(/\d+(?:e\+?\d+)?/g) ?? [];
+    return `Project version ${versions[0]} is newer than supported version ${versions[1]}. Update Ghost Rehearsal to open it.`;
+  }
   return EN_BY_CODE[issue.code] ?? EN_BY_MESSAGE[issue.message] ?? 'A field is missing, has the wrong type, or is out of range.';
 }
 

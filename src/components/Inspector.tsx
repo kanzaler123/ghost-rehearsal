@@ -15,10 +15,10 @@ export function NumberInput({ value, onChange, min = 0, max, step = 1, label }: 
 interface Props {
   plan: Plan; scenario: Scenario; node?: Node; edge?: Edge; editable: boolean; issues: ValidationIssue[]; run?: SimulationRun;
   onNode: (node: Node) => void; onEdge: (edge: Edge) => void; onAdvanced: () => void; onDelete: () => void; onResources: () => void;
-  collapsed: boolean; onToggle: () => void; onSaveTemplate: () => void;
+  collapsed: boolean; onToggle: () => void; onSaveTemplate: () => void; stale: boolean;
 }
 
-export function Inspector({ plan, scenario, node, edge, editable, issues, run, onNode, onEdge, onAdvanced, onDelete, onResources, collapsed, onToggle, onSaveTemplate }: Props) {
+export function Inspector({ plan, scenario, node, edge, editable, issues, run, onNode, onEdge, onAdvanced, onDelete, onResources, collapsed, onToggle, onSaveTemplate, stale }: Props) {
   const { t, lang } = useI18n();
   const s = t.inspector;
   if (collapsed) return <aside className="inspector collapsed" aria-label={s.eyebrow}>
@@ -105,6 +105,7 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, o
       </div>}
       {metric && <section className="node-results">
         <h3>{s.results}</h3>
+        {stale && <p role="status">{t.canvas.stale}</p>}
         <div className="result-grid">
           <span><small>{s.visitors}</small><b>{metric.visitors}</b></span>
           <span><small>{s.averageWait}</small><b>{t.formatWait(metric.averageWaiting)}</b></span>

@@ -1,7 +1,7 @@
 import example from '../../examples/open-house.json';
 import { z } from 'zod';
-import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, idSchema, projectDocumentSchema, validateDocument } from '../schemas';
-import type { Node, Plan, ProjectDocument, Scenario } from '../schemas';
+import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
+import type { Node, Plan, ProjectDocument, Scenario, ValidationIssue } from '../schemas';
 import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
 import { MESSAGES } from '../i18n/messages';
@@ -13,13 +13,10 @@ export function initialDocument(): ProjectDocument {
   return projectDocumentSchema.parse(example);
 }
 
-export function readProject(text: string, lang: Lang = 'zh'): { document?: ProjectDocument; error?: string } {
-  let value: unknown;
-  try { value = JSON.parse(text); } catch { return { error: MESSAGES[lang].notices.invalidJson }; }
-  const issues = validateDocument(value);
-  const errors = issues.filter(issue => issue.severity === 'error');
-  if (errors.length) return { error: errors.slice(0, 5).map(issue => `${issue.path.join('.')}: ${issueText(issue, lang)}`).join('\n') };
-  return { document: projectDocumentSchema.parse(value) };
+export function readProject(text: string, lang: Lang = 'zh'): { document?: ProjectDocument; error?: string; issues: ValidationIssue[] } {
+  const result = parseDocument(text);
+  if (!result.document) return { issues: result.issues, error: result.issues.map(issue => `${issue.path.join('.') || '$'}: ${issueText(issue, lang)}`).join('\n') };
+  return { document: result.document, issues: result.issues };
 }
 
 export function newId(prefix: string, used: string[]) {

@@ -144,8 +144,8 @@
             "type": "entrance",
             "name": "主入口",
             "layout": {
-              "x": 0,
-              "y": 100
+              "x": 24,
+              "y": 52
             },
             "arrivalStreamIds": [
               "main-stream"
@@ -156,8 +156,8 @@
             "type": "entrance",
             "name": "侧入口",
             "layout": {
-              "x": 0,
-              "y": 300
+              "x": 24,
+              "y": 278
             },
             "arrivalStreamIds": [
               "side-stream"
@@ -168,8 +168,8 @@
             "type": "merge",
             "name": "入口汇合",
             "layout": {
-              "x": 240,
-              "y": 200
+              "x": 288,
+              "y": 165
             },
             "incomingPriority": [
               "main-intake",
@@ -181,8 +181,8 @@
             "type": "decision",
             "name": "按票种分流",
             "layout": {
-              "x": 480,
-              "y": 200
+              "x": 552,
+              "y": 165
             },
             "decisionKey": "ticket-routing",
             "routing": {
@@ -208,8 +208,8 @@
             "type": "service",
             "name": "身份核验",
             "layout": {
-              "x": 720,
-              "y": 300
+              "x": 864,
+              "y": 52
             },
             "stageKey": "checkin",
             "duration": {
@@ -254,8 +254,8 @@
             "type": "merge",
             "name": "核验后汇合",
             "layout": {
-              "x": 960,
-              "y": 200
+              "x": 1128,
+              "y": 52
             },
             "incomingPriority": [
               "vip-checked",
@@ -267,8 +267,8 @@
             "type": "decision",
             "name": "是否复检",
             "layout": {
-              "x": 1200,
-              "y": 200
+              "x": 1392,
+              "y": 52
             },
             "decisionKey": "recheck-routing",
             "routing": {
@@ -294,8 +294,8 @@
             "type": "service",
             "name": "人工复检",
             "layout": {
-              "x": 1200,
-              "y": 450
+              "x": 1392,
+              "y": 278
             },
             "stageKey": "recheck",
             "duration": {
@@ -319,8 +319,8 @@
             "type": "waiting_area",
             "name": "分批等候",
             "layout": {
-              "x": 1440,
-              "y": 200
+              "x": 1680,
+              "y": 151
             },
             "queueCapacity": 30,
             "fullPolicy": {
@@ -338,8 +338,8 @@
             "type": "service",
             "name": "领取资料",
             "layout": {
-              "x": 1680,
-              "y": 200
+              "x": 1944,
+              "y": 151
             },
             "stageKey": "packing",
             "duration": {
@@ -363,8 +363,8 @@
             "type": "decision",
             "name": "参与方式",
             "layout": {
-              "x": 1920,
-              "y": 200
+              "x": 2232,
+              "y": 165
             },
             "decisionKey": "visit-routing",
             "routing": {
@@ -390,8 +390,8 @@
             "type": "service",
             "name": "现场导览",
             "layout": {
-              "x": 2160,
-              "y": 100
+              "x": 2496,
+              "y": 52
             },
             "stageKey": "orientation",
             "duration": {
@@ -410,8 +410,8 @@
             "type": "exit",
             "name": "正常完成",
             "layout": {
-              "x": 2400,
-              "y": 100
+              "x": 2760,
+              "y": 165
             },
             "countsAsCompleted": true
           },
@@ -420,8 +420,8 @@
             "type": "exit",
             "name": "中途离开",
             "layout": {
-              "x": 2160,
-              "y": 400
+              "x": 2496,
+              "y": 278
             },
             "countsAsCompleted": false
           },
@@ -430,7 +430,7 @@
             "type": "subflow",
             "name": "核验与复检",
             "layout": {
-              "x": 700,
+              "x": 840,
               "y": 0
             },
             "memberNodeIds": [
@@ -438,6 +438,36 @@
               "checked",
               "review",
               "recheck"
+            ]
+          },
+          {
+            "id": "arrival",
+            "name": "入场",
+            "layout": {
+              "x": 0,
+              "y": 0
+            },
+            "type": "subflow",
+            "memberNodeIds": [
+              "main",
+              "side",
+              "intake",
+              "tickets"
+            ]
+          },
+          {
+            "id": "activities",
+            "name": "参与活动",
+            "layout": {
+              "x": 2208,
+              "y": 0
+            },
+            "type": "subflow",
+            "memberNodeIds": [
+              "visit-choice",
+              "orientation",
+              "finish",
+              "leave"
             ]
           }
         ],
@@ -675,8 +705,8 @@
             "type": "entrance",
             "name": "主入口",
             "layout": {
-              "x": 0,
-              "y": 100
+              "x": 24,
+              "y": 108
             },
             "arrivalStreamIds": [
               "main-stream"
@@ -687,8 +717,8 @@
             "type": "entrance",
             "name": "侧入口",
             "layout": {
-              "x": 0,
-              "y": 300
+              "x": 24,
+              "y": 334
             },
             "arrivalStreamIds": [
               "side-stream"
@@ -699,8 +729,8 @@
             "type": "merge",
             "name": "入口汇合",
             "layout": {
-              "x": 240,
-              "y": 200
+              "x": 288,
+              "y": 221
             },
             "incomingPriority": [
               "main-intake",
@@ -712,8 +742,8 @@
             "type": "decision",
             "name": "按票种分流",
             "layout": {
-              "x": 480,
-              "y": 200
+              "x": 552,
+              "y": 221
             },
             "decisionKey": "ticket-routing",
             "routing": {
@@ -739,8 +769,8 @@
             "type": "service",
             "name": "身份核验",
             "layout": {
-              "x": 960,
-              "y": 300
+              "x": 1128,
+              "y": 52
             },
             "stageKey": "checkin",
             "duration": {
@@ -785,8 +815,8 @@
             "type": "merge",
             "name": "核验后汇合",
             "layout": {
-              "x": 1200,
-              "y": 200
+              "x": 1392,
+              "y": 165
             },
             "incomingPriority": [
               "vip-checked",
@@ -799,8 +829,8 @@
             "type": "decision",
             "name": "是否复检",
             "layout": {
-              "x": 1440,
-              "y": 200
+              "x": 1656,
+              "y": 165
             },
             "decisionKey": "recheck-routing",
             "routing": {
@@ -826,8 +856,8 @@
             "type": "service",
             "name": "人工复检",
             "layout": {
-              "x": 1440,
-              "y": 450
+              "x": 1656,
+              "y": 391
             },
             "stageKey": "recheck",
             "duration": {
@@ -851,8 +881,8 @@
             "type": "waiting_area",
             "name": "分批等候",
             "layout": {
-              "x": 1680,
-              "y": 200
+              "x": 1944,
+              "y": 207
             },
             "queueCapacity": 30,
             "fullPolicy": {
@@ -870,8 +900,8 @@
             "type": "service",
             "name": "领取资料",
             "layout": {
-              "x": 1920,
-              "y": 200
+              "x": 2208,
+              "y": 207
             },
             "stageKey": "packing",
             "duration": {
@@ -895,8 +925,8 @@
             "type": "decision",
             "name": "参与方式",
             "layout": {
-              "x": 2160,
-              "y": 200
+              "x": 2496,
+              "y": 221
             },
             "decisionKey": "visit-routing",
             "routing": {
@@ -922,8 +952,8 @@
             "type": "exit",
             "name": "正常完成",
             "layout": {
-              "x": 2640,
-              "y": 100
+              "x": 3024,
+              "y": 221
             },
             "countsAsCompleted": true
           },
@@ -932,8 +962,8 @@
             "type": "exit",
             "name": "中途离开",
             "layout": {
-              "x": 2400,
-              "y": 400
+              "x": 2760,
+              "y": 334
             },
             "countsAsCompleted": false
           },
@@ -942,7 +972,7 @@
             "type": "subflow",
             "name": "核验与复检",
             "layout": {
-              "x": 940,
+              "x": 840,
               "y": 0
             },
             "memberNodeIds": [
@@ -959,8 +989,8 @@
             "type": "decision",
             "name": "核验通道选择",
             "layout": {
-              "x": 720,
-              "y": 300
+              "x": 864,
+              "y": 165
             },
             "decisionKey": "lane-routing",
             "routing": {
@@ -982,8 +1012,8 @@
             "type": "service",
             "name": "第二核验通道",
             "layout": {
-              "x": 960,
-              "y": 500
+              "x": 1128,
+              "y": 278
             },
             "stageKey": "checkin",
             "duration": {
@@ -1028,8 +1058,8 @@
             "type": "service",
             "name": "自助说明",
             "layout": {
-              "x": 2400,
-              "y": 100
+              "x": 2760,
+              "y": 108
             },
             "stageKey": "briefing",
             "duration": {
@@ -1042,6 +1072,36 @@
             "requirements": [],
             "openWindows": [],
             "maxConcurrent": 6
+          },
+          {
+            "id": "arrival",
+            "name": "入场",
+            "layout": {
+              "x": 0,
+              "y": 56
+            },
+            "type": "subflow",
+            "memberNodeIds": [
+              "main",
+              "side",
+              "intake",
+              "tickets"
+            ]
+          },
+          {
+            "id": "activities",
+            "name": "参与活动",
+            "layout": {
+              "x": 2472,
+              "y": 56
+            },
+            "type": "subflow",
+            "memberNodeIds": [
+              "visit-choice",
+              "briefing",
+              "finish",
+              "leave"
+            ]
           }
         ],
         "edges": [

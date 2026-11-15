@@ -202,7 +202,7 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 
 #### Acceptance Criteria
 
-1. THE Fingerprint_Function SHALL 以一个 Run_Request 和一个 Model_Version 作为输入，将以下内容作为 Input_Fingerprint 的 Simulation_Relevant_Field：Run_Request 中的 Scenario、Subflow_Flattener 对 Run_Request 中 Plan 的输出、补全默认值后的 Run_Mode、Max_Steps 与 maxEvents，以及 Model_Version；Scenario 与展开后 Plan 的全部字段均计入，但不含 Layout_Field、显示名称、描述、备注、显示用起始钟点、来源 Plan ID、来源 Scenario ID，以及 Provenance 的来源说明与备注（Provenance 的 kind 计入）；Run_Request 的 Schema_Version 不计入。
+1. THE Fingerprint_Function SHALL 以一个 Run_Request 和一个 Model_Version 作为输入，将以下内容作为 Input_Fingerprint 的 Simulation_Relevant_Field：Run_Request 中的 Scenario、Subflow_Flattener 对 Run_Request 中 Plan 的输出、显式给出的 Run_Mode、补全默认值后的 Max_Steps 与 maxEvents，以及 Model_Version；Scenario 与展开后 Plan 的全部字段均计入，但不含 Layout_Field、显示名称、描述、备注、显示用起始钟点、来源 Plan ID、来源 Scenario ID，以及 Provenance 的来源说明与备注（Provenance 的 kind 计入）；Run_Request 的 Schema_Version 不计入。
 2. FOR ALL Scenario 的 Simulation_Relevant_Field 相同且 Model_Version 相同的两组输入，THE Fingerprint_Function SHALL 返回相同的 Scenario_Fingerprint，即使二者的 Plan、Run_Mode、Max_Steps 或 maxEvents 不同。
 3. THE Fingerprint_Function SHALL 按 Document_Codec 的规范化格式（Requirement 42 第 2 条与第 12 条，缺省字段按默认值显式写出）分别序列化第 1 条所列的 Input_Fingerprint 内容与 Scenario_Fingerprint 内容（Scenario 的 Simulation_Relevant_Field 与 Model_Version），作为二者的规范化序列化文本，并以该文本 UTF-8 编码的 SHA-256 摘要作为指纹，表示为 64 个小写十六进制字符。
 4. FOR ALL 仅在 Layout_Field、显示名称、描述或备注上不同的两个 Run_Request，THE Fingerprint_Function SHALL 返回相同的 Input_Fingerprint 和相同的 Scenario_Fingerprint。
@@ -447,7 +447,7 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 
 1. THE Schema_Module SHALL 为 Loop_Guard 定义必填的 maxVisits（1 至 100 000 的整数）和必填的 exitBranchKey。
 2. IF Loop_Guard 的 exitBranchKey 不等于所在 Decision 节点 Branch 列表中任一 Branch 的 branchKey，THEN THE Schema_Validator SHALL 返回 severity 为 error 的 Validation_Issue，其 path 指向该 exitBranchKey 字段，相关实体 ID 列表包含该 Decision 节点 ID。
-3. WHEN Participant 到达带 Loop_Guard 的 Decision 节点，且该 Participant 在本次运行中到达该 Node 的累计次数（含本次；经 Edge、Requirement 28 的 Full_Policy reroute 或 Requirement 29 的 Close_Policy redirect 到达均各计 1 次）不小于 maxVisits，THE Simulation_Engine SHALL 不执行 Requirement 13 的路由规则且不抽取 Keyed_Draw，将该 Participant 送往 exitBranchKey 对应的 Branch，并在 ROUTE_TRANSITION 事件中记录所选 branchKey 为 exitBranchKey、路由依据为 loop_guard，且不含 Keyed_Draw 值。
+3. WHEN Participant 到达带 Loop_Guard 的 Decision 节点，且该 Participant 在本次运行中到达该 Node 的累计次数（含本次；经 Edge、Requirement 28 的 Full_Policy reroute 或 Requirement 29 的 Close_Policy redirect 到达均各计 1 次）不小于 maxVisits，THE Simulation_Engine SHALL 不执行 Requirement 13 的路由规则且不抽取 Keyed_Draw，将该 Participant 送往 exitBranchKey 对应的 Branch，并在 ROUTE_TRANSITION 事件中记录所选 branchKey 为 exitBranchKey、路由依据为 loop_guard，且 Keyed_Draw 值为 null（与 Requirement 13 第 7 条一致）。
 4. THE Graph_Validator SHALL 按以下规则构造终止检查图：节点为 Subflow_Flattener 输出中的全部 Node；边为该输出中的全部 Edge，加上每个 Full_Policy 为 reroute 的 Node 指向其 reroute 目标 Node 的边，以及每个排队者或迟到者处理方式为 redirect 的 Service 节点指向对应目标 Node 的边（目标 Node 不存在时不加边）；再删除每个带 Loop_Guard 的 Decision 节点上 branchKey 不等于 exitBranchKey 的全部出边。
 5. IF 终止检查图中存在强连通分量（一组两两相互可达且无法再加入其他 Node 的 Node 集合）含 2 个及以上 Node，或仅含 1 个带指向自身之边的 Node，THEN THE Graph_Validator SHALL 为每个这样的分量返回一条 code 为 unterminated_loop、severity 为 error 的 Validation_Issue，其相关实体 ID 列表按升序列出该分量的全部 Node ID，多条此类 Validation_Issue 按各自最小 Node ID 升序排列；分量从任一 Entrance 节点均不可达时同样返回。
 6. THE Schema_Module SHALL 在 Run_Request 中定义 Max_Steps（1 至 100 000 的整数），Run_Request 未给出 Max_Steps 时取默认值 1000。
@@ -805,7 +805,7 @@ Population_Generator 中间隔方式为 random 的 total_in_window 模型与 pre
 9. IF Document_Codec 对用户导入的 JSON 文本返回至少一条 severity 为 error 的 Validation_Issue，THEN THE Workbench SHALL 保持当前项目内容（含未保存修改）不变，并列出 Document_Codec 返回的全部 Validation_Issue，每条显示 severity、中文 message 与 path。
 10. IF 顶层对象缺少 Schema_Version 字段，或 Schema_Version 的值不是正整数（包括 0、负数、带小数部分的数、"1" 等字符串、布尔值与 null），THEN THE Document_Codec SHALL 返回一条 severity 为 error 的 Validation_Issue，其 path 指向 Schema_Version 字段，不执行迁移与 Schema_Validator，且不返回 Project_Document；格式标识同时有误时，另按第 5 条为格式标识返回一条 Validation_Issue。
 11. FOR ALL 仅因 Node type、分布 kind 或策略类型（Full_Policy、Close_Policy、排队规则）的取值集合新增成员而由 v 递增为 v+1 的 Schema_Version，以及任一 Schema_Version 为 v 的 Project_Document d，Document_Codec 为 v → v+1 登记的迁移函数 SHALL 返回 Schema_Version 为 v+1、其余内容与 d 深度相等的文档。
-12. THE Document_Codec SHALL 在序列化文本中为每个缺省的、Schema_Module 已声明默认值的字段写出其默认值（例如缺省的 Full_Policy 写为 block，缺省的 Queue_Capacity 写为 null，缺省的 Assignment 时间段 handoverSec 写为 0），并省略未给出值且未声明默认值的可选字段（例如未设置 to 的 Assignment 时间段不写出 to 字段，也不写为 null）。
+12. THE Document_Codec SHALL 保留缺省的 Edge 转移时长字段不写出（运行时按 fixed 0 处理，不生成 Provenance；显式给出时仍须保留其 Provenance，二者的来源计数与指纹允许不同），并在序列化文本中为其余每个缺省的、Schema_Module 已声明默认值的字段写出其默认值（例如缺省的 Full_Policy 写为 block，缺省的 Queue_Capacity 写为 null，缺省的 Assignment 时间段 handoverSec 写为 0），并省略未给出值且未声明默认值的可选字段（例如未设置 to 的 Assignment 时间段不写出 to 字段，也不写为 null）。
 13. FOR ALL 仅在对象键顺序、第 2 条所列无序集合的元素顺序，或已声明默认值的字段是缺省还是显式写为默认值这几方面不同的两个合法 Project_Document（定义同第 3 条），THE Document_Codec SHALL 生成逐字节相同的序列化文本。
 
 ### Requirement 43: 产品声明与结论表述
