@@ -6,6 +6,8 @@ import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
 import { MESSAGES } from '../i18n/messages';
 import type { Lang, Messages } from '../i18n/messages';
+import { statisticsAt } from './analysis';
+import type { ResultBasis } from './analysis';
 
 export const NODE_TYPES: Node['type'][] = ['entrance', 'service', 'decision', 'waiting_area', 'merge', 'exit', 'subflow'];
 
@@ -176,12 +178,13 @@ export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: Sa
       }
     }
     for (const staff of source.staff.filter(item => item.skillIds.some(id => skillIds.has(id)))) {
+      const assignment = source.assignments.find(item => item.resourceUnitId === staff.id);
+      if (assignment && !assignment.periods.some(period => period.nodeIds.includes(original.id))) continue;
       const skills = staff.skillIds.flatMap(id => skillIds.has(id) ? [skillIds.get(id)!] : []);
       if (resources === 'share' && canShare(staff.id) && next.staff.some(item => JSON.stringify(item) === JSON.stringify(staff) && skills.every(id => item.skillIds.includes(id)))) { shareAssignment(staff.id); continue; }
       const copy = structuredClone(staff); copy.id = newId('staff', next.staff.map(item => item.id));
       copy.skillIds = skills;
       next.staff.push(copy);
-      const assignment = source.assignments.find(item => item.resourceUnitId === staff.id);
       next.assignments.push({ resourceUnitId: copy.id, periods: assignment
         ? assignment.periods.map(period => ({ ...period, nodeIds: period.nodeIds.includes(original.id) ? [node.id] : [] }))
         : [{ from: 0, nodeIds: [node.id] }] });
@@ -205,10 +208,14 @@ export function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function provenanceDescription(provenance: Plan['staff'][number]['provenance'], t: Messages): string {
+  return [t.review.sources[provenance.kind], provenance.source?.trim(), provenance.notes?.trim()].filter(Boolean).join(' · ');
+}
+
 export function durationDescription(duration: Extract<Node, { type: 'service' }>['duration'] | NonNullable<Edge['transferDuration']>, t: Messages): string {
   const value = duration.kind === 'fixed' ? t.formatWait(duration.value) : duration.kind === 'empirical' ? `${t.inspector.distributions.empirical}: ${duration.samples.map(t.formatWait).join(', ')}`
     : `${t.inspector.distributions[duration.kind]} ${t.formatWait(duration.min)}–${t.formatWait(duration.max)}${duration.kind === 'triangular' ? ` (${t.inspector.mode}: ${t.formatWait(duration.mode)})` : ''}`;
-  return `${value} [${t.review.sources[duration.provenance.kind]}${duration.provenance.source ? `: ${duration.provenance.source}` : ''}]`;
+  return `${value} [${provenanceDescription(duration.provenance, t)}]`;
 }
 
 export function nodeInstructions(node: Node, plan: Plan, t: Messages): string[] {
@@ -218,7 +225,7 @@ export function nodeInstructions(node: Node, plan: Plan, t: Messages): string[] 
   if (node.type === 'service') {
     lines.push(`${t.report.duration}: ${durationDescription(node.duration, t)}; ${t.inspector.maxConcurrent}: ${node.maxConcurrent ?? t.common.unlimited}`);
     lines.push(`${t.report.requirements}: ${node.requirements.map(item => `${item.quantity} × ${item.kind === 'staff' ? plan.skills.find(skill => skill.id === item.skillId)?.name ?? item.skillId : plan.deviceTypes.find(device => device.id === item.deviceTypeId)?.name ?? item.deviceTypeId}`).join(', ') || t.inspector.noRequirements}`);
-    lines.push(`${t.report.windows}: ${node.openWindows.map(window => `${formatTime(window.openAt)}–${formatTime(window.closeAt)} [${t.review.sources[window.provenance.kind]}]`).join(', ') || t.inspector.alwaysOpen}`);
+    lines.push(`${t.report.windows}: ${node.openWindows.map(window => `${formatTime(window.openAt)}–${formatTime(window.closeAt)} [${provenanceDescription(window.provenance, t)}]`).join(', ') || t.inspector.alwaysOpen}`);
     const queued = node.closePolicy?.queued, late = node.closePolicy?.late;
     lines.push(zh ? `关闭时，排队者${queued?.kind === 'dismiss' ? '离开' : queued?.kind === 'redirect' ? `转往 ${name(queued.targetNodeId)}` : '继续接受服务'}；迟到者${late?.kind === 'redirect' ? `转往 ${name(late.targetNodeId)}` : '被拒绝入场'}。`
       : `At closing, queued guests ${queued?.kind === 'dismiss' ? 'leave' : queued?.kind === 'redirect' ? `go to ${name(queued.targetNodeId)}` : 'continue to be served'}; late arrivals ${late?.kind === 'redirect' ? `go to ${name(late.targetNodeId)}` : 'are turned away'}.`);
@@ -247,30 +254,31 @@ export function assignmentDescription(assignment: Plan['assignments'][number], p
   return assignment.periods.map(period => `${formatTime(period.from)}–${period.to === undefined ? t.report.end : formatTime(period.to)} → ${period.nodeIds.map(id => plan.graph.nodes.find(node => node.id === id)?.name ?? id).join(', ') || t.report.unposted}; ${t.report.handover} ${t.formatWait(period.handoverSec ?? 0)}`).join('; ');
 }
 
-export function executionReport(plan: Plan, scenario: Scenario, run?: SimulationRun, stale = false, t: Messages = MESSAGES.zh, baseline?: Plan): string {
+export function executionReport(plan: Plan, scenario: Scenario, run?: SimulationRun, stale = false, t: Messages = MESSAGES.zh, baseline?: Plan, basis: ResultBasis = 'cutoff'): string {
   const r = t.report;
+  const stats = statisticsAt(run, basis);
   const sep = t.lang === 'zh' ? '；' : '; ';
   const lines = [r.title(plan.name), '', r.scenario(scenario.name ?? scenario.id, scenario.id), r.seed(scenario.seed), r.window(scenario.observationCutoff, scenario.horizon), '', r.flow, '',
     t.lang === 'zh' ? '时刻均为活动开始后的 分:秒。' : 'All clock times are minutes:seconds from the event start.', '',
     ...plan.graph.nodes.filter(node => node.type !== 'subflow').flatMap(node => [`### ${node.name} (${t.nodeTypes[node.type]})`, '', ...nodeInstructions(node, plan, t).map(line => `- ${line}`), '']),
     '', r.routes, '', ...plan.graph.edges.map(edge => `- ${plan.graph.nodes.find(node => node.id === edge.source)?.name ?? edge.source} → ${plan.graph.nodes.find(node => node.id === edge.target)?.name ?? edge.target}${edge.branchKey ? ` (${r.branch} ${edge.branchKey})` : ''}${sep}${r.transfer} ${edge.transferDuration ? durationDescription(edge.transferDuration, t) : t.formatWait(0)}`),
-    '', r.resources, '', ...plan.staff.map(staff => `- ${staff.name} (${staff.id})${sep}${r.skills} ${staff.skillIds.map(id => plan.skills.find(skill => skill.id === id)?.name ?? id).join(', ')}${sep}${r.shifts} ${staff.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${staff.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${t.review.sources[staff.provenance.kind]} ${staff.provenance.source ?? ''}`),
-    ...plan.deviceTypes.map(device => `- ${device.name} (${device.id}): ${device.quantity} ${r.units}${sep}${r.shifts} ${device.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${device.unavailability.map(window => `${window.resourceUnitId} ${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${t.review.sources[device.provenance.kind]} ${device.provenance.source ?? ''}`),
+    '', r.resources, '', ...plan.staff.map(staff => `- ${staff.name} (${staff.id})${sep}${r.skills} ${staff.skillIds.map(id => plan.skills.find(skill => skill.id === id)?.name ?? id).join(', ')}${sep}${r.shifts} ${staff.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${staff.unavailability.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${provenanceDescription(staff.provenance, t)}`),
+    ...plan.deviceTypes.map(device => `- ${device.name} (${device.id}): ${device.quantity} ${r.units}${sep}${r.shifts} ${device.shifts.map(window => `${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.unavailable} ${device.unavailability.map(window => `${window.resourceUnitId} ${formatTime(window.start)}–${formatTime(window.end)}`).join(', ') || '—'}${sep}${r.source} ${provenanceDescription(device.provenance, t)}`),
     '', r.posts, '', ...plan.assignments.map(assignment => `- ${plan.staff.find(staff => staff.id === assignment.resourceUnitId)?.name ?? assignment.resourceUnitId}: ${assignmentDescription(assignment, plan, t)}`),
     ...[...plan.staff.map(item => item.id), ...plan.deviceTypes.flatMap(item => Array.from({ length: item.quantity }, (_, i) => `${item.id}:${i + 1}`))].filter(id => !plan.assignments.some(item => item.resourceUnitId === id)).map(id => `- ${id}: ${t.lang === 'zh' ? '班次内可服务所有技能或设备类型匹配的岗位。' : 'May serve any matching skill or device post during its shifts.'}`),
     '', r.assumptions, '', ...scenario.arrivalStreams.flatMap(stream => {
       const timing = stream.kind === 'records' ? `${stream.records.length} ${t.metrics.guests}` : stream.kind === 'bucketed' ? stream.buckets.map(bucket => `${formatTime(bucket.start)}–${formatTime(bucket.end)}: ${bucket.count}`).join(sep)
         : `${stream.count} ${t.metrics.guests}, ${formatTime(stream.start)}–${formatTime(stream.end)}, ${stream.kind === 'total_in_window' ? stream.spacing === 'even' ? t.review.even : t.review.random : stream.profile.kind === 'early_peak' ? t.review.early : stream.profile.kind === 'late_peak' ? t.review.late : stream.profile.kind === 'peak_at' ? `${t.review.peak} ${formatTime(stream.profile.peakAt)}` : t.review.random}`;
-      return [`- ${stream.name ?? stream.id}: ${timing} [${t.review.sources[stream.provenance.kind]}${stream.provenance.source ? `: ${stream.provenance.source}` : ''}]`,
-        ...('attributeDistributions' in stream ? Object.entries(stream.attributeDistributions).map(([id, distribution]) => `  - ${id}: ${distribution.values.map(item => `${item.value} ${(item.probability * 100).toFixed(1)}%`).join(', ')} [${t.review.sources[distribution.provenance.kind]}]`) : [])];
+      return [`- ${stream.name ?? stream.id}: ${timing} [${provenanceDescription(stream.provenance, t)}]`,
+        ...('attributeDistributions' in stream ? Object.entries(stream.attributeDistributions).map(([id, distribution]) => `  - ${id}: ${distribution.values.map(item => `${item.value} ${(item.probability * 100).toFixed(1)}%`).join(', ')} [${provenanceDescription(distribution.provenance, t)}]`) : [])];
     }), ...scenario.assumptionOverrides.map(override => override.kind === 'service_multiplier' ? `- ${override.stageKey ?? t.report.duration}: ×${override.factor}` : `- ${override.resource.id}: ${t.report.unavailable} ${formatTime(override.window.start)}–${formatTime(override.window.end)}${override.resource.kind === 'device_type' ? ` (${override.resource.quantity} ${r.units})` : ''}`), '',
   ];
   if (baseline) lines.push(`## ${t.review.resourceCounts}: ${baseline.name} → ${plan.name}`, '',
     `${t.review.staff}: ${baseline.staff.length} → ${plan.staff.length}; ${t.review.devices}: ${baseline.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)} → ${plan.deviceTypes.reduce((sum, item) => sum + item.quantity, 0)}`, '',
     ...plan.staff.filter(item => !baseline.staff.some(original => original.id === item.id)).map(item => `- + ${item.name}`),
     ...plan.deviceTypes.filter(item => item.quantity !== (baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0)).map(item => `- ${item.name}: ${baseline.deviceTypes.find(original => original.id === item.id)?.quantity ?? 0} → ${item.quantity}`), '');
-  if (run?.status === 'succeeded' && run.statistics && !stale) lines.push(r.record, '', r.under, r.model(run.modelVersion, scenario.id),
-    r.counts(run.statistics.arrived, run.statistics.outcomes.completed, run.statistics.outcomes.unfinished), r.waits(t.formatWait(run.statistics.averageWaiting), t.formatWait(run.statistics.p90Waiting)), '', r.synthetic, '');
+  if (run?.status === 'succeeded' && stats && !stale) lines.push(r.record, '', r.under, r.model(run.modelVersion, scenario.id, `${t.review[basis]} (${formatTime(stats.until)})`),
+    r.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join(sep)), r.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)), '', r.synthetic, '');
   else lines.push(r.noRun, '');
   lines.push(r.scope, '', t.lang === 'zh' ? PRODUCT_STATEMENT.zh : PRODUCT_STATEMENT.en, '', t.lang === 'zh' ? PRODUCT_STATEMENT.en : PRODUCT_STATEMENT.zh, '');
   return lines.join('\n');

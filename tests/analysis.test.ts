@@ -53,7 +53,42 @@ describe('Open House evidence', () => {
     expect(run.statistics!.outcomes).toMatchObject({ completed: 72, unfinished: 218, diverted: 10 });
     expect(run.statistics!.averageWaiting).toBeCloseTo(954.0833333333);
     expect(run.statistics!.p90Waiting).toBe(1444.286);
+    for (const t of [MESSAGES.en, MESSAGES.zh]) {
+      const report = executionReport(plan, document.scenarios[0], run, false, t);
+      expect(report).toContain(`${t.outcomes.completed}: 72`);
+      expect(report).toContain(`${t.outcomes.unfinished}: 218`);
+      expect(report).toContain(`${t.outcomes.diverted}: 10`);
+    }
   });
+});
+
+it.each(['en', 'zh'] as const)('exports the chosen statistics basis and all outcomes in %s', lang => {
+  const t = MESSAGES[lang];
+  for (const run of [a, b]) {
+    const cutoff = executionReport(run.request.plan, run.request.scenario, run, false, t);
+    const final = executionReport(run.request.plan, run.request.scenario, run, false, t, undefined, 'completion');
+    expect(cutoff).toContain(`${t.review.cutoff} (30:00)`);
+    expect(cutoff).toContain(`${t.outcomes.completed}: ${run === a ? 43 : 41}`);
+    expect(final).toContain(`${t.review.completion} (120:00)`);
+    expect(final).toContain(`${t.outcomes.completed}: 149`);
+    expect(final).toContain(`${t.outcomes.unfinished}: 133`);
+    for (const [outcome, count] of Object.entries(run.completion!.outcomes)) expect(final).toContain(`${t.outcomes[outcome]}: ${count}`);
+    expect(executionReport(run.request.plan, run.request.scenario, { ...run, completion: null }, false, t, undefined, 'completion')).toContain(t.report.noRun);
+    expect(executionReport(run.request.plan, run.request.scenario, run, true, t, undefined, 'completion')).not.toContain(t.report.record);
+  }
+});
+
+it.each(['en', 'zh'] as const)('preserves provenance kinds, sources and notes in %s reports', lang => {
+  const t = MESSAGES[lang], project = initialDocument(), plan = project.plans[0], scenario = project.scenarios[0];
+  const node = plan.graph.nodes.find(item => item.id === 'checkin')!;
+  if (node.type !== 'service' || scenario.arrivalStreams[0].kind === 'records') throw new Error('fixture');
+  node.openWindows = [{ openAt: 0, closeAt: 1800, provenance: { kind: 'measured' } }];
+  const entries = [node.duration, node.openWindows[0], plan.staff[0], plan.deviceTypes[0], scenario.arrivalStreams[0], Object.values(scenario.arrivalStreams[0].attributeDistributions)[0]];
+  entries.forEach((item, index) => { item.provenance = { kind: 'measured', source: `measurement-${index}`, notes: `observation-${index}` }; });
+  const report = executionReport(plan, scenario, undefined, false, t);
+  entries.forEach((_, index) => expect(report).toContain(`${t.review.sources.measured} · measurement-${index} · observation-${index}`));
+  node.duration.provenance = { kind: 'user_estimate', source: ' ', notes: ' ' };
+  expect(executionReport(plan, scenario, undefined, false, t)).toContain(`[${t.review.sources.user_estimate}]`);
 });
 
 it.each(['en', 'zh'] as const)('exports actionable rules and sources in %s without serialized model JSON', lang => {

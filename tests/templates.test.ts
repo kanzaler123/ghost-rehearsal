@@ -5,6 +5,19 @@ import { MESSAGES } from '../src/i18n/messages';
 import { planSchema, projectDocumentSchema, validateGraph } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 
+it.each(['share', 'copy'] as const)('reuses only staff posted to the recheck template with %s resources', mode => {
+  const document = initialDocument(); document.plans = [document.plans[0]];
+  const plan = document.plans[0], before = JSON.stringify(plan);
+  const result = addNodeFromTemplate(plan, document.scenarios[0], { id: 'recheck-template', name: 'Recheck copy', nodeId: 'recheck', document }, mode);
+  expect(JSON.stringify(plan)).toBe(before);
+  expect(result.plan.staff).toHaveLength(mode === 'share' ? 3 : 4);
+  expect(result.plan.assignments.filter(item => item.periods.some(period => period.nodeIds.includes(result.node.id))).map(item => item.resourceUnitId)).toEqual([mode === 'share' ? 'floater' : 'staff-1']);
+  expect(result.plan.assignments.find(item => item.resourceUnitId === 'check-staff')).toEqual(plan.assignments.find(item => item.resourceUnitId === 'check-staff'));
+  expect(validateGraph(document.scenarios[0], result.plan).filter(issue => issue.code === 'insufficient_resources')).toEqual([]);
+  if (mode === 'share') expect(result.plan.staff).toEqual(plan.staff);
+  else expect(result.plan.assignments.filter(item => item.resourceUnitId === 'staff-1').every(item => item.periods.some(period => period.nodeIds.length > 0))).toBe(true);
+});
+
 it('copies a device pool once when multiple requirements reference it', () => {
   const document = initialDocument(); document.plans = [document.plans[0]];
   const plan = document.plans[0], node = plan.graph.nodes.find(item => item.id === 'checkin')!;

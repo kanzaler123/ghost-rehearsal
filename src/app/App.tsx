@@ -144,10 +144,10 @@ export function App() {
   function changePlan(next: Plan) { commit({ ...project, plans: project.plans.map(item => item.id === next.id ? next : item) }); }
   function undo() { if (!past.length) return; setProject(past.at(-1)!); setPast(past.slice(0, -1)); setFuture([project, ...future]); setPlaying(false); }
   function redo() { if (!future.length) return; setProject(future[0]); setFuture(future.slice(1)); setPast([...past, project]); setPlaying(false); }
-  function selectPlan(id: string) {
-    const target = project.plans.find(item => item.id === id);
-    if (!project.plans.some(item => item.id === secondId && item.id !== id && item.scenarioId === target?.scenarioId)) setSecondId(project.plans.find(item => item.id !== id && item.scenarioId === target?.scenarioId)?.id ?? '');
-    setPlanId(id); setSelection({ id: '', kind: 'node', owner: id }); setSearch(''); setInspectorOpen(false); setPlaying(false); setTime(0); if (mode === 'Compare') setMode('Build');
+  function selectPlan(id: string, plans = project.plans) {
+    const target = plans.find(item => item.id === id);
+    if (!plans.some(item => item.id === secondId && item.id !== id && item.scenarioId === target?.scenarioId)) setSecondId(plans.find(item => item.id !== id && item.scenarioId === target?.scenarioId)?.id ?? '');
+    setPlanId(id); setSelection({ id: '', kind: 'node', owner: id }); setSearch(''); setInspectorOpen(false); setPlaying(false); setTime(0); if (mode === 'Compare') switchMode('Build', id);
   }
   function save() {
     const result = readProject(JSON.stringify(project), lang);
@@ -170,7 +170,7 @@ export function App() {
   function usePlanTemplate(document: ProjectDocument, name: string) {
     const next = addPlanFromTemplate(project, document, name);
     const added = next.plans.at(-1)!;
-    commit(next); setPlanId(added.id); setSecondId(''); setMode('Build'); setPlaying(false); setTime(0); setSearch(''); setInspectorOpen(false); setDockOpen(false);
+    commit(next); setSecondId(''); switchMode('Build', added.id); setTime(0); setSearch(''); setInspectorOpen(false); setDockOpen(false);
     setSelection({ id: '', kind: 'node', owner: added.id }); setDialog(null); say(tr => tr.templates.added);
   }
   function useNodeTemplate(template: SavedTemplate) {
@@ -211,9 +211,9 @@ export function App() {
     active.onerror = () => { setBusy(false); say(tr => tr.notices.workerFailed); active.terminate(); };
     active.postMessage({ requests: targets.map(target => requestFor(target, document)) });
   }
-  function switchMode(next: Mode) {
+  function switchMode(next: Mode, targetId = plan.id) {
     setPlaying(false);
-    if (next === 'Build') { setMode(next); setSelection({ id: '', kind: 'node', owner: plan.id }); return; }
+    if (next === 'Build') { setPlanId(targetId); setMode(next); setSelection({ id: '', kind: 'node', owner: targetId }); return; }
     if (next === 'Compare') {
       if (!second) { say(tr => tr.notices.needSecond); return; }
       if (!comparisonReady) launch([plan, second], next);
@@ -227,7 +227,7 @@ export function App() {
     if (lang === 'zh') result.plan.name = result.plan.name.replace(/ \(copy\)$/, t.defaults.copySuffix);
     commit({ ...project, plans: [...project.plans, result.plan] });
     selectPlan(result.plan.id); setSecondId(plan.id);
-    setMode('Build'); say(tr => tr.notices.copied);
+    switchMode('Build', result.plan.id); say(tr => tr.notices.copied);
   }
   function packingExperiment() {
     if (!second) return;
@@ -254,13 +254,14 @@ export function App() {
     const edge: Edge = { id, source: connection.source, target: connection.target, ...(source?.type === 'decision' ? { branchKey: connection.sourceHandle ?? source.routing.branches[0].branchKey } : {}) };
     changePlan({ ...plan, graph: { nodes: plan.graph.nodes.map(node => node.id === edge.target && node.type === 'merge' ? { ...node, incomingPriority: [...node.incomingPriority.filter(key => plan.graph.edges.some(item => item.id === key)), id] } : node), edges: [...plan.graph.edges, edge] } });
   }
-  function deleteElements(nodeIds: string[], edgeIds: string[]) {
-    if (mode !== 'Build' || (!nodeIds.length && !edgeIds.length)) return;
-    const edges = plan.graph.edges.filter(edge => !edgeIds.includes(edge.id) && !nodeIds.includes(edge.source) && !nodeIds.includes(edge.target));
-    changePlan({ ...plan, graph: { edges, nodes: plan.graph.nodes.filter(node => !nodeIds.includes(node.id)).map(node => node.type === 'subflow' ? { ...node, memberNodeIds: node.memberNodeIds.filter(id => !nodeIds.includes(id)) }
+  function deleteElements(targetId: string, nodeIds: string[], edgeIds: string[]) {
+    const target = project.plans.find(item => item.id === targetId);
+    if (mode !== 'Build' || targetId !== plan.id || !target || (!nodeIds.length && !edgeIds.length)) return;
+    const edges = target.graph.edges.filter(edge => !edgeIds.includes(edge.id) && !nodeIds.includes(edge.source) && !nodeIds.includes(edge.target));
+    changePlan({ ...target, graph: { edges, nodes: target.graph.nodes.filter(node => !nodeIds.includes(node.id)).map(node => node.type === 'subflow' ? { ...node, memberNodeIds: node.memberNodeIds.filter(id => !nodeIds.includes(id)) }
       : node.type === 'merge' ? { ...node, incomingPriority: node.incomingPriority.filter(id => edges.some(edge => edge.id === id)).length ? node.incomingPriority.filter(id => edges.some(edge => edge.id === id)) : ['connect-an-edge'] } : node) },
-      assignments: plan.assignments.map(assignment => ({ ...assignment, periods: assignment.periods.map(period => ({ ...period, nodeIds: period.nodeIds.filter(id => !nodeIds.includes(id)) })) })) });
-    setSelection({ id: '', kind: 'node', owner: plan.id });
+      assignments: target.assignments.map(assignment => ({ ...assignment, periods: assignment.periods.map(period => ({ ...period, nodeIds: period.nodeIds.filter(id => !nodeIds.includes(id)) })) })) });
+    setSelection({ id: '', kind: 'node', owner: targetId });
   }
   function arrange() {
     const levels = new Map<string, number>();
@@ -296,7 +297,7 @@ export function App() {
   function startNew(event: ProjectDocument) {
     const next = dialog === 'welcome' ? event : addEvent(project, event);
     const first = next.plans[dialog === 'welcome' ? 0 : project.plans.length];
-    commit(next); setPlanId(first.id); setSecondId(next.plans.find(item => item.id !== first.id && item.scenarioId === first.scenarioId)?.id ?? ''); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
+    commit(next); setSecondId(next.plans.find(item => item.id !== first.id && item.scenarioId === first.scenarioId)?.id ?? ''); switchMode('Build', first.id); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
     setSelection({ id: '', kind: 'node', owner: first.id }); setDialog(null);
   }
   useEffect(() => {
@@ -375,7 +376,7 @@ export function App() {
     if (selectedNode && !target.graph.nodes.some(node => node.id === selected) && selectedNode.type === 'service') selected = target.graph.nodes.find(node => node.type === 'service' && node.stageKey === selectedNode.stageKey)?.id ?? '';
     return { plan: target, selected, onSelect: (id: string, kind: 'node' | 'edge') => setSelection({ id, kind, owner: target.id }),
       onMove: (positions: { id: string; x: number; y: number }[]) => changePlan({ ...target, graph: { ...target.graph, nodes: target.graph.nodes.map(node => { const position = positions.find(item => item.id === node.id); return position ? { ...node, layout: { ...node.layout, x: position.x, y: position.y } } : node; }) } }),
-      onConnect: connect, onDelete: deleteElements, onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
+      onConnect: connect, onDelete: (nodeIds: string[], edgeIds: string[]) => deleteElements(target.id, nodeIds, edgeIds), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
       run: mode === 'Build' ? undefined : targetRun, time, stale: outdated, selectedVisitor: visitorId, chooseVisitor, changed: mode === 'Compare' ? changedIds : undefined, fitToken };
   }
 
@@ -429,15 +430,15 @@ export function App() {
             <select className="event-title" aria-label={t.eventSetup.active} value={scenario.id} disabled={busy} onChange={event => { const target = project.plans.find(item => item.scenarioId === event.target.value); if (target) selectPlan(target.id); }}>
               {project.scenarios.filter(item => project.plans.some(plan => plan.scenarioId === item.id)).map(item => <option key={item.id} value={item.id}>{item.name ?? t.header.untitled}</option>)}
             </select>
-            <button type="button" className="icon-btn" aria-label={t.eventSetup.settings} title={t.eventSetup.settings} disabled={busy} onClick={() => { setMode('Build'); setPlaying(false); setDialog('scenario'); }}><Settings2 size={16} /></button>
+            <button type="button" className="icon-btn" aria-label={t.eventSetup.settings} title={t.eventSetup.settings} disabled={busy} onClick={() => { switchMode('Build'); setDialog('scenario'); }}><Settings2 size={16} /></button>
           </div>
           <button type="button" className="text-btn new-event" disabled={busy} onClick={() => setDialog('new')}><Plus size={14} />{t.eventSetup.new}</button>
-          <button type="button" className="side-link" onClick={() => { setMode('Build'); setPlaying(false); setDialog('scenario'); }}><Ghost size={15} /><span>{t.sidebar.guests}</span><b>{populationSize(scenario)}</b></button>
-          <button type="button" className="side-link" onClick={() => { setMode('Build'); setPlaying(false); setDialog('resources'); }}><Users size={15} aria-hidden="true" /><span>{t.sidebar.resources}</span><b>{staffCount + deviceCount}</b></button>
+          <button type="button" className="side-link" onClick={() => { switchMode('Build'); setDialog('scenario'); }}><Ghost size={15} /><span>{t.sidebar.guests}</span><b>{populationSize(scenario)}</b></button>
+          <button type="button" className="side-link" onClick={() => { switchMode('Build'); setDialog('resources'); }}><Users size={15} aria-hidden="true" /><span>{t.sidebar.resources}</span><b>{staffCount + deviceCount}</b></button>
         </section>
         <section className="side-section">
           <div className="section-heading"><h2>{t.sidebar.plans}</h2><div className="section-actions"><button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} disabled={busy} onClick={() => prepareTemplate()}><BookmarkPlus size={16} /></button><button type="button" className="icon-btn" aria-label={t.sidebar.duplicate} title={t.sidebar.duplicate} disabled={busy} onClick={copyPlan}><Copy size={16} /></button></div></div>
-          <div className="plan-actions"><button type="button" className="text-btn" disabled={busy} onClick={() => { setPlanName(plan.name); setDialog('rename-plan'); }}>{t.review.rename}</button><button type="button" className="text-btn danger" disabled={busy || project.plans.length < 2} onClick={() => { const remaining = project.plans.filter(item => item.id !== plan.id); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id); }}>{t.review.removePlan}</button></div>
+          <div className="plan-actions"><button type="button" className="text-btn" disabled={busy} onClick={() => { setPlanName(plan.name); setDialog('rename-plan'); }}>{t.review.rename}</button><button type="button" className="text-btn danger" disabled={busy || project.plans.length < 2} onClick={() => { const remaining = project.plans.filter(item => item.id !== plan.id); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}>{t.review.removePlan}</button></div>
           <ul className="plan-list">{project.plans.filter(item => item.scenarioId === scenario.id).map(item => {
             const isA = item.id === plan.id; const isB = item.id === second?.id;
             return <li key={item.id} className={cls('plan-card', isA && 'is-a', isB && 'is-b')}>
@@ -521,7 +522,7 @@ export function App() {
         </section>}
       </main>
 
-      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly} issues={ownerIssues} run={runs[owner.id]} basis={basis} stale={!!runs[owner.id] && runs[owner.id].inputKey !== inputKey(requestFor(owner))} onRerun={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Build' ? 'Rehearse' : mode)} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [])} onResources={() => { setMode('Build'); setPlaying(false); setDialog('resources'); }} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
+      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly && owner.id === plan.id} issues={ownerIssues} run={runs[owner.id]} basis={basis} stale={!!runs[owner.id] && runs[owner.id].inputKey !== inputKey(requestFor(owner))} onRerun={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Build' ? 'Rehearse' : mode)} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(owner.id, selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [])} onResources={() => { selectPlan(owner.id); switchMode('Build', owner.id); setDialog('resources'); }} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
     </div>
 
     <footer className="status-bar">
@@ -530,7 +531,7 @@ export function App() {
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
-    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); switchMode('Build', result.document.plans[0].id); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
     {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item), plans: project.plans.map(item => item.scenarioId !== next.id ? item : { ...item, graph: { ...item.graph, nodes: item.graph.nodes.map(node => node.type === 'entrance' ? { ...node, arrivalStreamIds: node.arrivalStreamIds.filter(id => next.arrivalStreams.some(stream => stream.id === id)) } : node) } }) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {
@@ -604,7 +605,7 @@ export function App() {
     </div></Modal>}
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { download('ghost-rehearsal.json', JSON.stringify(project, null, 2) + '\n', 'application/json'); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
-      <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId)), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
+      <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
