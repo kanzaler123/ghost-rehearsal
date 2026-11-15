@@ -90,6 +90,13 @@ test('cancel terminates the real Worker, preserves partial rows and immediately 
     worker.on('close', () => { record.closed = true; });
   });
   await openLab(page, info.project.name);
+  // Match the integrated cancellation fixture: keep real work running long enough
+  // to click Cancel after observing a completed row, even on a fast Worker.
+  const project = JSON.parse(await readFile(resolve('examples/open-house.json'), 'utf8')) as ProjectDocument;
+  for (const stream of project.scenarios[0].arrivalStreams) {
+    if (stream.kind === 'total_in_window') stream.count *= 10;
+  }
+  await page.getByLabel(/^(Import project JSON|导入项目 JSON)$/).setInputFiles({ name: 'cancel-load.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
   await page.getByLabel(/^(Seeds.*|种子（逗号或空格分隔）)$/).fill(Array.from({ length: 30 }, (_, i) => String(20261114 + i)).join(', '));
   await expect(page.getByTestId('estimated-jobs')).toContainText('180');
   await page.getByRole('button', { name: /^(Start experiment|开始实验)$/ }).click();
