@@ -34,8 +34,8 @@ describe('comparison presentation', () => {
   });
   it('shows completed, left and unfinished figures next to the waiting delta', () => {
     const result = html(createElement(ComparisonSnapshot, { a, b, cost }));
-    for (const key of ['completed', 'left', 'unfinished', 'average'] as const) expect(result).toContain(MESSAGES.en.compare.rows[key]);
-    expect(result.match(/class="snapshot-item(?: resource-summary)?"/g)).toHaveLength(5);
+    for (const key of ['completed', 'left', 'unfinished', 'average', 'p90', 'total'] as const) expect(result).toContain(MESSAGES.en.compare.rows[key]);
+    expect(result.match(/class="snapshot-item(?: resource-summary)?"/g)).toHaveLength(7);
   });
   it.each(['stale', 'missing', 'missing-final'] as const)('hides all comparison numbers for %s results', state => {
     const result = html(createElement(CompareReport, { planA: plans[0], planB: plans[1], scenario, changes: [],
@@ -46,7 +46,7 @@ describe('comparison presentation', () => {
   });
   it('keeps completed-sample disclosure reachable after the initial comparison summary', () => {
     const result = html(createElement(CompareReport, { planA: plans[0], planB: plans[1], scenario, changes: [], runA: runs[0], runB: runs[1], ready: true, visitorId: '', nameOf: id => id, onFocus: () => {}, onChoose: () => {} }));
-    expect(result).toContain('<details class="snapshot-scope" open="">');
+    expect(result).toContain('<details class="snapshot-scope">');
     expect(result.indexOf('class="snapshot-scope"')).toBeGreaterThan(result.indexOf('class="conclusion-groups"'));
     expect(result).toContain(`<details><summary>${MESSAGES.en.evidence.completed}</summary>`);
   });
@@ -80,7 +80,7 @@ describe('comparison presentation', () => {
   });
   it('orders guest, outcomes, divergence, timelines, stations and raw events', () => {
     const result = html(createElement(GhostJourney, { runs, compare: true, scenario, visitorId: 'side-stream:10', time: 210, endTime: 1800, picks: [], nameOf: id => id, onChoose: () => {}, onJump: () => {}, onLocate: () => {} }));
-    const order = ['class="ghost-card"', 'class="ghost-futures"', 'class="diff-note"', 'class="lanes"', 'class="station-table"', 'class="evidence"'].map(value => result.indexOf(value));
+    const order = ['class="ghost-card"', 'class="ghost-futures"', 'class="diff-note"', 'class="lanes"', 'class="station-table"', 'class="journey-columns two"'].map(value => result.indexOf(value));
     expect(order.every(value => value >= 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     expect(result).toContain('lane-text-alternative');

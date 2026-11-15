@@ -40,7 +40,22 @@ test('keyboard replay, menu dismissal, guest selection and divergence', async ({
   await page.keyboard.press('Enter');
   await expect(page.getByLabel(t.dock.speed, { exact: true })).toHaveValue('8');
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   const guide = await compareExample(page, t);
+  const pauseComparison = page.getByRole('button', { name: t.dock.pause, exact: true });
+  if (await pauseComparison.isVisible()) await pauseComparison.click();
+  const pausedTime = await slider.inputValue();
+  for (const selector of ['.comparison-options', '.guide-options']) {
+    const disclosure = page.locator(selector), summary = disclosure.locator(':scope > summary');
+    await summary.focus();
+    await summary.press('Space');
+    await expect(disclosure).toHaveAttribute('open', '');
+    await expect(slider).toHaveValue(pausedTime);
+    await expect(page.locator('.play-btn')).toHaveAttribute('aria-label', t.dock.play);
+    await summary.press('Escape');
+    await expect(disclosure).not.toHaveAttribute('open');
+    await expect(summary).toBeFocused();
+  }
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).focus();
   await page.keyboard.press('Enter');
   await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).focus();

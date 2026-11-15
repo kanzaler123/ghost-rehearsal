@@ -162,36 +162,6 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   if (compare && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   return <div className="ghost-journey">
     <JourneyContext runs={runs} basis={basis} threshold={threshold} cutoff={cutoff} time={time} onOverview={onOverview} onEvidence={openEvidence} />
-    <aside className="ghost-stories">
-      {compare && counts && <label className="people-filter"><span>{text.people}</span><select aria-label={text.people} value={activeGroup ?? 'all'} onChange={event => selectGroup(event.target.value === 'all' ? undefined : event.target.value as AffectedFilter)}>
-        <option value="all">{text.everyone} · {counts.total}</option>
-        {FILTERS.map(filter => <option key={filter} value={filter}>{text.groups[filter]} · {groupCounts[filter]}</option>)}
-      </select></label>}
-      <label className="search-box"><Search size={14} aria-hidden="true" />
-        <input type="search" aria-label={text.search} placeholder={text.search} value={query}
-          onChange={event => { setQuery(event.target.value); setPage(0); }}
-          onKeyDown={event => { if (event.key === 'Enter' && filtered[0]) chooseAndReveal(filtered[0].id); }} />
-      </label>
-      <p className="people-count" aria-live="polite">{text.peopleCount(filtered.length, activeGroup ? text.groups[activeGroup] : '')}</p>
-      <div className="people-list" aria-label={text.people}>
-        {visible.map(item => {
-          const pair = pairMap.get(item.id), outcome = outcomes.get(item.id);
-          return <button type="button" key={item.id} className={cls('people-result', item.id === visitorId && 'active')} aria-pressed={item.id === visitorId} onClick={() => chooseAndReveal(item.id)}>
-            <Ghost size={14} /><span><b>{item.name}</b>{pair ? <small>A: {t.outcomes[pair.a.outcome]} · B: {t.outcomes[pair.b.outcome]}</small> : outcome && <small>{t.outcomes[outcome.outcome]}</small>}</span>
-            {pair ? <small className="people-delta">{pair.delta === 0 ? '0' : `${pair.delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(pair.delta))}`}</small> : outcome && <small className="people-delta">{t.formatWait(outcome.waiting)}</small>}
-          </button>;
-        })}
-        {!visible.length && emptyState && <RunStateCard kind="empty-roster" action={emptyState.action} detail={`${text.noResults} · ${activeGroup ? text.groups[activeGroup] : text.everyone} · ${query || text.none}`} onAction={() => { if (emptyState.action === 'clear-filter') { setQuery(''); selectGroup(undefined); } else onEditGuests?.(); }} />}
-      </div>
-      {pageCount > 1 && <nav className="people-pagination" aria-label={text.people}>
-        <button type="button" className="text-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>{text.previous}</button>
-        <span>{currentPage + 1} / {pageCount}</span>
-        <button type="button" className="text-btn" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>{text.next}</button>
-      </nav>}
-      {stories.length > 0 && <details className="journey-stories"><summary>{t.journey.stories}</summary>{stories.map(item => <button type="button" key={item.id} className={cls('story-pick', item.id === visitorId && 'active')} onClick={() => { if (activeGroup) selectGroup(undefined); chooseAndReveal(item.id); }}>
-        <Ghost size={14} /><span>{nameOf(item.id)}{item.tags.map(tag => <small key={tag.key}>{t.journey.picks[tag.key]} · {pickValue(tag.key, tag.value, t)}</small>)}</span>{item.id === featured && <em title={t.journey.featured} aria-label={t.journey.featured}><Star size={10} aria-hidden="true" /></em>}
-      </button>)}</details>}
-    </aside>
     {!visitorId || !person || !currentInGroup ? <p className="journey-hint"><Ghost size={18} />{names.length ? t.journey.hint : text.noResults}</p> : <section className="ghost-detail" ref={detailRef}>
       <div className="ghost-card">
         <span className={cls('ghost-avatar', `tone-${statusTone(statusAt(journeys[0], Math.min(replayTime, journeys[0].until)))}`)}><Ghost size={30} /></span>
@@ -206,7 +176,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
       <div className="ghost-futures">{journeys.map((journey, column) => {
         const outcome = statisticsAt(runs[column], basis)?.visitors.find(item => item.id === visitorId);
         return <div className="future-row" key={column}>
-          {compare ? <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span> : <span />}
+          <strong className="future-plan">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}{plans[column].name}</strong>
           <span><small>{text.replayState} · {formatTime(Math.min(replayTime, journey.until))}</small>{journey.events.length ? describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t) : text.noData}</span>
           <span><small>{basis === 'completion' ? text.finalOutcome : text.cutoffOutcome} · {formatTime(journey.until)}</small>{journey.events.length && outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : text.noData}</span>
         </div>;
@@ -256,10 +226,9 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         <div className="lane-legend">{(['queue', 'hold', 'blocked', 'service'] as const).map(kind => <span key={kind}><i className={`seg-${kind}`} />{t.journey.segments[kind]}</span>)}</div>
       </div>
 
-      <StationTable journeys={journeys} plans={plans} compare={compare} cutoff={cutoff} onInspect={onInspect} />
-
       <details className="evidence" ref={evidenceRef}>
-        <summary>{t.journey.evidence(journeys.reduce((sum, journey) => sum + journey.events.length, 0))}</summary>
+        <summary>{t.review[basis]} · {t.journey.station} · {t.journey.evidence(journeys.reduce((sum, journey) => sum + journey.events.length, 0))}</summary>
+        <StationTable journeys={journeys} plans={plans} compare={compare} cutoff={cutoff} onInspect={onInspect} />
         <div className={cls('journey-columns', compare && 'two')}>{journeys.map((journey, column) => <div key={column} className="journey-column">
           <div className="journey-heading">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}<b>{plans[column].name}</b></div>
           {!journey.events.length && <p>{text.noData}</p>}
@@ -269,6 +238,37 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         </div>)}</div>
       </details>
     </section>}
+    <details className="ghost-stories" open>
+      <summary>{text.people}</summary>
+      {compare && counts && <label className="people-filter"><span>{text.people}</span><select aria-label={text.people} value={activeGroup ?? 'all'} onChange={event => selectGroup(event.target.value === 'all' ? undefined : event.target.value as AffectedFilter)}>
+        <option value="all">{text.everyone} · {counts.total}</option>
+        {FILTERS.map(filter => <option key={filter} value={filter}>{text.groups[filter]} · {groupCounts[filter]}</option>)}
+      </select></label>}
+      <label className="search-box"><Search size={14} aria-hidden="true" />
+        <input type="search" aria-label={text.search} placeholder={text.search} value={query}
+          onChange={event => { setQuery(event.target.value); setPage(0); }}
+          onKeyDown={event => { if (event.key === 'Enter' && filtered[0]) chooseAndReveal(filtered[0].id); }} />
+      </label>
+      <p className="people-count" aria-live="polite">{text.peopleCount(filtered.length, activeGroup ? text.groups[activeGroup] : '')}</p>
+      <div className="people-list" aria-label={text.people}>
+        {visible.map(item => {
+          const pair = pairMap.get(item.id), outcome = outcomes.get(item.id);
+          return <button type="button" key={item.id} className={cls('people-result', item.id === visitorId && 'active')} aria-pressed={item.id === visitorId} onClick={() => chooseAndReveal(item.id)}>
+            <Ghost size={14} /><span><b>{item.name}</b>{pair ? <small>A: {t.outcomes[pair.a.outcome]} · B: {t.outcomes[pair.b.outcome]}</small> : outcome && <small>{t.outcomes[outcome.outcome]}</small>}</span>
+            {pair ? <small className="people-delta">{pair.delta === 0 ? '0' : `${pair.delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(pair.delta))}`}</small> : outcome && <small className="people-delta">{t.formatWait(outcome.waiting)}</small>}
+          </button>;
+        })}
+        {!visible.length && emptyState && <RunStateCard kind="empty-roster" action={emptyState.action} detail={`${text.noResults} · ${activeGroup ? text.groups[activeGroup] : text.everyone} · ${query || text.none}`} onAction={() => { if (emptyState.action === 'clear-filter') { setQuery(''); selectGroup(undefined); } else onEditGuests?.(); }} />}
+      </div>
+      {pageCount > 1 && <nav className="people-pagination" aria-label={text.people}>
+        <button type="button" className="text-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>{text.previous}</button>
+        <span>{currentPage + 1} / {pageCount}</span>
+        <button type="button" className="text-btn" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>{text.next}</button>
+      </nav>}
+      {stories.length > 0 && <details className="journey-stories"><summary>{t.journey.stories}</summary>{stories.map(item => <button type="button" key={item.id} className={cls('story-pick', item.id === visitorId && 'active')} onClick={() => { if (activeGroup) selectGroup(undefined); chooseAndReveal(item.id); }}>
+        <Ghost size={14} /><span>{nameOf(item.id)}{item.tags.map(tag => <small key={tag.key}>{t.journey.picks[tag.key]} · {pickValue(tag.key, tag.value, t)}</small>)}</span>{item.id === featured && <em title={t.journey.featured} aria-label={t.journey.featured}><Star size={10} aria-hidden="true" /></em>}
+      </button>)}</details>}
+    </details>
   </div>;
 }
 

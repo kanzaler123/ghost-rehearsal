@@ -88,6 +88,10 @@ fieldset:disabled { opacity: 0.82; }
 .canvas-pane { flex: 1; min-width: 0; min-height: 0; display: flex; position: relative; }
 .canvas-area.rows .canvas-pane + .canvas-pane { border-top: var(--stroke) solid var(--line-2); }
 .canvas-area.cols .canvas-pane + .canvas-pane { border-left: var(--stroke) solid var(--line-2); }
+.mode-compare.focus-overview .stage { overflow-y: auto; }
+.mode-compare .canvas-area.split { min-height: calc(var(--size-180px) + var(--control-sm)); }
+.mode-compare .canvas-area.rows { min-height: calc(2 * (var(--size-180px) + var(--control-sm)) + var(--stroke)); }
+.mode-compare .canvas-area.split .canvas-pane { min-height: calc(var(--size-180px) + var(--control-sm)); }
 .canvas-shell {
   flex: 1; position: relative; overflow: hidden; min-height: 0; container-type: size;
   background:
@@ -303,6 +307,7 @@ fieldset:disabled { opacity: 0.82; }
   font-size: var(--fs-sm); position: relative; top: auto; left: auto; order: 0; flex-shrink: 0; max-width: 100%; width: 100%; min-height: var(--control-lg); border-radius: 0; border: 0; border-bottom: var(--stroke) solid var(--line); background: var(--surface-1); backdrop-filter: none; pointer-events: auto;
 }
 .pane-label > span { width: var(--size-22px); height: var(--size-22px); flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 800; color: var(--ink--072018); background: var(--ecto); box-shadow: none; }
+.mode-compare .pane-label { min-height: var(--control-sm); padding-top: var(--space-1); padding-bottom: var(--space-1); }
 .pane-label.alt > span { color: var(--ink--160b33); background: var(--hex); box-shadow: none; }
 .pane-label b { color: var(--text-0); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .pane-label em { padding-left: var(--radius-md); border-left: var(--stroke) solid var(--line-2); font-style: normal; font-size: var(--fs-xs); color: var(--tone-wait); white-space: nowrap; }
@@ -684,6 +689,7 @@ fieldset:disabled { opacity: 0.82; }
 .delta-badge small { flex-basis: 100%; font-family: var(--font-ui); color: var(--text-muted); }
 .run-state-card { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-lg); background: var(--surface-1); }
 .run-state-card p { flex: 1; min-width: 0; font-size: var(--fs-sm); }
+.run-state-card.is-compact { padding: 0; border: 0; border-radius: 0; background: transparent; }
 .haunt.is-quiet { opacity: var(--haunt-quiet); mask-image: radial-gradient(ellipse at center, transparent 15%, black 90%); }
 .entry-atmosphere { position: fixed; inset: 0; pointer-events: none; z-index: 99; }
 .entry-atmosphere .haunt-moon, .canvas-shell:has(.canvas-empty) .haunt-moon { opacity: 0.85; }

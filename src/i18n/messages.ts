@@ -64,6 +64,7 @@ const en = {
   guide: {
     title: 'A/B/C decision guide', start: 'Start the A/B/C guide', exit: 'Exit guide', reset: 'Reset guide', rerun: 'Rerun this comparison',
     steps: ['Compare A/B', 'The same guest', 'First difference', 'Posts and resources', 'Compare B/C', 'Export the arrangement'],
+    brief: ['Synthetic example: compare outcomes, waiting and costs.', 'Follow the same ID across both recorded plans.', 'Inspect the first visible change; it does not establish a cause.', 'Inspect staffing and availability before changing resources.', 'One extra packing worker: check gains, departures and cost.', 'Export C with the selected statistics basis and waiting rule.'],
     hints: [
       'Synthetic Open House: read completions, unfinished guests, departures, waiting and costs together. B changes several arrangements at once.',
       'Follow one ID in both plans. The outcome and waiting belong to the selected statistics basis; explore the station table and event record.',
@@ -526,6 +527,7 @@ const zh: Messages = {
   guide: {
     title: 'A/B/C 决策引导', start: '开始 A/B/C 引导演示', exit: '退出引导', reset: '重置引导', rerun: '重跑当前比较',
     steps: ['比较 A/B', '同一位访客', '首次差异', '岗位与资源', '比较 B/C', '导出安排'],
+    brief: ['合成示例：一起比较结局、等待和成本。', '在两个方案的记录中追踪同一 ID。', '检查首次可见变化，不能据此断言原因。', '调整资源前先检查岗位和可用状态。', '增配一位资料人员：核对改善、提前离开和代价。', '按当前统计口径与等待规则导出 C。'],
     hints: [
       '合成开放日示例：一起查看完成、未完成、提前离开、等待和成本。B 同时改变了多项安排。',
       '在两个方案中追踪同一个 ID。结局与等待采用当前统计口径，可继续查看逐站用时和事件记录。',

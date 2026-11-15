@@ -1,0 +1,275 @@
+{
+  "phase": "after",
+  "lang": "zh",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "scrollPolicy": "first-screen zero scroll",
+  "case": "A/B/C guide synthetic Open House A/B",
+  "seed": 20261114,
+  "replayTime": 210,
+  "basis": "cutoff",
+  "waitingThreshold": 60,
+  "guest": null,
+  "guideStep": 0,
+  "arrangement": "auto",
+  "runMode": "run_to_completion",
+  "requestedCanvasZoom": null,
+  "pointerPosition": null,
+  "canvasZoomPolicy": "default automatic fit after layout",
+  "pageZoom": 1,
+  "reducedMotion": "reduce",
+  "projectSha256": "1b954ce1f652df49ff8d9fd540680f36a220d97fe1d40ce5eb8d47a53a5c8190",
+  "scenarios": [
+    {
+      "id": "open-house",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    },
+    {
+      "id": "scenario-1",
+      "seed": 20261114,
+      "cutoff": 1800,
+      "horizon": 7200
+    }
+  ],
+  "workers": [
+    "http://127.0.0.1:4181/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": [],
+  "geometry": {
+    "innerWidth": 1440,
+    "innerHeight": 900,
+    "documentWidth": 1440,
+    "devicePixelRatio": 1,
+    "zoom": "1",
+    "scrollY": 0,
+    "canvases": [
+      {
+        "pane": {
+          "x": 336,
+          "y": 199.1875,
+          "width": 1056,
+          "height": 288.40625,
+          "right": 1392,
+          "bottom": 487.59375
+        },
+        "flow": {
+          "x": 336,
+          "y": 227.1875,
+          "width": 1056,
+          "height": 260.40625,
+          "right": 1392,
+          "bottom": 487.59375
+        },
+        "viewport": "transform: translate(36px, 140.589px) scale(0.70088);",
+        "zoom": 0.70088,
+        "stages": [
+          {
+            "name": "入场",
+            "rect": {
+              "x": 372,
+              "y": 299.0907287597656,
+              "width": 165.4075927734375,
+              "height": 154.3687744140625,
+              "right": 537.4075927734375,
+              "bottom": 453.4595031738281
+            },
+            "fullyVisible": true
+          },
+          {
+            "name": "核验与复检",
+            "rect": {
+              "x": 582.263916015625,
+              "y": 299.0907287597656,
+              "width": 165.4075927734375,
+              "height": 154.3687744140625,
+              "right": 747.6715087890625,
+              "bottom": 453.4595031738281
+            },
+            "fullyVisible": true
+          },
+          {
+            "name": "参与活动",
+            "rect": {
+              "x": 1162.59228515625,
+              "y": 299.0907287597656,
+              "width": 165.40771484375,
+              "height": 154.3687744140625,
+              "right": 1328,
+              "bottom": 453.4595031738281
+            },
+            "fullyVisible": true
+          }
+        ]
+      },
+      {
+        "pane": {
+          "x": 336,
+          "y": 487.59375,
+          "width": 1056,
+          "height": 289.40625,
+          "right": 1392,
+          "bottom": 777
+        },
+        "flow": {
+          "x": 336,
+          "y": 516.59375,
+          "width": 1056,
+          "height": 260.40625,
+          "right": 1392,
+          "bottom": 777
+        },
+        "viewport": "transform: translate(36px, 140.589px) scale(0.70088);",
+        "zoom": 0.70088,
+        "stages": [
+          {
+            "name": "入场",
+            "rect": {
+              "x": 372,
+              "y": 588.4969482421875,
+              "width": 165.4075927734375,
+              "height": 154.3687744140625,
+              "right": 537.4075927734375,
+              "bottom": 742.86572265625
+            },
+            "fullyVisible": true
+          },
+          {
+            "name": "核验与复检",
+            "rect": {
+              "x": 582.263916015625,
+              "y": 588.4969482421875,
+              "width": 165.4075927734375,
+              "height": 154.3687744140625,
+              "right": 747.6715087890625,
+              "bottom": 742.86572265625
+            },
+            "fullyVisible": true
+          },
+          {
+            "name": "参与活动",
+            "rect": {
+              "x": 1162.59228515625,
+              "y": 588.4969482421875,
+              "width": 165.40771484375,
+              "height": 154.3687744140625,
+              "right": 1328,
+              "bottom": 742.86572265625
+            },
+            "fullyVisible": true
+          }
+        ]
+      }
+    ],
+    "elements": {
+      ".topbar": {
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 64,
+          "right": 1440,
+          "bottom": 64
+        },
+        "fullyVisible": true,
+        "text": "Ghost Rehearsal\nKIROWEEN · 预演未知之夜\n双入口开放日 · 方案 A · 基线\n搭建\n预演\n双未来\n运行预演\n草稿已保存\nEN\n中文"
+      },
+      ".guided-demo": {
+        "rect": {
+          "x": 0,
+          "y": 64,
+          "width": 1440,
+          "height": 47.34375,
+          "right": 1440,
+          "bottom": 111.34375
+        },
+        "fullyVisible": true,
+        "text": "1/6 · 比较 A/B\n\n合成示例：一起比较结局、等待和成本。\n\n追踪同一位访客\n更多选项\n退出引导"
+      },
+      ".comparison-identities": {
+        "rect": {
+          "x": 14,
+          "y": 121.34375,
+          "width": 1102.640625,
+          "height": 18.84375,
+          "right": 1116.640625,
+          "bottom": 140.1875
+        },
+        "fullyVisible": true,
+        "text": "A · 方案 A · 基线\nB · 方案 B · 双核验通道"
+      },
+      ".comparison-settings": {
+        "rect": {
+          "x": 0,
+          "y": 111.34375,
+          "width": 1440,
+          "height": 39.84375,
+          "right": 1440,
+          "bottom": 151.1875
+        },
+        "fullyVisible": true,
+        "text": "A · 方案 A · 基线\nB · 方案 B · 双核验通道\n观察截止 · A 30:00 / B 30:00\n此刻 · 03:30"
+      },
+      ".stage-head": {
+        "rect": {
+          "x": 336,
+          "y": 151.1875,
+          "width": 1056,
+          "height": 48,
+          "right": 1392,
+          "bottom": 199.1875
+        },
+        "fullyVisible": true,
+        "text": "同一批参与者 · 两种活动安排\n运行完成\n自动\n上下排列\n左右排列\n总览\n访客旅程\n分阶段\n全图"
+      },
+      ".comparison-live": {
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "fullyVisible": false,
+        "text": "A · 方案 A · 基线回放 03:30在场人数54排队等待50服务中4已完成2此刻最长的队列身份核验 · 35 排队身份核验35排队领取资料14排队人工复检1排队B · 方案 B · 双核验通道回放 03:30在场人数53排队等待50服务中3已完成3此刻最长的队列第二核验通道 · 21 排队第二核验通道21排队身份核验14排队领取资料13排队人工复检2排队"
+      },
+      ".run-state-card": {
+        "rect": {
+          "x": 585.265625,
+          "y": 163.6875,
+          "width": 72,
+          "height": 22,
+          "right": 657.265625,
+          "bottom": 185.6875
+        },
+        "fullyVisible": true,
+        "text": "运行完成"
+      },
+      ".dock": {
+        "rect": {
+          "x": 336,
+          "y": 777,
+          "width": 1056,
+          "height": 93,
+          "right": 1392,
+          "bottom": 870
+        },
+        "fullyVisible": true,
+        "text": "回放\n03:30\n120:00\n0.5×\n1×\n2×\n4×\n8×\n1× = 30 秒/秒\n同一幽灵 · 两个未来\n等待与证据\n资源利用\n事件记录\n服务中\n排队等待\n改变一个假设"
+      },
+      ".dock-body": null,
+      ".ghost-card": null,
+      ".ghost-futures": null,
+      ".diff-note": null,
+      ".lanes": null,
+      ".ghost-stories": null
+    },
+    "lanes": [],
+    "report": "按顺序读懂两个未来\n\n两个方案使用同一组访客 · B 相对 A\n\n完成人数\n−2\n变差\nA 43 → B 41\n人均等待\n−2.4 秒\n改善\n差异小于显示精度\nA 17.6 分 → B 17.6 分\n中途离开或被拒\n+2\n变差\nA 4 → B 6\n尚未完成\n0\n无变化\nA 253 → B 253\nP90 等待\n0.0 秒\n无变化\nA 25.8 分 → B 25.8 分\n全体累计等待\n−11.9 人·分钟\n改善\nA 5288.6 人·分钟 → B 5276.7 人·分钟\n资源代价\n工作人员\nA 3 → B 3\n核验终端\nA 1 → B 2 \n+1\n代价\n统计范围内的人员工时\nA 1.5 小时 → B 1.5 小时\n统计范围内的设备时长\nA 0.5 小时 → B 1.0 小时 \n+0.5 小时\n代价\n加班\nA 0.0 秒 → B 0.0 秒\n查看证据\n改善 / 退步 / 代价\n样本 n 300 · 观察截止 · A 30:00 / B 30:00\n1\n改了什么 · 13\n2\n哪些结果发生变化\n指标\t\nA\n\t\nB\n\tB − A\n完成人数\t43\t41\t\n−2\n变差\n\n尚未完成\t253\t253\t\n0\n无变化\n\n中途离开或被拒\t4\t6\t\n+2\n变差\n\n人均等待\t17.6 分\t17.6 分\t\n−2.4 秒\n改善\n差异小于显示精度\n\nP90 等待\t25.8 分\t25.8 分\t\n0.0 秒\n无变化\n\n全体累计等待\t5288.6 人·分钟\t5276.7 人·分钟\t\n−11.9 人·分钟\n改善\n\n等待需要结合完成和离开人数一起判断；提前离开也可能让等待变短。\n\n3\n哪些人受到影响\n\n两个未来中共 300 位已到达参与者\n\n12\n少等 ≥60 秒\n9\n多等 ≥60 秒\n279\n变化不足 60 秒\n\n等待差值为 B − A，按毫秒精度分组；直方图区间单位为分钟。负值表示少等，不一定代表结局更好。\n\n每人等待变化，B − A（分钟）\n7 人只在 B 中完成\n9 人只在 A 中完成\n\n追踪其中一位：\n\n侧入口 #10\n只在 B 中完成 · 10:55\n在 B 中等待减少最多 · −19.6 分\n侧入口 #2\n在 B 中等待增加最多 · +24.6 分\n只在 A 中完成 · 06:40\n4\n等待变化集中在哪里\n5\n付出什么代价\n工作人员\n3 → 3\n0\n无变化\n核验终端\n1 → 2\n+1\n代价\n统计范围内的人员工时\n1.5 小时 → 1.5 小时\n0.0 小时\n无变化\n统计范围内的设备时长\n0.5 小时 → 1.0 小时\n+0.5 小时\n代价\n加班\n0.0 秒 → 0.0 秒\n0.0 秒\n无变化\n可用时间中的忙碌占比\n核验工作人员\n73% → 100%\n机动工作人员\n78% → 98%\n资料工作人员\n94% → 94%\n核验终端 1\n100% → 82%\n核验终端 2\n— → 80%\n人员工时和设备时长按所选统计范围内的班次计算。",
+    "scope": "主要等待指标：全部已到达者，包括未完成者和提前离开者。等待配对样本 n=300：两侧均已到达且 ID 相同的参与者。方案 A · 基线 · 实际统计结束 30:00 · 全部已到达 n=300 · 未到达 0 · 已到达但未配对 0方案 B · 双核验通道 · 实际统计结束 30:00 · 全部已到达 n=300 · 未到达 0 · 已到达但未配对 0仅已完成者 · 次要等待样本两侧分别取各自已完成者，不保证是同一批人。方案 A · 基线 · 样本 n=43 · 人均等待: 10.4 分 · P90 等待: 19.1 分方案 B · 双核验通道 · 样本 n=41 · 人均等待: 10.4 分 · P90 等待: 20.1 分"
+  }
+}

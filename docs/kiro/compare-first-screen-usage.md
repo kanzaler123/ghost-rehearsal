@@ -1,0 +1,37 @@
+# Comparison first screen: tool attribution
+
+Date: 2026-11-16 (UTC+8). Branch: `kiro/compare-first-screen`. Baseline: `626ef47c64bd176b7db690f051ce7b9adcb3c64f`. Codex implementation commit: `66f52ee6839d2424f8d784c81ea44a431385c04f` (17 source/test files; amended before publication). Implementation is delivered for independent review; user acceptance remains pending.
+
+The work addresses vertical space and reading order in the two-future overview and guest journey: stacked guide/context/status blocks, clipped stage canvases, duplicated result summaries, and guest evidence appearing too late.
+
+## Actual contributions
+
+- **Human:** supplied task scope, protected behaviors, viewport conditions, validation commands and the Draft PR review boundary.
+- **Codex and its delegated agents:** inspected the workspace and remote baseline; read existing Kiro specifications and steering; created the isolated task worktree; captured baseline and revised production-Worker screenshots; implemented layout, disclosure and bilingual copy changes; updated affected test traversal; ran and reviewed available verification; prepared these records.
+- **Kiro:** no Kiro invocation, runtime feature use or implementation contribution was verified in this round. Reading files under `.kiro/` with Codex is not a Kiro execution. No source or test changes in this round are attributed to Kiro.
+- **Hook:** no actual Stop Hook execution or successful automatic update was observed. Historical configuration/loading evidence remains distinct from execution evidence.
+
+The earlier Kiro handoff attributed specification work to `eeef1dc` and baseline documentation to `4d22025`; its original session export remains **pending**. This round preserves that history and does not independently establish the earlier session's execution. Earlier Codex work remains attributed to Codex.
+
+## Files, verification and evidence
+
+The implementation covers `src/app/App.tsx`, the four existing app stylesheet layers, `GuidedDemo.tsx`, `CompareReport.tsx`, `Journey.tsx`, their affected shell components, bilingual messages and directly related tests. The engine, analysis calculations, fingerprints, schemas and fixture inputs are unchanged. The [review record](../reviews/compare-first-screen.md) lists file purposes, matching screenshot conditions, intermediate failures, final verification status and remaining review work.
+
+| Evidence | Status and location |
+| --- | --- |
+| Default-view before/after production captures | Exported 24 PNGs and corresponding JSON files under [`docs/reviews/compare-first-screen/before/`](../reviews/compare-first-screen/before/) and [`after/`](../reviews/compare-first-screen/after/), covering English/Chinese at 1366 × 768, 1440 × 900 and 390 × 844. Final after images were refreshed from `66f52ee` and inspected, including the corrected phone landing. Automatic canvas fitting differs with available height; these are supplementary default-view evidence. |
+| Four primary fixed-zoom pairs | Exported eight `*-fixed-zoom.png` files and corresponding JSON in the same directories; all eight PNGs visually inspected, with final after images from `66f52ee`. Both canvases use 0.6 through the native wheel control, separately from browser zoom 100%. All pairs retain matching inputs and final after records contain no page errors. [Capture script](../reviews/compare-first-screen/capture.mjs). |
+| Production Worker and matching-input evidence | Capture JSON records Worker URLs, exported-project SHA-256, seed, basis, threshold, replay time, viewport and errors. |
+| Final check and standalone build | `npm run check` passed **452/452 tests in 30 files** plus both typechecks at 2026-11-16 01:41:36 (UTC+8), after the late phone landing correction. `npm run build -- --base=/ghost-rehearsal/` passed with the existing large-chunk warning; output `index-_cFHulug.js` / `index-AweWS-P8.css`, simulation Worker unchanged as `worker-Hj9-Aq7I.js`. |
+| Browser commands and outcomes | Recorded in the [review record](../reviews/compare-first-screen.md), preserving the focused 10-pass/6-fail run, interrupted full gate, 99-pass/1-fail/2-skip/74-not-run full-command timeout, targeted corrections and interrupted initial shard. Final shard 1: **85 passed / 1 failed / 2 existing opt-in skips**, 7.8 minutes. Final shard 2: **86 passed / 2 existing opt-in skips**, 8.0 minutes. Combined: **176 unique cases, 171 passed / 1 failed / 4 existing opt-in skips**; all **48 directly related cases passed**. The unchanged isolated robustness case then passed 1/1 in 40.3 seconds. The failed shard and original full timeout remain failures; the cause remains uncertain. Environment: Windows, Node.js 24.18.0, npm 11.16.0, Playwright 1.65.1 / Chromium, production build and real Worker. |
+| Targeted first-screen evidence | Exported [padding-fix 4/4 result](../reviews/compare-first-screen/validation/first-screen-padding-pass.json) and [final landing-fix 4/4 result](../reviews/compare-first-screen/validation/first-screen-final.json), each with 0 failures, skips or flaky cases. |
+| Failed focused browser evidence | Exported [16-case JSON result](../reviews/compare-first-screen/validation/focused-16-failed.json) and six error-context files under `validation/`. The earlier interrupted run's artifacts were overwritten by concurrent Playwright output cleanup and are unavailable. |
+| First full-gate failure evidence | Exported [arrival-import failure context](../reviews/compare-first-screen/validation/gate-data-sources-integration-a-723da-d-trips-the-shared-scenario-desktop-en-failed.md). The compact completion-state selector was preserved in source without weakening the existing test. |
+| Second full-gate failure/timeout evidence | Exported [JSON result](../reviews/compare-first-screen/validation/gate-2-timeout.json) and [phone segment failure context](../reviews/compare-first-screen/validation/gate-2-mobile-segment-failed.md). The original full-suite command did not pass; subsequent shard outcomes must be recorded separately. |
+| Restarted shard 1 evidence | Exported [JSON result](../reviews/compare-first-screen/validation/shard-1-final.json) and [robustness failure context](../reviews/compare-first-screen/validation/shard-1-robustness-failed.md). Its unchanged robustness case timed out before comparison UI rendered while a 3,000-guest run was computing. The cause is not established; no resource-contention explanation or full-gate pass is claimed. |
+| Final shard 2 and isolation evidence | Exported [shard 2 result](../reviews/compare-first-screen/validation/shard-2-final.json) and [unchanged robustness isolation result](../reviews/compare-first-screen/validation/robustness-isolated.json). The isolated pass does not overwrite the earlier failed shard. |
+| This Codex conversation export | **pending**; no exported raw conversation file is claimed. |
+| Earlier Kiro conversation export | **pending** from the existing handoff; no replacement export fabricated. |
+| New Kiro session or Hook execution output | None verified; no new Kiro session or Hook success claimed. |
+
+The screenshots are browser evidence produced by Codex, not Kiro session screenshots. Raw private session exports belong in ignored `kiro-evidence/` if exported later. Implementation completion, automated verification, independent review and user acceptance are separate states. This work does not merge, deploy or submit the project to a competition.

@@ -74,3 +74,11 @@ A/B/C 引导、共享实验构造和画布隐藏状态修复由 Codex 完成（`
 用户提供的 Kiro 交接说明报告：已完成 rehearsal-studio-ui 规格（`eeef1dc`）和基线记录（`4d22025`），UI 实现及改造前截图未完成；原始 Kiro 会话导出为 **pending**。保留这两次既有提交及历史归属，不把交接说明当作本轮观测到的 Kiro 执行日志。
 
 随后由 Codex 完成改造前截图（`4ef1d01`）、UI 实现及验证工作；这些不计为 Kiro 开发或 Hook 自动产物。具体文件范围、验证结果及尚待集成事项见 `docs/reviews/ui-visual-polish.md`，归属和证据状态见 `docs/kiro/ui-visual-polish-usage.md`。本次没有声称 Stop Hook 执行完成，也没有补造 Kiro 原始会话；未导出的 Kiro 会话仍为 **pending**。
+
+## 2026-11-16 比较首屏与访客旅程（Codex 追加）
+
+本轮从经 fetch 和远端核实的最新 `origin/main` `626ef47c64bd176b7db690f051ce7b9adcb3c64f` 创建独立 worktree 和 `kiro/compare-first-screen` 分支，处理顶部信息叠加、双画布裁切、结果重复及旅程阅读顺序。用户提供范围与验收条件；Codex 及其协作代理完成基线检查、代码修改、生产 Worker 截图、相关测试与交付记录。实现提交编号及最终验证结果在 [本轮评审记录](docs/reviews/compare-first-screen.md) 更新。
+
+本轮实际调用或执行的 Kiro 功能：无已核实项。现有 `.kiro` Spec 和 Steering 由 Codex 阅读，不计为 Kiro 运行或开发贡献；本轮没有已核实的 Kiro 代码修改或 Stop Hook 执行输出。历史 Kiro 交接归属保留，原始会话导出继续标记为 **pending**；本轮 Codex 原始会话导出也为 **pending**。
+
+真实截图与逐状态条件已存入 `docs/reviews/compare-first-screen/before/` 和 `after/`；这些是 Codex 生成的浏览器证据。文件范围、贡献归属、验证失败／通过／待运行状态及证据位置见 [本轮使用记录](docs/kiro/compare-first-screen-usage.md) 和评审记录。本轮停在 Draft PR 待独立 review，不合并 main、不部署、不提交比赛，也不把实现完成写成用户验收通过。
