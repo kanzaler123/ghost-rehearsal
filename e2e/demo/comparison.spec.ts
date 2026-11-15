@@ -1,9 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { MESSAGES } from '../src/i18n/messages';
-import type { Messages } from '../src/i18n/messages';
-import type { Plan, ProjectDocument, Scenario } from '../src/schemas';
+import { MESSAGES } from '../../src/i18n/messages';
+import type { Messages } from '../../src/i18n/messages';
+import type { Plan, ProjectDocument, Scenario } from '../../src/schemas';
 
 async function exportFromMenu(page: Page, t: Messages, title: string) {
   await page.locator('.workspace-menu > summary').click();
