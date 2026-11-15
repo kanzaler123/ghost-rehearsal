@@ -5,7 +5,7 @@
 - [x] Implement modal layering/focus and constrained scroll layout.
 - [x] Implement numeric drafts, validation, external synchronization and optional-unit semantics.
 - [x] Implement tabs and independent checkbox groups.
-- [ ] Complete bilingual browser cases at all three target viewports and inspect screenshots.
-- [ ] Run type/unit/build checks, inspect each changed hunk and record limitations.
+- [x] Complete bilingual browser cases at all three target viewports and inspect screenshots (44/44 across two final runs).
+- [x] Run type/unit/build checks, inspect each changed hunk and record limitations (standalone `check` awaits A0; B + A0 passes).
 - [ ] Commit actual review and Kiro/tool attribution, push B, open Draft PR targeting integration.
 - [ ] Independent review; A0 integration and final combined acceptance (A/E/reviewer).
