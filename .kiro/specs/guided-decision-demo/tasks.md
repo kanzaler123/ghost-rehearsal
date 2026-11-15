@@ -17,6 +17,7 @@
 - [x] A0: isolate shared production browser infrastructure as commit `9462cc9`, Draft PR #4, targeting `kiro/release-integration`; 263 unit tests and 4 browser cases passed on its own integration baseline.
 - [x] A3: reuse the existing experiment/guide; add comparison-overview entry and remove the inherited Dialogs extension so B's file has no net change.
 - [x] Use current eligible guest for the first-difference action; preserve original activities and C reuse on reset/rerun.
-- [ ] Final continuation browser acceptance and independent review; results are appended in `docs/reviews/comparison-demo.md`.
+- [x] Continuation acceptance: 278 unit tests and both typechecks passed; production subpath build passed; 12/12 complete browser cases passed on `30bb3cb`, followed by 4/4 final guide/name-visibility cases on `bef5694`. Evidence: `docs/reviews/comparison-demo.md`.
+- [ ] Independent review and integration acceptance.
 
 The existing branch and PR #3 are retained; PR #3 is now Draft and targets the release integration branch. Codex performed this continuation; no new Kiro task or Hook execution is claimed.

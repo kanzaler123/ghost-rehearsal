@@ -17,6 +17,7 @@ Historical baseline: 2026-11-15, commit `6309d5f`, 263 tests passed. Implementat
 - [x] A1: expose a shared comparison context with identities, samples, thresholds, actual boundaries and unavailable states; consistently replace/clear excluded selections.
 - [x] A2: preserve all-arrived primary and completed-only secondary waiting; add hand-calculated early-departure/unfinished/late/empty samples and context tests.
 - [x] Correct foundation First_Divergence glossary and requirement 4.8 to settled visible states; retain the 210-second regression.
-- [ ] Final continuation browser acceptance and independent review; results are appended in `docs/reviews/comparison-demo.md`.
+- [x] Continuation acceptance: 278 unit tests and both typechecks passed; production subpath build passed; 12/12 complete browser cases passed on `30bb3cb`, followed by 4/4 final guide/name-visibility cases on `bef5694`. Evidence: `docs/reviews/comparison-demo.md`.
+- [ ] Independent review and integration acceptance.
 
 These are additions to the previous implementation and historical validation, not a new implementation of the simulation engine.

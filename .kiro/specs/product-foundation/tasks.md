@@ -72,3 +72,5 @@
 ## 2026-11-15 并行发布 A 续作映射（Codex）
 
 比较任务继续沿用 `comparison-evidence-contract`（requirements 4、34–40）与 `guided-decision-demo`（44、46 的本次引导范围）。新增共享比较上下文与无效人物清理规则，修订 First_Divergence 定义及 4.8，保留同刻收敛和 210 秒回归。引导入口现位于比较总览与搭建侧栏；历史欢迎页入口已移除，Dialogs/Inspector 由 B 独占。A0 测试基础设施独立提交 `9462cc9` / Draft PR #4。历史 159、263、272 项记录原样保留；本次验证及集成需求见 `docs/reviews/comparison-demo.md`，独立 review 仍待完成。
+
+本次追加验证：`30bb3cb` 完整浏览器 12/12 通过；最终应用提交 `bef5694` 的 278 项单元测试、两组类型检查、生产子路径构建，以及中英文桌面/移动端引导与名称可见性 4/4 通过。后续证据提交不改变应用或测试；以上为 A 模块自测，不代表独立 review 或统一产品验收完成。
