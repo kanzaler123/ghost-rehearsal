@@ -6,6 +6,7 @@ export default defineConfig({
   ...base,
   testMatch: [
     '**/smoke.spec.ts',
+    '**/resize-probe.spec.ts',
     '**/demo/comparison.spec.ts',
     '**/robustness/integration.spec.ts',
     '**/ui/accessibility.spec.ts',
