@@ -98,6 +98,7 @@
   .metrics-strip.two-clocks { grid-template-columns: 1fr; }
   .metric-group + .metric-group { border-left: 0; border-top: var(--stroke) solid var(--line-2); padding-top: var(--radius-sm); }
   .now-panel, .ghost-journey { grid-template-columns: 1fr; }
+  .ghost-detail, .ghost-stories, .journey-hint { grid-column: auto; grid-row: auto; }
   .ghost-stories { border-right: 0; padding-right: 0; }
   .ghost-card { flex-wrap: wrap; }
   .legend { display: none; }
@@ -126,6 +127,8 @@
   .mode-compare .ghost-journey, .mode-compare.focus-person .ghost-journey { grid-template-columns: minmax(0, 1fr); gap: var(--fs-lg); }
   .mode-compare .people-list, .mode-compare.focus-person .people-list { max-height: var(--size-210px); }
   .mode-compare .ghost-stories { padding-bottom: var(--fs-md); border-bottom: var(--stroke) solid var(--line); }
+  .mode-compare .journey-header { scroll-margin-top: var(--size-96px); }
+  .mode-compare .report-head { scroll-margin-top: var(--size-112px); }
   .mode-compare .report-snapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .mode-compare .resource-summary { grid-column: auto; }
   .mode-compare .status-bar { flex-shrink: 0; }
@@ -185,7 +188,7 @@
  .stage-head { height: auto; min-height: var(--control-lg); }
 }
 @media (max-width: 980px) {
- .topbar button, .topbar summary, .sidebar button, .sidebar summary, .live-queues summary, .live-queue, .mobile-compare-nav button, .dock button:not(.seg), .dock select, .plan-main, .plan-node, .nav-item, .people-result, .modal button, .modal summary, .canvas-tools button, .react-flow__controls-button, .stage-tools button, .stage-tools select { min-height: var(--touch-min); min-width: var(--touch-min); }
+ .topbar button, .topbar summary, .sidebar button, .sidebar summary, .guided-demo button, .guided-demo summary, .comparison-settings button, .comparison-settings summary, .comparison-settings select, .live-queues summary, .live-queue, .mobile-compare-nav button, .dock button:not(.seg), .dock summary, .dock select, .plan-main, .plan-node, .nav-item, .people-result, .modal button, .modal summary, .canvas-tools button, .react-flow__controls-button, .stage-tools button, .stage-tools select { min-height: var(--touch-min); min-width: var(--touch-min); }
  .topbar, .command-group, .file-group, .lang-switch, .mode-switch, .mobile-compare-nav, .dock-tabs, .timeline, .stage-tools, .modal-footer { gap: var(--space-2); }
  .topbar .btn.run { height: var(--touch-min); }
  .play-btn, .mode-switch button { position: relative; overflow: visible; }
@@ -209,6 +212,10 @@
  .report-collapsed .sidebar.is-report, .sidebar.is-report.is-collapsed { width: 100%; }
  .mode-compare .report-snapshot { display: flex; }
  .workspace-menu-body { max-width: calc(100vw - var(--space-7)); }
+ .comparison-identities { flex-basis: 100%; }
+ .comparison-options, .guide-options { position: static; }
+ .comparison-options-body, .guide-options-body { right: var(--space-3); }
+ .mode-compare.focus-person .comparison-identities { display: none; }
  .event-start-options { display: grid; grid-template-columns: minmax(0, 1fr); }
  .divergence-states { grid-template-columns: minmax(0, 1fr); }
 }

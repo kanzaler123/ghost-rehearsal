@@ -128,6 +128,7 @@ export function App() {
   const [expanded, setExpanded] = useState<string[]>([]);
   const [railExpanded, setRailExpanded] = useState(false);
   const [compareFocus, setCompareFocus] = useState<'overview' | 'person'>('overview');
+  const [liveExpanded, setLiveExpanded] = useState(false);
   const [peopleGroup, setPeopleGroup] = useState<AffectedFilter>();
   const [mobilePanel, setMobilePanel] = useState<'report' | 'canvas' | 'person' | 'evidence'>('report');
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ token: 0, target: 'default' });
@@ -481,8 +482,11 @@ export function App() {
     requestView('default');
   }, [mode]);
   useEffect(() => {
-    if (window.matchMedia?.('(max-width: 980px)')?.matches) workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'auto' : undefined });
-  }, [mobilePanel]);
+    if (!window.matchMedia?.('(max-width: 980px)')?.matches) return;
+    workspaceRef.current?.scrollTo({ top: 0, left: 0, behavior: reducedMotion ? 'auto' : undefined });
+    if (guide && (mobilePanel === 'person' || mobilePanel === 'report')) workspaceRef.current?.querySelector(mobilePanel === 'person' ? '.journey-header' : '.report-head')?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' });
+  }, [mobilePanel, guide?.step, comparisonReady]);
+  useEffect(() => { if (compareFocus === 'person') setLiveExpanded(false); }, [compareFocus]);
   useEffect(() => { requestView('default'); }, [plan.id, canvasView]);
   // Two Futures opens on a ghost whose futures differ, so the story is visible without searching.
   useEffect(() => { if (mode === 'Compare' && !busy && !interrupted) setVisitorId(id => comparison.selectedVisitor(id, peopleGroup)); }, [mode, comparison, peopleGroup, busy, interrupted]);
@@ -507,8 +511,8 @@ export function App() {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
-      // A focused button or link keeps its native Space activation.
-      if (event.code === 'Space' && run && mode !== 'Build' && !(event.target instanceof HTMLElement && event.target.closest('button, a'))) { event.preventDefault(); setPlaying(value => !value); }
+      // Focused controls keep their native Space activation.
+      if (event.code === 'Space' && run && mode !== 'Build' && !(event.target instanceof HTMLElement && event.target.closest('button, a, summary'))) { event.preventDefault(); setPlaying(value => !value); }
     };
     window.addEventListener('keydown', handle); return () => window.removeEventListener('keydown', handle);
   });
@@ -568,12 +572,21 @@ export function App() {
     {guide && <GuidedDemo progress={guide} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
-    {comparing && <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>}
     {comparing && <div className="comparison-settings">
+      <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>
+      <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · A {selectedStats ? formatTime(selectedStats.until) : '—'} / B {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
       <label>{t.evidence.threshold}<select ref={thresholdInput} aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
       <small>{t.review.completionHint}</small>
+      </div></details>
+      <button type="button" className="text-btn" aria-expanded={liveExpanded} aria-controls="comparison-live" onClick={() => setLiveExpanded(value => !value)}>{t.live.title} · {formatTime(time)}<ChevronDown size={14} aria-hidden="true" /></button>
     </div>}
+    {comparing && <div id="comparison-live" hidden={!liveExpanded} className="metrics-strip two-clocks comparison-live">
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} planName={`A · ${plan.name}`}
+            queues={longestQueues(run?.request.plan ?? plan, view, previousView).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics.map(item => ({ ...item, value: String(liveSummary(secondView)[item.key === 'flow' ? 'inFlow' : item.key === 'wait' ? 'waiting' : item.key === 'serve' ? 'serving' : 'completed']) }))} available={!!secondRun} planName={`B · ${second?.name ?? ''}`}
+            queues={longestQueues(secondRun?.request.plan ?? second ?? plan, secondView, secondPrevious).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: second!.id }); focusNodes([id]); }} />
+        </div>}
     {comparing && <nav className="mobile-compare-nav" aria-label={t.workspace.focus}>
       <button type="button" aria-pressed={mobilePanel === 'report'} onClick={showOverview}>{t.workspace.report}</button>
       <button type="button" aria-pressed={mobilePanel === 'canvas'} onClick={() => { showOverview(); setMobilePanel('canvas'); }}>{t.workspace.canvas}</button>
@@ -588,7 +601,7 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
         <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">A · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}<button type="button" className="text-btn robustness-trigger" aria-label={robustnessLabels[lang].title} title={robustnessLabels[lang].title} disabled={busy} onClick={() => { setPlaying(false); setDialog('robustness'); }}><FlaskConical size={15} aria-hidden="true" /></button></div>
-        <CompareReport onChooseRule={() => thresholdInput.current?.focus()} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
@@ -601,10 +614,10 @@ export function App() {
 
       <main className="stage">
         <div className="stage-head">
-          <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
+          <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small>{comparing && comparison.status === 'ready' && runState.kind === 'complete' && <span className="run-state-card is-compact" data-state="complete"><StatusMarker id="finished" label={t.runState.complete.label} /></span>}</div>
           <ModeActions unavailable={busy ? t.runState.computing.description : !second ? t.topbar.compareUnavailable : undefined}>
             {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
-            {comparing && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
+            {comparing && compareFocus === 'overview' && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
             {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
@@ -621,17 +634,12 @@ export function App() {
             <button type="button" className="btn ghost small" title={t.stage.overview} aria-pressed={viewMark === 'all'} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
           </ModeActions>
         </div>
-        {(busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || mode !== 'Build') && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
+        {(busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || mode !== 'Build') && !(comparing && runState.kind === 'complete') && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
         {mode === 'Rehearse' && <div className="metrics-strip two-clocks">
           <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} />
           <SummaryStrip title={t.review[basis]} time={cutoffLabel} metrics={finalMetrics} stale={stale} />
         </div>}
-        {comparing && <div className="metrics-strip two-clocks comparison-live">
-          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} planName={`A · ${plan.name}`}
-            queues={longestQueues(run?.request.plan ?? plan, view, previousView).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />
-          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics.map(item => ({ ...item, value: String(liveSummary(secondView)[item.key === 'flow' ? 'inFlow' : item.key === 'wait' ? 'waiting' : item.key === 'serve' ? 'serving' : 'completed']) }))} available={!!secondRun} planName={`B · ${second?.name ?? ''}`}
-            queues={longestQueues(secondRun?.request.plan ?? second ?? plan, secondView, secondPrevious).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: second!.id }); focusNodes([id]); }} />
-        </div>}
+
         <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)}>
         {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setShowIssues(false); checksTrigger.current?.focus(); } }}>
           <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" autoFocus className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => { setShowIssues(false); checksTrigger.current?.focus(); }}>×</button></div>
@@ -668,7 +676,7 @@ export function App() {
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => { if (comparing && compareFocus === 'person' && dockOpen) showOverview(); else setDockOpen(value => !value); }}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
           </div>
-          {!dockOpen && run && <p className="dock-summary">{t.studioUi.dockSummary(bottomTab === 'events' ? activeEvents.length : bottomTab === 'journey' ? picks.reduce((sum, group) => sum + group.items.length, 0) : moments.filter(item => item.time <= time).length, tracked ? `${tracked.name} · ${trackedStatus[0]}` : moments.filter(item => item.time <= time).at(-1) ? keyEventText(moments.filter(item => item.time <= time).at(-1)!, run.request.plan, nameOf, t) : '')}</p>}
+          {!comparing && !dockOpen && run && <p className="dock-summary">{t.studioUi.dockSummary(bottomTab === 'events' ? activeEvents.length : bottomTab === 'journey' ? picks.reduce((sum, group) => sum + group.items.length, 0) : moments.filter(item => item.time <= time).length, tracked ? `${tracked.name} · ${trackedStatus[0]}` : moments.filter(item => item.time <= time).at(-1) ? keyEventText(moments.filter(item => item.time <= time).at(-1)!, run.request.plan, nameOf, t) : '')}</p>}
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
             {run && bottomTab === 'insights' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <Insights onRerun={rerun} initialEvidence={evidenceTarget} threshold={threshold} key={`${run.inputKey}-${secondRun?.inputKey}-${basis}-${evidenceTarget?.owner}-${evidenceTarget?.id}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />)}
