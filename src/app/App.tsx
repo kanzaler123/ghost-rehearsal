@@ -13,6 +13,7 @@ import type { ViewRequest, ViewTarget } from '../components/Canvas';
 import { CompareReport } from '../components/CompareReport';
 import { RobustnessPanel } from '../experiments/robustness/RobustnessPanel';
 import { labels as robustnessLabels } from '../experiments/robustness/labels';
+import { ComparisonPlanPicker } from '../components/ComparisonPlanPicker';
 import { GuidedDemo } from '../components/GuidedDemo';
 import type { DemoProgress } from '../components/GuidedDemo';
 import { Inspector } from '../components/Inspector';
@@ -52,7 +53,7 @@ import { loadArrangement, saveArrangement } from './preferences';
 import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
+type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const STORAGE_KEY = 'ghost-rehearsal.project.v1';
@@ -388,6 +389,15 @@ export function App() {
     } else if (!run || stale || run.status === 'failed') launch([plan], next);
     else { setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
   }
+  function comparePlans(leftId: string, rightId: string, scope: RunRequest['runMode']) {
+    const left = project.plans.find(item => item.id === leftId && item.scenarioId === scenario.id);
+    const right = project.plans.find(item => item.id === rightId && item.scenarioId === scenario.id);
+    if (busy || !left || !right || left.id === right.id) return;
+    setDialog(null); setGuide(null); setPlanId(left.id); setSecondId(right.id); setRunMode(scope);
+    if (scope === 'cutoff') setBasis('cutoff');
+    setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
+    launch([left, right], 'Compare', project, scope);
+  }
   function copyPlan() {
     const result = duplicatePlan(plan, new Set(project.plans.map(item => item.id)));
     if (!result.ok) { say(tr => tr.notices.copyFormat); return; }
@@ -625,6 +635,7 @@ export function App() {
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
     {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
       <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>
+      <button type="button" className="btn small" disabled={busy} onClick={() => setDialog('comparison-plans')}>{t.comparePicker.title}</button>
       <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · A {selectedStats ? formatTime(selectedStats.until) : '—'} / B {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
       <label>{t.evidence.threshold}<select ref={thresholdInput} aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
@@ -836,6 +847,7 @@ export function App() {
       <p className="subtle">{lang === 'zh' ? PRODUCT_STATEMENT.en : PRODUCT_STATEMENT.zh}</p>
       <p>{t.dialogs.about3}</p>
     </div></Modal>}
+    {dialog === 'comparison-plans' && <ComparisonPlanPicker plans={project.plans.filter(item => item.scenarioId === scenario.id)} left={plan.id} right={second?.id ?? ''} scope={runMode} guided={!!guide} onClose={() => setDialog(null)} onCompare={comparePlans} />}
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>

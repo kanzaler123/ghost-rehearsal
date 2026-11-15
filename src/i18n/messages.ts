@@ -62,6 +62,12 @@ const en = {
     release: (time: string) => `release at ${time}`, batch: (count: number) => `batch of ${count}`, hold: (time: string) => `maximum hold ${time}`,
     loop: (count: number, station: string) => `${count} visits, then ${station}`, completed: 'counts as finished', left: 'counts as left',
   },
+  comparePicker: {
+    title: 'Choose comparison plans', left: 'Left plan (A)', right: 'Right plan (B)', apply: 'Run this comparison',
+    hint: 'Choose two plans from this event and run them together. Existing plans are preserved.',
+    leaveGuide: 'Running this comparison exits the guide. Cancel to keep your current guide step.',
+    distinct: 'Choose two different plans.',
+  },
   guide: {
     title: 'A/B/C decision guide', start: 'Start the A/B/C guide', exit: 'Exit guide', reset: 'Reset guide', rerun: 'Rerun this comparison',
     steps: ['Compare A/B', 'The same guest', 'First difference', 'Posts and resources', 'Compare B/C', 'Export the arrangement'],
@@ -530,6 +536,12 @@ const zh: Messages = {
     samples: (kind, count, preview, range, mean) => `${kind} · ${count} 个样本 [${preview}]，范围 ${range}，均值 ${mean}`,
     release: time => `放行于 ${time}`, batch: count => `每批 ${count}`, hold: time => `最多等候 ${time}`,
     loop: (count, station) => `${count} 次后转往 ${station}`, completed: '计为完成', left: '计为离开',
+  },
+  comparePicker: {
+    title: '选择比较方案', left: '左侧方案（A）', right: '右侧方案（B）', apply: '运行这组对照',
+    hint: '选择当前活动中的两个方案并一起运行，已有方案保持不变。',
+    leaveGuide: '运行新对照会退出引导；取消可保留当前引导步骤。',
+    distinct: '请选择两个不同的方案。',
   },
   guide: {
     title: 'A/B/C 决策引导', start: '开始 A/B/C 引导演示', exit: '退出引导', reset: '重置引导', rerun: '重跑当前比较',
