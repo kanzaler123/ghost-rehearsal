@@ -115,6 +115,14 @@ it('renders run-to-completion journeys and their station totals using the displa
   }) }));
   expect(staleHtml).toContain('through 00:05');
   expect(staleHtml).not.toContain('through 00:15');
+  const finalHtml = renderToStaticMarkup(createElement(I18nProvider, { children: createElement(GhostJourney, {
+    runs: [run], compare: false, basis: 'completion', scenario: request.scenario, visitorId: 'guests:p1', time: 20, endTime: run.coveredUntil,
+    picks: [], nameOf: id => id, onChoose: () => {}, onJump: () => {}, onLocate: () => {},
+  }) }));
+  expect(finalHtml).toContain('through 00:20');
+  expect(finalHtml).toContain('Finished at 00:20');
+  expect(finalHtml).toContain('waited 10.0 s in total');
+  expect(finalHtml).not.toContain('{text.basis}');
 });
 
 it('counts each future once when a guest visits several nodes sharing a logical stage', () => {

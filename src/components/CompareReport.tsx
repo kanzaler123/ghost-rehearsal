@@ -3,8 +3,8 @@ import type { ReactNode } from 'react';
 import { ArrowRight, CircleMinus, CirclePlus, Coins, Crosshair, PencilLine, Route, Star, Users } from 'lucide-react';
 import type { Node, Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, comparePicks, costOf, DELTA_BINS, stationWaits, totalWait } from '../features/analysis';
-import type { AffectedFilter, ChangeItem, StationRow } from '../features/analysis';
+import { affected, affectedVisitors, comparePicks, costOf, DELTA_BINS, stationWaits, statisticsAt, totalWait } from '../features/analysis';
+import type { ResultBasis, AffectedFilter, ChangeItem, StationRow } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { SimulationRun, Statistics } from '../simulation/types';
@@ -32,22 +32,22 @@ interface Props {
   planA: Plan; planB: Plan; runA?: SimulationRun; runB?: SimulationRun; scenario: Scenario; ready: boolean; changes: ChangeItem[];
   visitorId: string; featured?: string; nameOf: (id: string) => string;
   onFocus: (nodeIds: string[]) => void; onChoose: (id: string) => void;
-  compact?: boolean;
+  compact?: boolean; basis?: ResultBasis;
   onBrowsePeople?: (filter: AffectedFilter) => void;
   onInspect?: (nodeIds: string[], planId: string) => void;
   onMoment?: (nodeIds: string[]) => void;
 }
 
-export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, onBrowsePeople, onInspect, onMoment }: Props) {
+export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, basis = 'cutoff', onBrowsePeople, onInspect, onMoment }: Props) {
   const { t } = useI18n();
   const c = t.compare;
-  const a = ready ? runA?.statistics ?? null : null;
-  const b = ready ? runB?.statistics ?? null : null;
+  const a = ready ? statisticsAt(runA, basis) : null;
+  const b = ready ? statisticsAt(runB, basis) : null;
   const routes = changes.filter(item => item.kind === 'edge');
   const main = changes.filter(item => item.kind !== 'edge');
   const data = useMemo(() => a && b ? {
-    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: affected(a, b), cost: costOf(planA, planB, scenario, a, b), picks: groupPicks(comparePicks(a, b, 1)),
-  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events]);
+    stations: stationWaits(planA, a, planB, b, runA?.events ?? [], runB?.events ?? []), people: affected(a, b), cost: costOf(planA, planB, scenario, a, b, basis), picks: groupPicks(comparePicks(a, b, 1)),
+  } : null, [a, b, planA, planB, scenario, runA?.events, runB?.events, basis]);
   const stationName = (row: StationRow) => list([...new Set([...row.a.map(id => nameIn([planA], id)), ...row.b.map(id => nameIn([planB], id))])], t);
   const signed = (value: number, format: (value: number) => string) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`;
   const cutoff = formatTime(scenario.observationCutoff);
@@ -70,7 +70,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
       <span className="eyebrow">{t.modes.Compare}</span>
       <h2>{c.title}</h2>
       <div className="report-plans"><span className="ab-badge">A</span><b>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b>{planB.name}</b></div>
-      <p className="report-basis">{c.basis(cutoff)}</p>
+      <p className="report-basis">{basis === 'cutoff' ? c.basis(cutoff) : `${t.review.completion} · A ${formatTime(a?.until ?? 0)} · B ${formatTime(b?.until ?? 0)}`}</p>
     </header>
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && !compact && <Verdict a={a} b={b} data={data} stationName={stationName} />}
@@ -202,7 +202,7 @@ function ComparisonSnapshot({ a, b, cost }: { a: Statistics; b: Statistics; cost
     <div className="snapshot-item resource-summary">
       <span>{t.lang === 'zh' ? '资源代价' : 'Resource cost'}</span>
       <strong>{parts.length ? list(parts, t) : sameResources}</strong>
-      <small>{t.lang === 'zh' ? '观察窗口内的数量、排班与加班' : 'Counts, schedules and overtime in the observation window'}</small>
+      <small>{t.lang === 'zh' ? '所选统计范围内的数量、排班与加班' : 'Counts, schedules and overtime in the selected statistics window'}</small>
     </div>
   </div>;
 }

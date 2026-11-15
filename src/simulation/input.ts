@@ -2,7 +2,7 @@ import { deviceUnitIds, fingerprintRunRequest, scenarioFingerprint } from '../sc
 import type { Participant, Plan, RunRequest, Scenario, ServiceNode } from '../schemas';
 import type { Unit } from './types';
 
-export const MODEL_VERSION = '0.1.0-alpha';
+export const MODEL_VERSION = '0.1.1-alpha';
 export const milliseconds = (seconds: number) => Math.floor(seconds * 1000 + 0.5);
 export const compareIds = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 
@@ -93,9 +93,10 @@ function canonical(value: unknown, field = ''): unknown {
     return items;
   }
   if (value && typeof value === 'object') {
+    const dictionary = field === 'attributeDistributions' || field === 'attributes';
     const ignored = ['layout', 'name', 'description', 'notes', 'source', 'startClock', 'sourcePlanId', 'sourceScenarioId'];
-    return Object.fromEntries(Object.entries(value).filter(([key, item]) => !ignored.includes(key) || (key === 'source' && typeof item === 'string' && 'target' in value))
-      .sort(([a], [b]) => compareIds(a, b)).map(([key, item]) => [key, canonical(item, key)]));
+    return Object.fromEntries(Object.entries(value).filter(([key, item]) => dictionary || !ignored.includes(key) || (key === 'source' && typeof item === 'string' && 'target' in value))
+      .sort(([a], [b]) => compareIds(a, b)).map(([key, item]) => [key, canonical(item, dictionary ? '' : key)]));
   }
   return value;
 }

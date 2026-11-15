@@ -4,6 +4,9 @@ import type { Edge, Node, Plan, Scenario, ValidationIssue } from '../schemas';
 import { issueText, useI18n } from '../i18n';
 import type { SimulationRun } from '../simulation/types';
 import { Ghost, NodeIcon } from './Icons';
+import { formatTime, newId } from '../features/project';
+import { statisticsAt } from '../features/analysis';
+import type { ResultBasis } from '../features/analysis';
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
@@ -11,14 +14,17 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 export function NumberInput({ value, onChange, min = 0, max, step = 1, label }: { value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number; label?: string }) {
   return <input aria-label={label} type="number" value={value} min={min} max={max} step={step} onChange={event => { const next = event.target.valueAsNumber; if (Number.isFinite(next)) onChange(next); }} />;
 }
-
-interface Props {
-  plan: Plan; scenario: Scenario; node?: Node; edge?: Edge; editable: boolean; issues: ValidationIssue[]; run?: SimulationRun;
-  onNode: (node: Node) => void; onEdge: (edge: Edge) => void; onAdvanced: () => void; onDelete: () => void; onResources: () => void;
-  collapsed: boolean; onToggle: () => void; onSaveTemplate: () => void; stale: boolean;
+export function MinuteInput({ value, onChange, label, min = 0 }: { value: number; onChange: (seconds: number) => void; label?: string; min?: number }) {
+  return <NumberInput label={label} value={Number((value / 60).toFixed(4))} min={min / 60} step={0.1} onChange={minutes => onChange(Math.round(minutes * 60000) / 1000)} />;
 }
 
-export function Inspector({ plan, scenario, node, edge, editable, issues, run, onNode, onEdge, onAdvanced, onDelete, onResources, collapsed, onToggle, onSaveTemplate, stale }: Props) {
+interface Props {
+  plan: Plan; scenario: Scenario; node?: Node; edge?: Edge; editable: boolean; issues: ValidationIssue[]; run?: SimulationRun; stale: boolean; basis: ResultBasis; onRerun: () => void;
+  onNode: (node: Node) => void; onEdge: (edge: Edge) => void; onAdvanced: () => void; onDelete: () => void; onResources: () => void;
+  collapsed: boolean; onToggle: () => void; onSaveTemplate: () => void;
+}
+
+export function Inspector({ plan, scenario, node, edge, editable, issues, run, stale, basis, onRerun, onNode, onEdge, onAdvanced, onDelete, onResources, collapsed, onToggle, onSaveTemplate }: Props) {
   const { t, lang } = useI18n();
   const s = t.inspector;
   if (collapsed) return <aside className="inspector collapsed" aria-label={s.eyebrow}>
@@ -26,7 +32,7 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, o
   </aside>;
   const selectedId = node?.id ?? edge?.id;
   const related = issues.filter(issue => issue.entityIds.includes(selectedId ?? ''));
-  const metric = run?.statistics?.nodes.find(item => item.id === node?.id);
+  const metric = statisticsAt(run, basis)?.nodes.find(item => item.id === node?.id);
   const possibleTargets = plan.graph.nodes.filter(item => item.id !== node?.id && item.type !== 'entrance' && item.type !== 'subflow');
   const queueSettings = node && (node.type === 'service' || node.type === 'waiting_area') ? <>
     <Field label={s.queueCapacity} hint={s.queueCapacityHint}><input aria-label={s.queueCapacity} type="number" min={1} value={node.queueCapacity ?? ''} placeholder={t.common.unlimited} onChange={event => onNode({ ...node, queueCapacity: event.target.value === '' ? null : Number(event.target.value) })} /></Field>
@@ -68,7 +74,7 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, o
             }}>{(['fixed', 'uniform', 'triangular', 'empirical'] as const).map(kind => <option key={kind} value={kind}>{s.distributions[kind]}</option>)}</select></Field>
             {node.duration.kind === 'fixed' && <Field label={s.serviceTime}><NumberInput label={s.serviceTime} value={node.duration.value} step={0.1} onChange={value => onNode({ ...node, duration: { kind: 'fixed', value, provenance: { kind: 'user_estimate' } } })} /></Field>}
             {(node.duration.kind === 'uniform' || node.duration.kind === 'triangular') && <div className="form-row">{(['min', ...(node.duration.kind === 'triangular' ? ['mode'] : []), 'max'] as ('min' | 'mode' | 'max')[]).map(field => <Field key={field} label={s[field]}><NumberInput value={Number((node.duration as unknown as Record<string, number>)[field])} onChange={value => onNode({ ...node, duration: { ...node.duration, [field]: value, provenance: { kind: 'user_estimate' } } })} /></Field>)}</div>}
-            {node.duration.kind === 'empirical' && <p className="subtle">{s.samples(node.duration.samples.length)}</p>}
+            {node.duration.kind === 'empirical' && <Field label={t.review.samples}><textarea key={`${node.id}-${node.duration.samples.join(',')}`} defaultValue={node.duration.samples.join(', ')} onChange={event => event.target.setCustomValidity('')} onBlur={event => { const samples = event.target.value.trim().split(/[,，\s]+/).map(Number); if (!event.target.value.trim() || samples.some(value => !Number.isFinite(value) || value < 0)) { event.target.setCustomValidity(t.review.samplesInvalid); event.target.reportValidity(); return; } onNode({ ...node, duration: { kind: 'empirical', samples, provenance: { kind: 'user_estimate' } } }); }} /></Field>}
             <Field label={s.maxConcurrent} hint={s.maxConcurrentHint}><input type="number" min={1} value={node.maxConcurrent ?? ''} placeholder={t.common.unlimited} onChange={event => onNode({ ...node, maxConcurrent: event.target.value === '' ? undefined : Number(event.target.value) })} /></Field>
             <h3 className="form-heading">{s.perService}</h3>
             {!node.requirements.length && <p className="subtle">{s.noRequirements}</p>}
@@ -82,11 +88,36 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, o
             </div>)}
             <button type="button" className="text-btn" disabled={!plan.skills.length && !plan.deviceTypes.length} onClick={() => onNode({ ...node, requirements: [...node.requirements, plan.skills.length ? { kind: 'staff', skillId: plan.skills[0].id, quantity: 1 } : { kind: 'device', deviceTypeId: plan.deviceTypes[0].id, quantity: 1 }] })}><Plus size={14} aria-hidden="true" />{s.addRequirement}</button>
             <h3 className="form-heading">{s.queueHours}</h3>{queueSettings}
-            <div className="form-row"><Field label={s.opensAt}><NumberInput value={node.openWindows[0]?.openAt ?? 0} onChange={openAt => onNode({ ...node, openWindows: [{ openAt, closeAt: node.openWindows[0]?.closeAt ?? scenario.observationCutoff, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field><Field label={s.closesAt}><input type="number" min={0} placeholder={s.alwaysOpen} value={node.openWindows[0]?.closeAt ?? ''} onChange={event => onNode({ ...node, openWindows: event.target.value === '' ? [] : [{ openAt: node.openWindows[0]?.openAt ?? 0, closeAt: Number(event.target.value), provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field></div>
+            <div className="form-row"><Field label={s.opensAt}><MinuteInput value={node.openWindows[0]?.openAt ?? 0} onChange={openAt => onNode({ ...node, openWindows: [{ openAt, closeAt: node.openWindows[0]?.closeAt ?? scenario.observationCutoff, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field><Field label={s.closesAt}><input type="number" min={0} placeholder={s.alwaysOpen} value={node.openWindows[0] ? node.openWindows[0].closeAt / 60 : ''} onChange={event => onNode({ ...node, openWindows: event.target.value === '' ? [] : [{ openAt: node.openWindows[0]?.openAt ?? 0, closeAt: Number(event.target.value) * 60, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field></div>
           </>}
           {node.type === 'entrance' && <Field label={s.streams}><div className="check-list">{scenario.arrivalStreams.map(stream => <label key={stream.id}><input type="checkbox" checked={node.arrivalStreamIds.includes(stream.id)} onChange={event => onNode({ ...node, arrivalStreamIds: event.target.checked ? [...node.arrivalStreamIds, stream.id] : node.arrivalStreamIds.filter(id => id !== stream.id) })} />{stream.name ?? stream.id}</label>)}</div></Field>}
-          {node.type === 'decision' && <><h3 className="form-heading">{node.routing.kind === 'probability' ? s.probabilities : s.attributeRouting}</h3>{node.routing.branches.map((branch, index) => <Field key={branch.branchKey} label={branch.branchKey}>{'weight' in branch && node.routing.kind === 'probability' ? <NumberInput min={0} max={1} step={0.05} value={branch.weight} onChange={weight => { if (node.routing.kind === 'probability') onNode({ ...node, routing: { ...node.routing, branches: node.routing.branches.map((other, i) => i === index ? { ...other, weight } : other) } }); }} /> : <span className="static-value">{'condition' in branch && branch.condition ? `${branch.condition.attributeId} ∈ ${branch.condition.values.join(', ')}` : s.defaultBranch}</span>}</Field>)}{node.loopGuard && <Field label={s.maxVisits}><NumberInput min={1} value={node.loopGuard.maxVisits} onChange={maxVisits => onNode({ ...node, loopGuard: { ...node.loopGuard!, maxVisits } })} /></Field>}<p className="subtle">{s.branchHint}</p></>}
-          {node.type === 'waiting_area' && <><Field label={s.release}><select value={node.release.kind} onChange={event => onNode({ ...node, release: event.target.value === 'batch' ? { kind: 'batch', batchSize: 10, maxHoldSec: 60 } : { kind: 'until_time', releaseAt: 300 } })}><option value="until_time">{s.releaseTime}</option><option value="batch">{s.releaseBatch}</option></select></Field>{node.release.kind === 'until_time' ? <Field label={s.releaseAt}><NumberInput value={node.release.releaseAt} onChange={releaseAt => onNode({ ...node, release: { kind: 'until_time', releaseAt } })} /></Field> : <div className="form-row"><Field label={s.batchSize}><NumberInput min={1} value={node.release.batchSize} onChange={batchSize => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, batchSize } }); }} /></Field><Field label={s.maxHold}><NumberInput min={1} value={node.release.maxHoldSec ?? 60} onChange={maxHoldSec => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, maxHoldSec } }); }} /></Field></div>}{queueSettings}</>}
+          {node.type === 'decision' && <>
+            <Field label={t.review.routing}><select value={node.routing.kind} onChange={event => {
+              const branches = node.routing.branches;
+              onNode({ ...node, routing: event.target.value === 'probability' ? { kind: 'probability', branches: branches.map(branch => ({ branchKey: branch.branchKey, weight: 1 / branches.length })) }
+                : { kind: 'attribute', branches: branches.map((branch, index) => ({ branchKey: branch.branchKey, ...(index === branches.length - 1 ? {} : { condition: { attributeId: scenario.attributes[0].id, values: [scenario.attributes[0].values[0]] } }) })) } });
+            }}><option value="probability">{t.review.probability}</option><option value="attribute" disabled={!scenario.attributes.length}>{t.review.attribute}</option></select></Field>
+            {node.routing.branches.map((branch, index) => <div className="config-card" key={branch.branchKey}>
+              <b>{branch.branchKey}</b>
+              {'weight' in branch && node.routing.kind === 'probability' ? <Field label={s.probabilities}><NumberInput min={0} max={1} step={0.05} value={branch.weight} onChange={weight => { if (node.routing.kind === 'probability') onNode({ ...node, routing: { ...node.routing, branches: node.routing.branches.map((other, i) => i === index ? { ...other, weight } : other) } }); }} /></Field>
+                : 'condition' in branch && branch.condition ? <>
+                  <Field label={t.review.condition}><select value={branch.condition.attributeId} onChange={event => { if (node.routing.kind === 'attribute') onNode({ ...node, routing: { ...node.routing, branches: node.routing.branches.map((other, i) => i === index ? { ...other, condition: { attributeId: event.target.value, values: [scenario.attributes.find(item => item.id === event.target.value)!.values[0]] } } : other) } }); }}>{scenario.attributes.map(attribute => <option key={attribute.id} value={attribute.id}>{attribute.name}</option>)}</select></Field>
+                  <Field label={t.review.values} hint={scenario.attributes.find(item => item.id === branch.condition?.attributeId)?.values.join(', ')}><input key={`${node.id}-${branch.branchKey}-${branch.condition.attributeId}-${branch.condition.values.join(',')}`} defaultValue={branch.condition.values.join(', ')} onBlur={event => { if (node.routing.kind === 'attribute') onNode({ ...node, routing: { ...node.routing, branches: node.routing.branches.map((other, i) => i === index ? { ...other, condition: { ...branch.condition!, values: event.target.value.split(/[,，]/).map(value => value.trim()).filter(Boolean) } } : other) } }); }} /></Field>
+                </> : <p>{s.defaultBranch}</p>}
+              <button type="button" className="text-btn danger" disabled={node.routing.branches.length === 1 || plan.graph.edges.some(edge => edge.source === node.id && edge.branchKey === branch.branchKey) || node.loopGuard?.exitBranchKey === branch.branchKey || (node.routing.kind === 'attribute' && !('condition' in branch && branch.condition))} onClick={() => {
+                if (node.routing.kind === 'probability') { const branches = node.routing.branches.filter((_, i) => i !== index); const sum = branches.reduce((total, item) => total + item.weight, 0); onNode({ ...node, routing: { kind: 'probability', branches: branches.map(item => ({ ...item, weight: sum ? item.weight / sum : 1 / branches.length })) } }); }
+                else onNode({ ...node, routing: { ...node.routing, branches: node.routing.branches.filter((_, i) => i !== index) } });
+              }}>{t.review.remove}</button>
+            </div>)}
+            <button type="button" className="text-btn" disabled={node.routing.branches.length >= 50 || (node.routing.kind === 'attribute' && !scenario.attributes.length)} onClick={() => {
+              const branchKey = newId('branch', node.routing.branches.map(branch => branch.branchKey));
+              if (node.routing.kind === 'probability') onNode({ ...node, routing: { ...node.routing, branches: [...node.routing.branches, { branchKey, weight: 0 }] } });
+              else onNode({ ...node, routing: { ...node.routing, branches: [{ branchKey, condition: { attributeId: scenario.attributes[0].id, values: [scenario.attributes[0].values[0]] } }, ...node.routing.branches] } });
+            }}><Plus size={14} />{t.review.addBranch}</button>
+            {node.loopGuard && <Field label={s.maxVisits}><NumberInput min={1} value={node.loopGuard.maxVisits} onChange={maxVisits => onNode({ ...node, loopGuard: { ...node.loopGuard!, maxVisits } })} /></Field>}
+            <p className="subtle">{s.branchHint}</p>
+          </>}
+          {node.type === 'waiting_area' && <><Field label={s.release}><select value={node.release.kind} onChange={event => onNode({ ...node, release: event.target.value === 'batch' ? { kind: 'batch', batchSize: 10, maxHoldSec: 60 } : { kind: 'until_time', releaseAt: 300 } })}><option value="until_time">{s.releaseTime}</option><option value="batch">{s.releaseBatch}</option></select></Field>{node.release.kind === 'until_time' ? <Field label={s.releaseAt}><MinuteInput value={node.release.releaseAt} onChange={releaseAt => onNode({ ...node, release: { kind: 'until_time', releaseAt } })} /></Field> : <div className="form-row"><Field label={s.batchSize}><NumberInput min={1} value={node.release.batchSize} onChange={batchSize => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, batchSize } }); }} /></Field><Field label={s.maxHold}><NumberInput min={1} value={node.release.maxHoldSec ?? 60} onChange={maxHoldSec => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, maxHoldSec } }); }} /></Field></div>}{queueSettings}</>}
           {node.type === 'exit' && <label className="check-row"><input type="checkbox" checked={node.countsAsCompleted !== false} onChange={event => onNode({ ...node, countsAsCompleted: event.target.checked })} />{s.countsCompleted}</label>}
           {node.type === 'merge' && <><h3 className="form-heading">{s.priority}</h3>{node.incomingPriority.map((id, index) => <div className="priority-row" key={id}><span className="priority-rank">{index + 1}</span><code>{id}</code><button type="button" className="icon-btn" disabled={!index} aria-label={s.raise(id)} onClick={() => { const incomingPriority = [...node.incomingPriority]; [incomingPriority[index - 1], incomingPriority[index]] = [incomingPriority[index], incomingPriority[index - 1]]; onNode({ ...node, incomingPriority }); }}><ArrowUp size={14} /></button></div>)}</>}
           {node.type === 'subflow' && <Field label={s.members}><div className="check-list">{plan.graph.nodes.filter(item => item.id !== node.id).map(item => <label key={item.id}><input type="checkbox" checked={node.memberNodeIds.includes(item.id)} onChange={event => onNode({ ...node, memberNodeIds: event.target.checked ? [...node.memberNodeIds, item.id] : node.memberNodeIds.filter(id => id !== item.id) })} />{item.name}</label>)}</div></Field>}
@@ -104,8 +135,8 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, o
         {editable && <button type="button" className="btn danger-ghost" onClick={onDelete}><Trash2 size={14} aria-hidden="true" />{node ? s.deleteNode : s.deleteEdge}</button>}
       </div>}
       {metric && <section className="node-results">
-        <h3>{s.results}</h3>
-        {stale && <p role="status">{t.canvas.stale}</p>}
+        <h3>{t.review[basis]} · {formatTime(statisticsAt(run, basis)!.until)}</h3>
+        {stale && <p className="stale-note" role="status">{t.review.lastRun} <button type="button" className="text-btn" onClick={onRerun}>{t.review.rerun}</button></p>}
         <div className="result-grid">
           <span><small>{s.visitors}</small><b>{metric.visitors}</b></span>
           <span><small>{s.averageWait}</small><b>{t.formatWait(metric.averageWaiting)}</b></span>

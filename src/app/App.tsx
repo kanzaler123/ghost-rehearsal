@@ -22,6 +22,8 @@ import type { AffectedFilter } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
 import { addEvent, addNodeFromTemplate, addPlanFromTemplate, createNode, download, emptyProject, executionReport, formatTime, halloweenProject, importTemplate, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate } from '../features/project';
+import { statisticsAt } from '../features/analysis';
+import type { ResultBasis } from '../features/analysis';
 import { errorText, issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
 import type { Lang, Messages } from '../i18n';
 import { inputKey, populationSize } from '../simulation/input';
@@ -29,15 +31,16 @@ import { playbackAt } from '../simulation/metrics';
 import type { SimulationRun } from '../simulation/types';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | null;
+type Dialog = 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const STORAGE_KEY = 'ghost-rehearsal.project.v1';
+const DRAFT_KEY = 'ghost-rehearsal.draft.v1';
 const TEMPLATES_KEY = 'ghost-rehearsal.templates.v1';
 const MODES: { mode: Mode; icon: typeof Hammer }[] = [{ mode: 'Build', icon: Hammer }, { mode: 'Rehearse', icon: Play }, { mode: 'Compare', icon: Columns2 }];
 const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]> = {
   Rehearse: [{ tab: 'now', icon: Radio }, { tab: 'journey', icon: Users }, { tab: 'insights', icon: Sparkles }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
-  Compare: [{ tab: 'journey', icon: Users }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
+  Compare: [{ tab: 'journey', icon: Users }, { tab: 'insights', icon: Sparkles }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
 };
 /** Trend arrows compare the queue with one scenario minute earlier. */
 const TREND_WINDOW = 60;
@@ -48,6 +51,11 @@ const cls = (...names: (string | false | undefined | null)[]) => names.filter(Bo
 function loadProject(lang: Lang): { document: ProjectDocument; notice: Notice; saved: boolean; setup?: boolean } {
   const example = () => localizeDocument(initialDocument(), 'zh', lang);
   try {
+    const draft = localStorage.getItem(DRAFT_KEY);
+    if (draft) {
+      const result = readProject(draft, lang);
+      if (result.document) return { document: localizeDocument(result.document, other(lang), lang), notice: t => t.review.draftRestored, saved: false };
+    }
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const result = readProject(saved, lang);
@@ -69,6 +77,10 @@ export function App() {
   const [secondId, setSecondId] = useState(project.plans[1]?.id ?? '');
   const [mode, setMode] = useState<Mode>('Build');
   const [runMode, setRunMode] = useState<RunRequest['runMode']>('cutoff');
+  const [basis, setBasis] = useState<ResultBasis>('cutoff');
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [planName, setPlanName] = useState('');
+  const [resourceLimits, setResourceLimits] = useState({ staff: '', devices: '' });
   const [runs, setRuns] = useState<Record<string, SimulationRun>>({});
   const [selection, setSelection] = useState({ id: '', kind: 'node' as 'node' | 'edge', owner: planId });
   const [visitorId, setVisitorId] = useState('');
@@ -96,6 +108,7 @@ export function App() {
   const [templateName, setTemplateName] = useState('');
   const [templateError, setTemplateError] = useState('');
   const [templateNotice, setTemplateNotice] = useState('');
+  const [templateResources, setTemplateResources] = useState<'share' | 'copy'>('share');
   const currentTemplates = useRef(templates);
   const [notice, setNoticeState] = useState<Notice>(() => loaded.notice);
   const [showIssues, setShowIssues] = useState(false);
@@ -145,9 +158,10 @@ export function App() {
   const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
   const trackedStatus = trackedJourneys.map((journey, index) => journey ? describeStatus(statusAt(journey, time), (index ? secondRun : run)!.request.plan, time, t) : '');
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
-  const featured = useMemo(() => comparisonReady && run?.statistics && secondRun?.statistics ? featuredGhost(run.statistics, secondRun.statistics) : undefined, [comparisonReady, run, secondRun]);
-  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && run.statistics && secondRun?.statistics ? comparePicks(run.statistics, secondRun.statistics) : [])
-    : rehearsePicks(run, view, time), [run, secondRun, comparing, comparisonReady, view, time]);
+  const selectedStats = statisticsAt(run, basis), selectedSecondStats = statisticsAt(secondRun, basis);
+  const featured = useMemo(() => comparisonReady && selectedStats && selectedSecondStats ? featuredGhost(selectedStats, selectedSecondStats) : undefined, [comparisonReady, selectedStats, selectedSecondStats]);
+  const picks = useMemo(() => !run ? [] : comparing ? (comparisonReady && selectedStats && selectedSecondStats ? comparePicks(selectedStats, selectedSecondStats) : [])
+    : rehearsePicks(run, view, time), [run, selectedStats, selectedSecondStats, comparing, comparisonReady, view, time]);
   const unsaved = JSON.stringify(project) !== savedText;
 
   function commit(next: ProjectDocument) {
@@ -157,9 +171,9 @@ export function App() {
   function changePlan(next: Plan) { commit({ ...project, plans: project.plans.map(item => item.id === next.id ? next : item) }); }
   function undo() { if (!past.length) return; setProject(past.at(-1)!); setPast(past.slice(0, -1)); setFuture([project, ...future]); setPlaying(false); }
   function redo() { if (!future.length) return; setProject(future[0]); setFuture(future.slice(1)); setPast([...past, project]); setPlaying(false); }
-  function selectPlan(id: string) {
-    const target = project.plans.find(item => item.id === id);
-    if (!project.plans.some(item => item.id === secondId && item.id !== id && item.scenarioId === target?.scenarioId)) setSecondId(project.plans.find(item => item.id !== id && item.scenarioId === target?.scenarioId)?.id ?? '');
+  function selectPlan(id: string, plans = project.plans) {
+    const target = plans.find(item => item.id === id);
+    if (!plans.some(item => item.id === secondId && item.id !== id && item.scenarioId === target?.scenarioId)) setSecondId(plans.find(item => item.id !== id && item.scenarioId === target?.scenarioId)?.id ?? '');
     setPlanId(id); setSelection({ id: '', kind: 'node', owner: id }); setSearch(''); setInspectorOpen(false); setPlaying(false); setTime(0); setShowIssues(false); setChecksPlanId(undefined); if (mode === 'Compare') setMode('Build');
   }
   /** All editing entry points reset the selection to the plan being edited. */
@@ -175,7 +189,7 @@ export function App() {
   function save() {
     const result = readProject(JSON.stringify(project), lang);
     if (result.error) { const error = result.error; say(tr => tr.notices.fixBeforeSave(error)); return; }
-    try { localStorage.setItem(STORAGE_KEY, serializeDocument(project)); setSavedText(JSON.stringify(project)); say(tr => tr.notices.saved); }
+    try { localStorage.setItem(STORAGE_KEY, serializeDocument(project)); localStorage.removeItem(DRAFT_KEY); setSavedText(JSON.stringify(project)); say(tr => tr.notices.saved); }
     catch { say(tr => tr.notices.saveFailed); }
   }
   function openLibrary(tab: 'nodes' | 'plans') { setLibraryTab(tab); setTemplateError(''); setTemplateNotice(''); setDialog('templates'); }
@@ -198,7 +212,7 @@ export function App() {
   }
   function useNodeTemplate(template: SavedTemplate) {
     if (mode !== 'Build') return;
-    const added = addNodeFromTemplate(plan, scenario, template);
+    const added = addNodeFromTemplate(plan, scenario, template, templateResources);
     changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); requestView('default'); setDialog(null); say(tr => tr.templates.added);
   }
   function switchLanguage(next: Lang) {
@@ -253,7 +267,7 @@ export function App() {
   function inspectMoment(ids: string[]) {
     if (comparing) showOverview();
     const candidates = [comparing && comparisonReady ? secondRun : undefined, run].flatMap(result => result
-      ? keyEvents(result).filter(event => !!event.nodeId && ids.includes(event.nodeId) && event.time <= scenario.observationCutoff).map(event => ({ event, result })) : []);
+      ? keyEvents(result).filter(event => !!event.nodeId && ids.includes(event.nodeId) && event.time <= (statisticsAt(result, basis)?.until ?? scenario.observationCutoff)).map(event => ({ event, result })) : []);
     const chosen = candidates.filter(item => item.event.kind === 'queue' || item.event.kind === 'blocked')
       .sort((a, b) => (b.event.value ?? 0) - (a.event.value ?? 0) || b.event.time - a.event.time)[0] ?? candidates[0];
     if (chosen) jumpTo(chosen.event.time, chosen.event.nodeId, chosen.result.request.plan.id);
@@ -303,6 +317,18 @@ export function App() {
     selectPlan(result.plan.id); setSecondId(plan.id);
     setMode('Build'); say(tr => tr.notices.copied);
   }
+  function packingExperiment() {
+    if (!second) return;
+    const result = duplicatePlan(second, new Set(project.plans.map(item => item.id)));
+    const original = second.staff.find(item => item.id === 'pack-staff');
+    if (!result.ok || !original) return;
+    const target = result.plan;
+    target.name = t.review.demoName;
+    const staff = structuredClone(original); staff.id = newId('packing-support', target.staff.map(item => item.id)); staff.name = t.review.demoStaff;
+    target.staff.push(staff); target.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+    const next = { ...project, plans: [...project.plans, target] };
+    commit(next); setPlanId(second.id); setSecondId(target.id); launch([second, target], 'Compare', next);
+  }
   function addNode(type: Node['type'], position?: { x: number; y: number }) {
     if (mode !== 'Build') return;
     const node = createNode(type, plan, scenario, position ?? { x: 350 + (plan.graph.nodes.length % 3) * 240, y: 180 + Math.floor(plan.graph.nodes.length / 3) * 150 }, t.nodeTypes[type]);
@@ -317,7 +343,7 @@ export function App() {
     changePlan({ ...plan, graph: { nodes: plan.graph.nodes.map(node => node.id === edge.target && node.type === 'merge' ? { ...node, incomingPriority: [...node.incomingPriority.filter(key => plan.graph.edges.some(item => item.id === key)), id] } : node), edges: [...plan.graph.edges, edge] } });
   }
   function deleteElements(nodeIds: string[], edgeIds: string[], ownerId = plan.id) {
-    if (mode !== 'Build' || (!nodeIds.length && !edgeIds.length)) return;
+    if (mode !== 'Build' || ownerId !== plan.id || (!nodeIds.length && !edgeIds.length)) return;
     const target = project.plans.find(item => item.id === ownerId);
     if (!target) return;
     const edges = target.graph.edges.filter(edge => !edgeIds.includes(edge.id) && !nodeIds.includes(edge.source) && !nodeIds.includes(edge.target));
@@ -372,6 +398,22 @@ export function App() {
   useEffect(() => { if (selection.id && mode === 'Build') setInspectorOpen(true); }, [selection.id, selection.kind, selection.owner]);
   useEffect(() => () => worker.current?.terminate(), []);
   useEffect(() => {
+    if (!unsaved) { try { localStorage.removeItem(DRAFT_KEY); } catch {} setDraftSaved(false); return; }
+    if (dialog === 'welcome') { setDraftSaved(false); return; }
+    const text = JSON.stringify(project);
+    if (!readProject(text).document) { setDraftSaved(false); return; }
+    try { localStorage.setItem(DRAFT_KEY, text); setDraftSaved(true); }
+    catch { setDraftSaved(false); }
+  }, [project, unsaved, dialog]);
+  useEffect(() => {
+    if (!unsaved || draftSaved) return;
+    const protect = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', protect); return () => window.removeEventListener('beforeunload', protect);
+  }, [unsaved, draftSaved]);
+  useEffect(() => {
+    if (basis === 'completion' && (!run?.completion || (mode === 'Compare' && !secondRun?.completion))) setBasis('cutoff');
+  }, [basis, run, secondRun, mode]);
+  useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if (dialog) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
@@ -383,7 +425,7 @@ export function App() {
     window.addEventListener('keydown', handle); return () => window.removeEventListener('keydown', handle);
   });
 
-  const stats = run?.statistics;
+  const stats = statisticsAt(run, basis);
   const planNodes = plan.graph.nodes.filter(node => `${node.name} ${t.nodeTypes[node.type]}`.toLowerCase().includes(search.toLowerCase()));
   const activeEvents = (run?.events ?? []).filter(event => event.time <= time).slice(-80).reverse();
   const readOnly = mode !== 'Build';
@@ -406,8 +448,8 @@ export function App() {
     { key: 'done', label: t.live.finished, icon: <CircleCheck size={14} aria-hidden="true" />, value: String(live.completed) },
   ];
   const finalMetrics: Metric[] = [
-    { key: 'completed', label: t.metrics.completed, icon: <CircleCheck size={14} aria-hidden="true" />, value: stats ? String(stats.outcomes.completed) : '—', hint: stats ? t.metrics.completedHint(stats.arrived) : '' },
-    { key: 'average', label: t.metrics.average, icon: <Hourglass size={14} aria-hidden="true" />, value: t.formatWait(stats?.averageWaiting), hint: t.metrics.averageHint },
+    { key: 'completed', label: t.metrics.completed, icon: <CircleCheck size={14} aria-hidden="true" />, value: stats ? String(stats.outcomes.completed) : '—', hint: stats ? `${t.review[basis]} · ${stats.arrived} ${t.metrics.guests}` : '' },
+    { key: 'average', label: t.metrics.average, icon: <Hourglass size={14} aria-hidden="true" />, value: t.formatWait(stats?.averageWaiting), hint: t.review[basis] },
     { key: 'p90', label: t.metrics.p90, icon: <Timer size={14} aria-hidden="true" />, value: t.formatWait(stats?.p90Waiting), hint: t.metrics.p90Hint },
     { key: 'unfinished', label: t.metrics.unfinished, icon: <Ghost size={14} />, value: stats ? String(stats.outcomes.unfinished) : '—', hint: stats ? t.metrics.unfinishedHint(stats.outcomes.rejected + stats.outcomes.dismissed + stats.outcomes.diverted + stats.outcomes.loop_limit) : '' },
   ];
@@ -418,7 +460,7 @@ export function App() {
     return { plan: target, selected, onSelect: (id: string, kind: 'node' | 'edge') => { setSelection({ id, kind, owner: target.id }); if (id) setInspectorOpen(true); },
       onMove: (positions: { id: string; x: number; y: number }[]) => { if (!readOnly) changePlan({ ...target, graph: { ...target.graph, nodes: target.graph.nodes.map(node => { const position = positions.find(item => item.id === node.id); return position ? { ...node, layout: { ...node.layout, x: position.x, y: position.y } } : node; }) } }); },
       onConnect: connect, onDelete: (nodes: string[], edges: string[]) => deleteElements(nodes, edges, target.id), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
-      previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
+      previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, time, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
       chooseVisitor, visitorName: nameOf, changed: comparing ? changedIds : undefined,
       request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage };
   }
@@ -478,14 +520,14 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className="sidebar is-report" aria-label={t.compare.title}>
         <div className="report-toolbar">{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" />{t.navigator.plans}</button></div>
-        <CompareReport planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <CompareReport basis={basis} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
       {fullSidebar && <aside className="sidebar">
         {mode !== 'Build' && <button type="button" className="side-collapse" onClick={() => setRailExpanded(false)}><PanelLeftClose size={15} aria-hidden="true" />{t.sidebar.collapse}</button>}
         <section className="side-section event-card">
-          <div className="event-eyebrow"><span className="eyebrow">{t.sidebar.event}</span><span className={cls('save-pill', unsaved && 'unsaved')}>{unsaved ? t.header.unsaved : t.header.saved}</span></div>
+          <div className="event-eyebrow"><span className="eyebrow">{t.sidebar.event}</span><span className={cls('save-pill', unsaved && 'unsaved')} title={unsaved && !draftSaved && dialog !== 'welcome' ? t.review.draftFailed : undefined}>{unsaved ? draftSaved ? t.review.draftSaved : t.header.unsaved : t.header.saved}</span></div>
           <div className="event-picker">
             <select className="event-title" aria-label={t.eventSetup.active} value={scenario.id} disabled={busy} onChange={event => { const target = project.plans.find(item => item.scenarioId === event.target.value); if (target) selectPlan(target.id); }}>
               {project.scenarios.filter(item => project.plans.some(plan => plan.scenarioId === item.id)).map(item => <option key={item.id} value={item.id}>{item.name ?? t.header.untitled}</option>)}
@@ -498,6 +540,7 @@ export function App() {
         </section>
         <section className="side-section">
           <div className="section-heading"><h2>{t.sidebar.plans}</h2><div className="section-actions"><button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} disabled={busy} onClick={() => prepareTemplate()}><BookmarkPlus size={16} /></button><button type="button" className="icon-btn" aria-label={t.sidebar.duplicate} title={t.sidebar.duplicate} disabled={busy} onClick={copyPlan}><Copy size={16} /></button></div></div>
+          <div className="plan-actions"><button type="button" className="text-btn" disabled={busy} onClick={() => { setPlanName(plan.name); setDialog('rename-plan'); }}>{t.review.rename}</button><button type="button" className="text-btn danger" disabled={busy || project.plans.length < 2} onClick={() => { const remaining = project.plans.filter(item => item.id !== plan.id); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}>{t.review.removePlan}</button></div>
           <ul className="plan-list">{project.plans.filter(item => item.scenarioId === scenario.id).map(item => {
             const isA = item.id === plan.id; const isB = item.id === second?.id;
             return <li key={item.id} className={cls('plan-card', isA && 'is-a', isB && 'is-b')}>
@@ -525,6 +568,7 @@ export function App() {
         <div className="stage-head">
           <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small></div>
           <div className="stage-tools">
+            {mode !== 'Build' && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
             {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
               <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
               <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
@@ -549,7 +593,7 @@ export function App() {
             </div>)}</div>
           </div>
           <div className="metric-group is-final">
-            <span className="group-label"><CircleCheck size={13} aria-hidden="true" />{t.live.finalTitle}<time>{t.live.finalClock(cutoffLabel)}</time>{stale && <em>{t.metrics.stale}</em>}</span>
+            <span className="group-label"><CircleCheck size={13} aria-hidden="true" />{basis === 'completion' ? t.review.completion : t.live.finalTitle}<time>{basis === 'completion' ? cutoffLabel : t.live.finalClock(cutoffLabel)}</time>{stale && <em>{t.metrics.stale}</em>}</span>
             <div className="group-cells">{finalMetrics.map(item => <div className={`metric-card m-${item.key}`} key={item.key}>
               <span className="metric-label">{item.icon}<span className="metric-name">{item.label}</span></span><strong className="metric-value">{item.value}</strong><small className="metric-hint">{item.hint}</small>
             </div>)}</div>
@@ -593,22 +637,20 @@ export function App() {
           </div>
           {dockOpen && <div className="dock-body">
             {!run && <EmptyResults onRun={() => launch([plan], 'Rehearse')} />}
+            {run && bottomTab === 'insights' && <Insights key={`${run.inputKey}-${secondRun?.inputKey}-${basis}`} basis={basis} onChoose={chooseVisitor} onJump={jumpTo} onExperiment={second?.id === 'alternative' && second.staff.some(item => item.id === 'pack-staff') && second.graph.nodes.some(item => item.id === 'packing') ? packingExperiment : undefined} run={run} second={secondRun} compare={mode === 'Compare'} comparisonReady={comparisonReady} changes={reportChanges.map(item => ({ id: item.id, kind: item.kind, label: item.change }))} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={(id, owner) => { setSelection({ id, kind: 'node', owner }); setInspectorOpen(true); focusNodes([id]); }} />}
             {run && bottomTab === 'now' && <NowPanel plan={run.request.plan} view={view} previous={previousView} time={time} moments={moments} picks={picks} nameOf={nameOf}
               tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
               onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
-            {run && bottomTab === 'insights' && <Insights run={run} scenarioId={scenario.id} overrides={scenario.assumptionOverrides.length} onSelectNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />}
             {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
-            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.compare.stale}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.compare.stale}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney basis={basis} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
               picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)}
               group={peopleGroup} onGroupChange={setPeopleGroup} onOverview={comparing ? showOverview : undefined} />)}
-            {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.compare.stale}</p> : comparing && secondRun ? <div className="resource-compare">{[run, secondRun].map((item, column) => <div key={column}>
-              <h4><span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>{item.request.plan.name}</h4><ResourceUse run={item} />
-            </div>)}</div> : <ResourceUse run={run} />)}
+            {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.compare.stale}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
           </div>}
         </section>}
       </main>
 
-      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly} issues={ownerIssues} run={runs[owner.id]} stale={owner.id === plan.id ? stale : secondStale} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [], owner.id)} onResources={() => enterBuild(owner.id, 'resources')} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
+      <Inspector plan={owner} scenario={project.scenarios.find(item => item.id === owner.scenarioId)!} node={selectedNode} edge={selectedEdge} editable={!readOnly && owner.id === plan.id} issues={ownerIssues} run={runs[owner.id]} basis={basis} stale={!!runs[owner.id] && runs[owner.id].inputKey !== inputKey(requestFor(owner))} onRerun={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Build' ? 'Rehearse' : mode)} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [], owner.id)} onResources={() => enterBuild(owner.id, 'resources')} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
     </div>
 
     <footer className="status-bar">
@@ -617,14 +659,14 @@ export function App() {
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
-    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); setDocumentIssues(result.issues); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
+    <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={async event => { const file = event.target.files?.[0]; if (!file) return; const result = readProject(await file.text(), lang); setDocumentIssues(result.issues); if (result.error) { const error = result.error; say(tr => tr.notices.importFailed(error)); } else if (result.document) { commit(result.document); setPlanId(result.document.plans[0].id); setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id }); setSecondId(result.document.plans[1]?.id ?? ''); setRuns({}); setMode('Build'); setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported); } event.target.value = ''; }} />
     {!!documentIssues.length && <Modal title={t.stage.checksTitle} onClose={() => setDocumentIssues([])} wide>
       <div className="modal-body">{documentIssues.map((issue, index) => <div key={index} className={`check-item ${issue.severity}`}>
         <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
       </div>)}</div>
     </Modal>}
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
-    {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item) })} onClose={() => setDialog(null)} />}
+    {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item), plans: project.plans.map(item => item.scenarioId !== next.id ? item : { ...item, graph: { ...item.graph, nodes: item.graph.nodes.map(node => node.type === 'entrance' ? { ...node, arrivalStreamIds: node.arrivalStreamIds.filter(id => next.arrivalStreams.some(stream => stream.id === id)) } : node) } }) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {
       const schema = dialog === 'node-json' ? nodeSchema : dialog === 'edge-json' ? edgeSchema : dialog === 'scenario-json' ? scenarioSchema : planSchema;
       const result = schema.safeParse(value); if (!result.success) return result.error.issues.slice(0, 5).map(issue => `${issue.path.join('.')}: ${zodIssueText(issue as { code: string; message: string; params?: Record<string, unknown> }, lang)}`).join('\n');
@@ -657,6 +699,7 @@ export function App() {
         </div>
         {templateNotice && <p className="template-notice" role="status">{templateNotice}</p>}
         <p className="subtle">{libraryTab === 'plans' ? t.templates.planHint : readOnly ? t.sidebar.readOnlyHint : t.templates.nodeHint}</p>
+        {libraryTab === 'nodes' && <label className="field"><span>{t.review.resourcesMode}</span><select value={templateResources} onChange={event => setTemplateResources(event.target.value as 'share' | 'copy')}><option value="share">{t.review.share}</option><option value="copy">{t.review.copy}</option></select><small>{t.review.shareHint}</small></label>}
         <h3 className="eyebrow">{t.templates.presets}</h3>
         {libraryTab === 'nodes' ? <div className="palette">{NODE_TYPES.map(type => <button type="button" key={type} disabled={readOnly} className={`palette-node type-${type}`} onClick={() => { addNode(type); setDialog(null); }}>
           <span className="palette-icon"><NodeIcon type={type} size={19} /></span><span className="palette-text"><b>{t.nodeTypes[type]}</b><small>{t.nodeHints[type]}</small></span>
@@ -685,6 +728,7 @@ export function App() {
         <div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!templateName.trim()}><BookmarkPlus size={15} />{t.templates.save}</button></div>
       </form>
     </Modal>}
+    {dialog === 'rename-plan' && <Modal title={t.review.rename} onClose={() => setDialog(null)}><form onSubmit={event => { event.preventDefault(); changePlan({ ...plan, name: planName.trim() }); setDialog(null); }}><div className="modal-body"><label className="field"><span>{t.review.planName}</span><input value={planName} maxLength={100} required onChange={event => setPlanName(event.target.value)} /></label></div><div className="modal-footer"><button type="submit" className="btn primary" disabled={!planName.trim()}>{t.header.save}</button></div></form></Modal>}
     {dialog === 'about' && <Modal title={t.dialogs.aboutTitle} onClose={() => setDialog(null)}><div className="modal-body about">
       <div className="about-brand"><div className="about-ghost"><Ghost size={52} /></div><h2>{t.brand.motto}</h2><span>{t.brand.name} · {t.brand.tagline}</span></div>
       <p>{t.dialogs.about1}</p><p>{t.dialogs.about2}</p>
@@ -694,7 +738,7 @@ export function App() {
     </div></Modal>}
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
-      <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
+      <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}

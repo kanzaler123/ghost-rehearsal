@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Background, BackgroundVariant, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, useReactFlow, useStore } from '@xyflow/react';
-import type { Connection, Edge as FlowEdge, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, ChevronsDownUp, Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
 import { NODE_TYPES } from '../features/project';
@@ -182,12 +182,25 @@ const frameId = (id: string) => `frame:${id}`;
 /** `byPlan` overrides `ids` and `stageKeys` for a specific plan, for example when one ghost stands at different nodes in A and B. */
 export type ViewTarget = 'default' | 'all' | { ids: string[]; stageKeys?: string[]; stages?: string[]; byPlan?: Record<string, string[]> };
 export interface ViewRequest { token: number; target: ViewTarget }
+type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void };
+function RouteEdge(props: EdgeProps<FlowEdge<RouteData>>) {
+  const { t } = useI18n();
+  const [path, labelX, labelY] = getBezierPath({ ...props, curvature: 0.4 });
+  return <>
+    <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} label={props.label} labelX={labelX} labelY={labelY}
+      labelStyle={props.labelStyle} labelBgStyle={props.labelBgStyle} labelBgPadding={props.labelBgPadding} labelBgBorderRadius={props.labelBgBorderRadius} />
+    {props.data?.travelers.map(visitor => <circle key={visitor.id} r={visitor.selected ? 7 : 5} fill={visitor.selected ? '#ffc46b' : '#8ef5d0'} stroke="#1d1833" strokeWidth={2}
+      role="button" tabIndex={0} aria-label={t.canvas.follow(visitor.id)} style={{ offsetPath: `path('${path}')`, offsetDistance: `${visitor.progress * 100}%`, cursor: 'pointer' }}
+      onClick={event => { event.stopPropagation(); props.data?.chooseVisitor(visitor.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); props.data?.chooseVisitor(visitor.id); } }}><title>{visitor.id}</title></circle>)}
+  </>;
+}
+const edgeTypes = { route: RouteEdge };
 
 interface Props {
   plan: Plan; selected: string; onSelect: (id: string, kind: 'node' | 'edge') => void; onMove: (positions: { id: string; x: number; y: number }[]) => void;
   onConnect: (connection: Connection) => void; onDelete: (ids: string[], edgeIds: string[]) => void;
   onAdd: (type: Node['type'], position: { x: number; y: number }) => void;
-  editable: boolean; issues: ValidationIssue[]; view: PlaybackState; previous?: PlaybackState; run?: SimulationRun; stale: boolean;
+  editable: boolean; issues: ValidationIssue[]; view: PlaybackState; previous?: PlaybackState; run?: SimulationRun; time: number; stale: boolean;
   tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string; changed?: Set<string>;
   request: ViewRequest; stageView: boolean; expanded: Set<string> | 'all'; onStage: (id: string, open: boolean) => void;
   label?: { badge: string; name: string; note?: string; status?: string };
@@ -311,10 +324,6 @@ function CanvasInner(props: Props) {
 
   // ---------- Edges ----------
   const edges = useMemo<FlowEdge[]>(() => {
-    const busy = (id: string) => {
-      const ids = index.subflows.has(id) ? index.members.get(id)! : [id];
-      return ids.some(member => { const state = view.nodes[member]; return !!state && state.queued.length + state.serving.length + state.holding.length + state.blocked.length > 0; });
-    };
     const grouped = new Map<string, { id: string; source: string; target: string; sourceHandle?: string; label?: string; ids: string[] }>();
     for (const edge of plan.graph.edges) {
       const source = display.visible(edge.source), target = display.visible(edge.target);
@@ -326,18 +335,20 @@ function CanvasInner(props: Props) {
       entry.ids.push(edge.id); grouped.set(key, entry);
     }
     return [...grouped.values()].map(edge => {
-      const active = running && busy(edge.target);
+      const travelers = running ? Object.values(view.visitors).filter(event => event.type === 'ROUTE_TRANSITION' && edge.ids.includes(event.edgeId ?? '') && Number(event.details?.arrivalAt) > props.time)
+        .map(event => ({ id: event.participantId!, progress: (props.time - event.time) / (Number(event.details!.arrivalAt) - event.time), selected: event.participantId === props.tracked?.id })) : [];
+      const active = travelers.length > 0;
       const isSelected = props.selected === edge.id;
       const changed = edge.ids.some(id => props.changed?.has(id));
       const color = isSelected ? '#8ef5d0' : changed ? '#ff9a4d' : active ? '#8cc8ff' : '#84709b';
-      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'default', pathOptions: { curvature: 0.4 }, label: edge.label, animated: active,
+      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', data: { travelers, chooseVisitor: props.chooseVisitor }, label: edge.label,
         selected: isSelected, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 16, height: 16 },
         style: { stroke: color, strokeWidth: isSelected ? 2.4 : active ? 2 : 1.6 },
         labelStyle: { fill: '#d9d1ee', fontSize: 11, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
       };
     });
-  }, [plan.graph.edges, index, display, view, running, props.selected, props.changed]);
+  }, [plan.graph.edges, display, view, running, props.time, props.tracked, props.chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
     const bounds = shell.current!.getBoundingClientRect();
@@ -359,7 +370,7 @@ function CanvasInner(props: Props) {
     if (props.editable && NODE_TYPES.includes(type)) props.onAdd(type, api.screenToFlowPosition({ x: event.clientX, y: event.clientY }));
   }}>
     {!props.compact && <HauntedBackdrop />}
-    <ReactFlow<AnyNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} colorMode="dark" onInit={setInstance} elevateNodesOnSelect={false}
+    <ReactFlow<AnyNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode="dark" onInit={setInstance} elevateNodesOnSelect={false}
       onNodesChange={changes => {
         setFlowNodes(nodes => applyNodeChanges(changes, nodes));
         const positions = changes.flatMap(change => change.type === 'position' && change.position && !change.dragging && isRealNode(change.id) ? [{ id: change.id, ...change.position }] : []);

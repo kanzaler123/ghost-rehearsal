@@ -117,7 +117,7 @@ beforeEach(() => {
   setViewport.mockReset().mockResolvedValue(true);
   hooks.api = { getInternalNode: () => undefined, setViewport, zoomTo: vi.fn(), screenToFlowPosition: (value: unknown) => value };
   props = { plan: planA, selected: '', onSelect: vi.fn(), onMove: vi.fn(), onConnect: noop, onDelete: noop, onAdd: noop,
-    editable: true, issues: [], view: playbackAt([], planA, 0), stale: false, chooseVisitor: noop, visitorName: id => id,
+    editable: true, time: 0, issues: [], view: playbackAt([], planA, 0), stale: false, chooseVisitor: noop, visitorName: id => id,
     request: { token: 0, target: 'default' }, stageView: false, expanded: new Set(), onStage: noop };
 });
 afterEach(() => { hooks.unmount(); vi.useRealTimers(); });

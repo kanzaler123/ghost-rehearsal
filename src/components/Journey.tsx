@@ -3,8 +3,8 @@ import type { CSSProperties } from 'react';
 import { ArrowLeft, ArrowUpRight, Crosshair, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
 import { formatTime } from '../features/project';
-import { affected, affectedVisitors, firstDifference, journeyOf, sameStation, stationsOf, statusAt } from '../features/analysis';
-import type { AffectedFilter, Journey, PickGroup, VisitorStatus } from '../features/analysis';
+import { affected, affectedVisitors, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt } from '../features/analysis';
+import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { SimulationRun } from '../simulation/types';
@@ -52,7 +52,7 @@ interface Props {
   runs: SimulationRun[]; compare: boolean; scenario: Scenario; visitorId: string; time: number; endTime: number;
   picks: PickGroup[]; featured?: string; nameOf: (id: string) => string;
   onChoose: (id: string) => void; onJump: (time: number, nodeId: string | undefined, planId: string) => void; onLocate: () => void;
-  group?: AffectedFilter;
+  group?: AffectedFilter; basis?: ResultBasis;
   onGroupChange?: (filter: AffectedFilter | undefined) => void;
   onOverview?: () => void;
 }
@@ -60,7 +60,7 @@ interface Props {
 const PAGE_SIZE = 20;
 const FILTERS: AffectedFilter[] = ['less', 'more', 'same', 'rescued', 'lost'];
 
-export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview }: Props) {
+export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, featured, nameOf, onChoose, onJump, onLocate, group, onGroupChange, onOverview, basis = 'cutoff' }: Props) {
   const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -68,13 +68,13 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const detailRef = useRef<HTMLElement>(null);
   const activeGroup = onGroupChange ? group : localGroup;
   const population = runs[0]?.population ?? [];
-  const a = runs[0]?.statistics, b = compare ? runs[1]?.statistics : undefined;
+  const a = statisticsAt(runs[0], basis), b = compare ? statisticsAt(runs[1], basis) : undefined;
   const paired = useMemo(() => a && b ? affectedVisitors(a, b, activeGroup) : null, [a, b, activeGroup]);
   const counts = useMemo(() => a && b ? affected(a, b) : null, [a, b]);
   // Keep old evidence internally consistent while the surrounding workspace marks a run stale.
-  const cutoff = a?.until ?? runs[0]?.request.scenario.observationCutoff ?? scenario.observationCutoff;
+  const cutoff = basis === 'completion' ? Math.max(...runs.map(run => statisticsAt(run, basis)?.until ?? 0)) : a?.until ?? runs[0]?.request.scenario.observationCutoff ?? scenario.observationCutoff;
   const replayTime = Math.min(time, cutoff);
-  const journeys = useMemo(() => visitorId ? runs.map(run => journeyOf(run, visitorId, cutoff)) : [], [runs, visitorId, cutoff]);
+  const journeys = useMemo(() => visitorId ? runs.map(run => journeyOf(run, visitorId, statisticsAt(run, basis)?.until ?? cutoff)) : [], [runs, visitorId, cutoff, basis]);
   const person = population.find(item => item.id === visitorId);
   const plans = runs.map(run => run.request.plan);
   const span = Math.max(1, cutoff);
@@ -83,13 +83,13 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const text = t.lang === 'zh' ? {
     back: '返回比较总览', title: '访客旅程', everyone: '全部', people: '参与者名单', search: '搜索本组姓名或编号',
     noResults: '没有匹配的参与者。请调整搜索或群体筛选。', clear: '清除搜索', previous: '上一页', next: '下一页',
-    basis: `时间带、结局与逐站等待均截至 ${formatTime(cutoff)}`,
+    basis: basis === 'completion' ? '时间带、结局与逐站等待采用各方案的最终记录。' : `时间带、结局与逐站等待均截至 ${formatTime(cutoff)}`,
     afterCutoff: '回放已越过观察截止，此处保持显示截止时刻的记录。',
     cutoffStatus: '截止时刻状态', groups: { less: '少等 ≥1 分钟', more: '多等 ≥1 分钟', same: '变化不足 1 分钟', rescued: '只在 B 完成', lost: '只在 A 完成' },
   } : {
     back: 'Back to comparison', title: 'Guest journey', everyone: 'Everyone', people: 'Guest list', search: 'Search this group by name or number',
     noResults: 'No matching guests. Try another search or group.', clear: 'Clear search', previous: 'Previous', next: 'Next',
-    basis: `Lanes, outcomes and station waits all end at ${formatTime(cutoff)}`,
+    basis: basis === 'completion' ? 'Lanes, outcomes and station waits use each plan’s final record.' : `Lanes, outcomes and station waits all end at ${formatTime(cutoff)}`,
     afterCutoff: 'Replay is beyond the cutoff. This panel stays at the observation cutoff.',
     cutoffStatus: 'Status at cutoff', groups: { less: 'Waited ≥1 min less', more: 'Waited ≥1 min more', same: 'Changed by <1 min', rescued: 'Finished only in B', lost: 'Finished only in A' },
   };
@@ -140,8 +140,8 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   return <div className="ghost-journey">
     <header className="journey-header">
       <div>{onOverview && <button type="button" className="text-btn" onClick={onOverview}><ArrowLeft size={14} aria-hidden="true" />{text.back}</button>}<h3>{text.title}</h3></div>
-      <p className="journey-basis">{text.basis}</p>
-      {time > cutoff && <p className="journey-basis">{text.afterCutoff}</p>}
+      <p className="journey-basis">{t.review[basis]} · {text.basis}</p>
+      {basis === 'cutoff' && time > cutoff && <p className="journey-basis">{text.afterCutoff}</p>}
     </header>
     <aside className="ghost-stories">
       {compare && counts && <label className="people-filter"><span>{text.people}</span><select aria-label={text.people} value={activeGroup ?? 'all'} onChange={event => selectGroup(event.target.value === 'all' ? undefined : event.target.value as AffectedFilter)}>
@@ -184,7 +184,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         <button type="button" className="btn small ghost locate" onClick={onLocate}><Crosshair size={14} aria-hidden="true" />{t.journey.locate}</button>
       </div>
 
-      <div className="lanes" style={{ '--now': Math.max(0, Math.min(1, replayTime / span)) } as CSSProperties} aria-label={`${t.journey.lanes} · ${text.basis}`}>
+      <div className="lanes" style={{ '--now': Math.max(0, Math.min(1, replayTime / span)) } as CSSProperties} aria-label={`${t.journey.lanes} · ${t.review[basis]} · ${text.basis}`}>
         <div className="lane-axis" aria-hidden="true"><span className="lane-label" />{<div className="lane-ticks">{ticks.map(tick => <i key={tick} style={{ left: pct(tick) }}>{formatTime(tick)}</i>)}</div>}</div>
         {journeys.map((journey, column) => {
           const status = statusAt(journey, Math.min(replayTime, journey.until));
@@ -201,17 +201,17 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
             </div>
           </div>;
         })}
-        <i className="lane-cutoff" title={`${t.journey.cutoff} · ${formatTime(cutoff)}`} aria-label={`${t.journey.cutoff} · ${formatTime(cutoff)}`} />
+        <i className="lane-cutoff" title={`${basis === 'completion' ? t.review.completion : t.journey.cutoff} · ${formatTime(cutoff)}`} aria-label={`${basis === 'completion' ? t.review.completion : t.journey.cutoff} · ${formatTime(cutoff)}`} />
         {difference && Number.isFinite(difference.time) && <i className="lane-diff" style={{ left: `calc(var(--lane-label) + (100% - var(--lane-label)) * ${Math.min(1, difference.time / span)})` }} />}
         <div className="lane-legend">{(['queue', 'hold', 'blocked', 'service'] as const).map(kind => <span key={kind}><i className={`seg-${kind}`} />{t.journey.segments[kind]}</span>)}</div>
       </div>
 
       <div className="ghost-futures">{journeys.map((journey, column) => {
-        const outcome = runs[column].statistics?.visitors.find(item => item.id === visitorId);
+        const outcome = statisticsAt(runs[column], basis)?.visitors.find(item => item.id === visitorId);
         return <div className="future-row" key={column}>
           {compare ? <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span> : <span />}
-          <span><small>{time > cutoff ? text.cutoffStatus : t.journey.now}</small>{describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t)}</span>
-          <span><small>{t.journey.cutoff}</small>{outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : '—'}</span>
+          <span><small>{time > cutoff ? (basis === 'completion' ? t.review.completion : text.cutoffStatus) : t.journey.now}</small>{describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t)}</span>
+          <span><small>{basis === 'completion' ? `${t.review.completion} · ${formatTime(journey.until)}` : t.journey.cutoff}</small>{outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : '—'}</span>
         </div>;
       })}</div>
 

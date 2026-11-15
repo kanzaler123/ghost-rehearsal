@@ -77,6 +77,7 @@ import { CompareReport } from '../src/components/CompareReport';
 import { Inspector } from '../src/components/Inspector';
 import { ResourcesEditor } from '../src/components/Dialogs';
 import { GhostJourney } from '../src/components/Journey';
+import { ResourceUse } from '../src/components/Results';
 
 type Element = ReactElement<Record<string, any>>;
 const document = projectDocumentSchema.parse(example);
@@ -210,6 +211,31 @@ describe('failed comparison checks', () => {
 });
 
 describe('comparison overview and visitor focus', () => {
+  it('keeps the copied plan paired with its source after entering Build', () => {
+    tree.find(item => item.type === 'button' && item.props['aria-label'] === t.sidebar.duplicate)!.props.onClick(); render();
+    const copied = canvas().plan;
+    expect(copied.id).not.toBe(planA.id);
+    expect(copied.sourcePlanId).toBe(planA.id);
+    click(t.modes.Compare);
+    expect(component(CompareReport).props.ready).toBe(true);
+    expect(component(CompareReport).props.planA.id).toBe(copied.id);
+    expect(component(CompareReport).props.planB.id).toBe(planA.id);
+  });
+
+  it('passes the final statistics basis through the report, journey and resource views', () => {
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.run.scope)!.props.onChange({ target: { value: 'run_to_completion' } }); render();
+    compare();
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.review.basis)!.props.onChange({ target: { value: 'completion' } }); render();
+    expect(component(CompareReport).props.basis).toBe('completion');
+    expect(text(renderReport())).toContain(t.review.completion);
+    component(CompareReport).props.onChoose(lastRuns[0].population[0].id); render();
+    expect(component(GhostJourney).props.basis).toBe('completion');
+    expect(text(renderJourney())).toContain(t.review.completion);
+    click(t.dock.tabs.resources);
+    expect(component(ResourceUse).props.basis).toBe('completion');
+    expect(component(ResourceUse).props.second.completion).toBeTruthy();
+  });
+
   it('opens an affected group, follows a member, and returns to the full overview', () => {
     compare();
     const report = component(CompareReport).props;
