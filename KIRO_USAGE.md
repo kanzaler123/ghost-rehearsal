@@ -68,3 +68,9 @@ A/B/C 引导、共享实验构造和画布隐藏状态修复由 Codex 完成（`
 本地 Kiro 1.4.178 日志确有 2026-11-15 16:33:39 的 `hooks.reload.loaded`（read=1、registered=1）和 `fs.hooksReload.ok`。这能证明加载/注册，不能证明日志 Hook 执行完成；本次未查到相应执行完成记录，也没有生成实际任务条目。新增 `.kiro/steering/comparison-evidence.md` 由 Codex 编写，其内容约束共享比较规则、C 构造、真实浏览器验收与证据归属；未声称 Kiro 已加载或使用它。
 
 本次已核实的 Kiro 开发贡献：无。Hook 的实际触发、防重复、递归和额度消耗仍未验收；没有虚构会话、截图或自动记录。
+
+## 2026-11-15 UI 改造接手（Codex 追加）
+
+用户提供的 Kiro 交接说明报告：已完成 rehearsal-studio-ui 规格（`eeef1dc`）和基线记录（`4d22025`），UI 实现及改造前截图未完成；原始 Kiro 会话导出为 **pending**。保留这两次既有提交及历史归属，不把交接说明当作本轮观测到的 Kiro 执行日志。
+
+随后由 Codex 完成改造前截图（`4ef1d01`）、UI 实现及验证工作；这些不计为 Kiro 开发或 Hook 自动产物。具体文件范围、验证结果及尚待集成事项见 `docs/reviews/ui-visual-polish.md`，归属和证据状态见 `docs/kiro/ui-visual-polish-usage.md`。本次没有声称 Stop Hook 执行完成，也没有补造 Kiro 原始会话；未导出的 Kiro 会话仍为 **pending**。
