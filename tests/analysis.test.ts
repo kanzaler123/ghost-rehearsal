@@ -1,10 +1,14 @@
+import { executionReport, halloweenProject, initialDocument } from '../src/features/project';
+import { MESSAGES } from '../src/i18n/messages';
 import { describe, expect, it } from 'vitest';
 import example from '../examples/open-house.json';
 import { projectDocumentSchema } from '../src/schemas';
+import type { RunRequest } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 import { playbackAt } from '../src/simulation/metrics';
+import type { SimulationEvent, Statistics, VisitorMetrics } from '../src/simulation/types';
 import {
-  affected, comparePicks, costOf, featuredGhost, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, stationWaits, stationsOf, statusAt, totalWait, visitorName,
+  nodeEvidence, pairedVisitors, statisticsAt, affected, affectedVisitors, comparePicks, costOf, featuredGhost, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, stationWaits, stationsOf, statusAt, totalWait, visitorName,
 } from '../src/features/analysis';
 
 const document = projectDocumentSchema.parse(example);
@@ -12,6 +16,21 @@ const scenario = document.scenarios[0];
 const [planA, planB] = document.plans;
 const [runA, runB] = document.plans.map(plan => simulate({ schemaVersion: 1, scenario, plan, runMode: 'cutoff' }));
 const statsA = runA.statistics!, statsB = runB.statistics!;
+
+function serviceFixture(count = 1, maxConcurrent?: number): RunRequest {
+  return {
+    schemaVersion: 1, runMode: 'cutoff',
+    scenario: { id: 'scenario', seed: 42, observationCutoff: 25, horizon: 200, attributes: [], assumptionOverrides: [],
+      arrivalStreams: [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: Array.from({ length: count }, (_, index) => ({ id: `p${index}`, arrivalTime: 0, attributes: {} })) }] },
+    plan: { id: 'plan', name: 'Immediate service', scenarioId: 'scenario', skills: [], deviceTypes: [], assignments: [], staff: [],
+      graph: { nodes: [
+        { id: 'entrance', type: 'entrance', name: 'Entrance', layout: { x: 0, y: 0 }, arrivalStreamIds: ['guests'] },
+        { id: 'service', type: 'service', name: 'Service', layout: { x: 300, y: 0 }, stageKey: 'service', requirements: [], maxConcurrent,
+          duration: { kind: 'fixed', value: 10, provenance: { kind: 'synthetic' } }, openWindows: [] },
+        { id: 'exit', type: 'exit', name: 'Exit', layout: { x: 600, y: 0 } },
+      ], edges: [{ id: 'in-service', source: 'entrance', target: 'service' }, { id: 'service-out', source: 'service', target: 'exit' }] } },
+  };
+}
 
 describe('ghost journeys', () => {
   it('names a ghost by its entrance instead of its raw ID', () => {
@@ -37,11 +56,69 @@ describe('ghost journeys', () => {
     const b = journeyOf(runB, 'main-stream:20');
     expect(b.end).toMatchObject({ kind: 'complete', time: 1515 });
     expect(statusAt(b, 1600)).toMatchObject({ kind: 'done', time: 1515 });
-    const difference = firstDifference(journeyOf(runA, 'main-stream:20'), b, planA, planB)!;
-    expect(difference.time).toBeCloseTo(126.667, 3);
-    expect(difference.a?.nodeId).toBe('checkin');
-    expect(difference.a!.end - difference.a!.start).toBeGreaterThan(difference.b!.end - difference.b!.start);
+    const a = journeyOf(runA, 'main-stream:20');
+    const difference = firstDifference(a, b, planA, planB)!;
+    expect(difference.time).toBe(360);
+    expect(difference.a).toMatchObject({ kind: 'queue', nodeId: 'checkin' });
+    expect(difference.b).toMatchObject({ kind: 'service', nodeId: 'checkin' });
+    expect(statusAt(a, 359.999)).toEqual(statusAt(b, 359.999));
+    expect(statusAt(a, difference.time).kind).toBe('queue');
+    expect(statusAt(b, difference.time).kind).toBe('service');
     expect(firstDifference(b, b, planB, planB)).toBeNull();
+  });
+
+  it('jumps the featured ghost to the first visible state difference, not the shared queue entry', () => {
+    const id = featuredGhost(statsA, statsB)!;
+    expect(id).toBe('side-stream:10');
+    const a = journeyOf(runA, id), b = journeyOf(runB, id);
+    const difference = firstDifference(a, b, planA, planB)!;
+    expect(difference.time).toBe(210);
+    expect(statusAt(a, 209.999)).toEqual(statusAt(b, 209.999));
+    expect(statusAt(a, 210).kind).toBe('queue');
+    expect(statusAt(b, 210).kind).toBe('service');
+  });
+
+  it('does not reveal future differences beyond the selected observation boundary', () => {
+    const request = serviceFixture();
+    request.scenario.observationCutoff = 5;
+    request.runMode = 'run_to_completion';
+    const a = simulate(request);
+    const slower = structuredClone(request);
+    const node = slower.plan.graph.nodes[1];
+    if (node.type === 'service') node.duration = { kind: 'fixed', value: 15, provenance: { kind: 'synthetic' } };
+    const b = simulate(slower);
+    expect(a.status).toBe('succeeded');
+    expect(b.status).toBe('succeeded');
+    expect(firstDifference(journeyOf(a, 'guests:p0', 5), journeyOf(b, 'guests:p0', 5), request.plan, slower.plan)).toBeNull();
+    expect(firstDifference(journeyOf(a, 'guests:p0'), journeyOf(b, 'guests:p0'), request.plan, slower.plan)).toMatchObject({ time: 10 });
+  });
+
+  it('treats simultaneous routing and queue entry as transitions, not lasting differences', () => {
+    const request = serviceFixture();
+    const a = simulate(request);
+    const detour = structuredClone(request);
+    detour.plan.graph.nodes.push({ id: 'merge', type: 'merge', name: 'Merge', layout: { x: 150, y: 0 }, incomingPriority: ['in-service'] });
+    detour.plan.graph.edges[0].target = 'merge';
+    detour.plan.graph.edges.push({ id: 'merge-service', source: 'merge', target: 'service' });
+    const b = simulate(detour);
+    expect(b.status).toBe('succeeded');
+    expect(b.events.length).toBeGreaterThan(a.events.length);
+    expect(firstDifference(journeyOf(a, 'guests:p0'), journeyOf(b, 'guests:p0'), request.plan, detour.plan)).toBeNull();
+  });
+
+  it('clips a completion recording so station totals, outcome and evidence all use the cutoff', () => {
+    const complete = simulate({ ...runA.request, runMode: 'run_to_completion' });
+    const id = 'main-stream:20';
+    const journey = journeyOf(complete, id, scenario.observationCutoff);
+    expect(journey.until).toBe(scenario.observationCutoff);
+    expect(journey.end).toBeUndefined();
+    expect(journey.events.every(event => event.time <= scenario.observationCutoff)).toBe(true);
+    expect(journey.segments.at(-1)).toMatchObject({ end: scenario.observationCutoff, open: true });
+    expect(stationsOf(journey).reduce((sum, station) => sum + station.queue, 0)).toBeCloseTo(complete.statistics!.visitors.find(visitor => visitor.id === id)!.waiting, 6);
+    expect(journeyOf(complete, id).end).toMatchObject({ kind: 'complete', time: 3010 });
+    expect(journeyOf(complete, id, complete.coveredUntil + 100).until).toBe(complete.coveredUntil);
+    expect(journeyOf(complete, id, 100)).toMatchObject({ arrival: undefined, events: [], segments: [], end: undefined });
+    expect(journeyOf(runB, id, 1515).end).toMatchObject({ kind: 'complete', time: 1515 });
   });
 });
 
@@ -78,14 +155,54 @@ describe('comparison report', () => {
     expect(people.better + people.worse + people.same).toBe(people.total);
     expect(people.bins.reduce((sum, count) => sum + count, 0)).toBe(people.total);
     expect(people.rescued).toBe(7);
+    expect(affectedVisitors(statsA, statsB)).toHaveLength(people.total);
+    expect(affectedVisitors(statsA, statsB, 'less')).toHaveLength(people.better);
+    expect(affectedVisitors(statsA, statsB, 'more')).toHaveLength(people.worse);
+    expect(affectedVisitors(statsA, statsB, 'same')).toHaveLength(people.same);
+    expect(affectedVisitors(statsA, statsB, 'rescued')).toHaveLength(people.rescued);
+    expect(affectedVisitors(statsA, statsB, 'lost')).toHaveLength(people.lost);
+  });
+
+  it('uses the inclusive one-minute threshold consistently in filters, counts, histogram and picks', () => {
+    const visitor = (id: string, waiting: number, outcome: VisitorMetrics['outcome'] = 'unfinished'): VisitorMetrics => ({
+      id, waiting, outcome, completedAt: outcome === 'completed' ? 100 : null, queueWaiting: waiting, blockedWaiting: 0, holdWaiting: 0, nodeWaiting: {},
+    });
+    const a: Statistics = { ...statsA, visitors: [visitor('less', 60), visitor('more', 0, 'completed'), visitor('near-less', 59.999), visitor('near-more', 0), visitor('equal', 0), visitor('absent', 0, 'not_arrived'), visitor('unmatched', 0)] };
+    const b: Statistics = { ...statsB, visitors: [visitor('less', 0, 'completed'), visitor('more', 60), visitor('near-less', 0), visitor('near-more', 59.999), visitor('equal', 0), visitor('absent', 0, 'not_arrived')] };
+    const summary = affected(a, b);
+    expect(summary).toMatchObject({ total: 5, better: 1, worse: 1, same: 3, rescued: 1, lost: 1 });
+    expect(summary.bins).toEqual([0, 0, 1, 3, 1, 0, 0]);
+    expect(affectedVisitors(a, b, 'less').map(item => item.id)).toEqual(['less']);
+    expect(affectedVisitors(a, b, 'more').map(item => item.id)).toEqual(['more']);
+    expect(affectedVisitors(a, b, 'same').map(item => item.id).sort()).toEqual(['equal', 'near-less', 'near-more']);
+    expect(comparePicks(a, b).find(group => group.key === 'less')).toMatchObject({ total: 1, items: [{ id: 'less', value: -60 }] });
+    expect(comparePicks(a, b).find(group => group.key === 'more')).toMatchObject({ total: 1, items: [{ id: 'more', value: 60 }] });
   });
 
   it('merges parallel lanes of one stage into one station and keeps person-time totals', () => {
-    const stations = stationWaits(planA, statsA, planB, statsB);
+    const stations = stationWaits(planA, statsA, planB, statsB, runA.events, runB.events);
     const checkin = stations.find(row => row.key === 'stage:checkin')!;
     expect(checkin.b.sort()).toEqual(['checkin', 'checkin-extra']);
     expect(checkin.waitB).toBeCloseTo(statsB.nodes.filter(node => node.id.startsWith('checkin')).reduce((sum, node) => sum + node.waiting, 0), 6);
+    expect(checkin).toMatchObject({ peakA: 189, peakB: 171 });
     expect(stations.reduce((sum, row) => sum + row.waitA, 0)).toBeCloseTo(totalWait(statsA), 3);
+  });
+
+  it('counts simultaneous waiting, not summed lane maxima or arrivals after the reporting cutoff', () => {
+    const records: Omit<SimulationEvent, 'seq'>[] = [];
+    const add = (time: number, type: SimulationEvent['type'], prefix: string, count: number, nodeId: string) => {
+      records.push(...Array.from({ length: count }, (_, index) => ({ time, type, participantId: `${prefix}:${index}`, nodeId })));
+    };
+    add(0, 'QUEUE_ENTER', 'first', 3, 'checkin');
+    // New lane arrivals happen before the old queue drains within this timestamp.
+    add(10, 'QUEUE_ENTER', 'second', 4, 'checkin-extra');
+    add(10, 'SERVICE_START', 'first', 3, 'checkin');
+    add(20, 'SERVICE_START', 'second', 4, 'checkin-extra');
+    add(30, 'QUEUE_ENTER', 'late', 20, 'checkin');
+    const events = records.map((event, seq) => ({ ...event, seq }));
+    const stats: Statistics = { ...statsB, until: 20, nodes: statsB.nodes.filter(node => node.id.startsWith('checkin')).map(node => ({ ...node, waiting: node.id === 'checkin' ? 30 : 40, maxQueue: 999 })) };
+    const station = stationWaits(planB, stats, planB, stats, events, events)[0];
+    expect(station).toMatchObject({ waitA: 70, waitB: 70, peakA: 4, peakB: 4 });
   });
 
   it('reports the extra scanner as the cost of B', () => {
@@ -102,5 +219,126 @@ describe('comparison report', () => {
     expect(moments.find(item => item.kind === 'close')).toMatchObject({ time: 1500, nodeId: 'checkin' });
     expect(moments.filter(item => item.kind === 'queue' && item.nodeId === 'checkin').map(item => item.value)).toEqual([10, 50]);
     expect(moments.some(item => item.kind === 'resource' && item.to === 'handover')).toBe(true);
+  });
+
+  it('does not mark a queue or waiting peak when everyone starts service immediately', () => {
+    const request = serviceFixture(10);
+    const run = simulate(request);
+    expect(run.status).toBe('succeeded');
+    expect(run.statistics!.visitors.every(visitor => visitor.waiting === 0)).toBe(true);
+    expect(liveSummary(playbackAt(run.events, request.plan, 0))).toMatchObject({ waiting: 0, serving: 10 });
+    expect(keyEvents(run).filter(item => item.kind === 'queue' || item.kind === 'peak')).toEqual([]);
+  });
+
+  it('marks the real settled queue size at the same moment shown by replay', () => {
+    const request = serviceFixture(11, 1);
+    const run = simulate(request);
+    const moments = keyEvents(run);
+    expect(moments.find(item => item.kind === 'queue')).toMatchObject({ time: 0, nodeId: 'service', value: 10 });
+    const peak = moments.find(item => item.kind === 'peak')!;
+    expect(peak).toMatchObject({ time: 0, value: 10 });
+    expect(liveSummary(playbackAt(run.events, request.plan, peak.time)).waiting).toBe(peak.value);
+  });
+});
+
+describe('rehearsal evidence and execution reports', () => {
+  const document = initialDocument();
+  const [a, b] = document.plans.map(plan => simulate({ schemaVersion: 1, plan, scenario: document.scenarios[0], runMode: 'run_to_completion' }));
+
+  describe('Open House evidence', () => {
+    it('preserves the default result and pairs the same people without equating shorter waits with better outcomes', () => {
+      expect([a.statistics!.outcomes.completed, b.statistics!.outcomes.completed]).toEqual([43, 41]);
+      const pairs = pairedVisitors(a, b, 'cutoff');
+      expect([pairs.filter(pair => pair.delta < 0).length, pairs.filter(pair => pair.delta > 0).length, pairs.filter(pair => pair.delta === 0).length]).toEqual([66, 26, 208]);
+      expect(pairs.filter(pair => pair.a.outcome === 'unfinished' && pair.b.outcome === 'completed')).toHaveLength(7);
+      expect(pairs.filter(pair => pair.a.outcome === 'completed' && pair.b.outcome === 'unfinished')).toHaveLength(9);
+      expect(pairs.filter(pair => pair.delta < 0 && pair.a.outcome === 'unfinished' && pair.b.outcome === 'diverted')).toHaveLength(2);
+      expect(pairs.filter(pair => pair.delta < 0 && pair.b.outcome === 'diverted')).toHaveLength(3);
+      expect(a.statistics!.averageWaiting! - b.statistics!.averageWaiting!).toBeCloseTo(2.3833333333);
+    });
+    it('counts completed passages through entrances, merges, decisions and holding areas', () => {
+      const view = playbackAt(a.events, a.request.plan, 1800);
+      expect(view.nodes.main.completed).toBe(180);
+      expect(view.nodes.intake.completed).toBe(300);
+      expect(view.nodes.tickets.completed).toBe(300);
+      expect(view.nodes.holding.completed).toBe(a.events.filter(event => event.time <= 1800 && event.type === 'HOLD_RELEASE' && event.nodeId === 'holding').length);
+      expect(a.statistics!.nodes.find(node => node.id === 'orientation')!.maxQueue).toBe(0);
+    });
+    it('provides a positive-duration backlog with resource and post evidence from the owning plan', () => {
+      const evidence = nodeEvidence(b, 'checkin-extra', 'cutoff')!;
+      expect(evidence.node.id).toBe('checkin-extra');
+      expect(evidence.to).toBeGreaterThan(evidence.from);
+      expect(evidence.queued).toBeGreaterThan(0);
+      expect(evidence.resources.find(item => item.id === 'check-staff')!.posted).toBe(false);
+      expect(evidence.visitors.length).toBe(evidence.queued + evidence.blocked + evidence.holding);
+      expect(nodeEvidence(a, 'orientation', 'cutoff')).toBeNull();
+    });
+    it('separates final statistics and declines incompatible pairing', () => {
+      expect(statisticsAt(a, 'completion')!.until).toBe(a.coveredUntil);
+      expect(statisticsAt(a, 'completion')!.outcomes).not.toEqual(statisticsAt(a, 'cutoff')!.outcomes);
+      expect(pairedVisitors(a, { ...b, scenarioKey: 'changed' }, 'cutoff')).toEqual([]);
+      expect(pairedVisitors(a, { ...b, completion: null }, 'completion')).toEqual([]);
+      expect(pairedVisitors(a, { ...b, status: 'aborted' }, 'cutoff')).toEqual([]);
+    });
+    it('tests additional packing capacity with its explicit extra staffing cost', () => {
+      const plan = structuredClone(document.plans[1]);
+      const staff = structuredClone(plan.staff.find(item => item.id === 'pack-staff')!);
+      staff.id = 'packing-support-1'; plan.staff.push(staff);
+      plan.assignments.push({ resourceUnitId: staff.id, periods: [{ from: 0, nodeIds: ['packing'] }] });
+      const run = simulate({ schemaVersion: 1, plan, scenario: document.scenarios[0], runMode: 'cutoff' });
+      expect(plan.staff).toHaveLength(4);
+      expect(run.statistics!.outcomes).toMatchObject({ completed: 72, unfinished: 218, diverted: 10 });
+      expect(run.statistics!.averageWaiting).toBeCloseTo(954.0833333333);
+      expect(run.statistics!.p90Waiting).toBe(1444.286);
+      for (const t of [MESSAGES.en, MESSAGES.zh]) {
+        const report = executionReport(plan, document.scenarios[0], run, false, t);
+        expect(report).toContain(`${t.outcomes.completed}: 72`);
+        expect(report).toContain(`${t.outcomes.unfinished}: 218`);
+        expect(report).toContain(`${t.outcomes.diverted}: 10`);
+      }
+    });
+  });
+
+  it.each(['en', 'zh'] as const)('exports the chosen statistics basis and all outcomes in %s', lang => {
+    const t = MESSAGES[lang];
+    for (const run of [a, b]) {
+      const cutoff = executionReport(run.request.plan, run.request.scenario, run, false, t);
+      const final = executionReport(run.request.plan, run.request.scenario, run, false, t, undefined, 'completion');
+      expect(cutoff).toContain(`${t.review.cutoff} (30:00)`);
+      expect(cutoff).toContain(`${t.outcomes.completed}: ${run === a ? 43 : 41}`);
+      expect(final).toContain(`${t.review.completion} (120:00)`);
+      expect(final).toContain(`${t.outcomes.completed}: 149`);
+      expect(final).toContain(`${t.outcomes.unfinished}: 133`);
+      for (const [outcome, count] of Object.entries(run.completion!.outcomes)) expect(final).toContain(`${t.outcomes[outcome]}: ${count}`);
+      expect(executionReport(run.request.plan, run.request.scenario, { ...run, completion: null }, false, t, undefined, 'completion')).toContain(t.report.noRun);
+      expect(executionReport(run.request.plan, run.request.scenario, run, true, t, undefined, 'completion')).not.toContain(t.report.record);
+    }
+  });
+
+  it.each(['en', 'zh'] as const)('preserves provenance kinds, sources and notes in %s reports', lang => {
+    const t = MESSAGES[lang], project = initialDocument(), plan = project.plans[0], scenario = project.scenarios[0];
+    const node = plan.graph.nodes.find(item => item.id === 'checkin')!;
+    if (node.type !== 'service' || scenario.arrivalStreams[0].kind === 'records') throw new Error('fixture');
+    node.openWindows = [{ openAt: 0, closeAt: 1800, provenance: { kind: 'measured' } }];
+    const entries = [node.duration, node.openWindows[0], plan.staff[0], plan.deviceTypes[0], scenario.arrivalStreams[0], Object.values(scenario.arrivalStreams[0].attributeDistributions)[0]];
+    entries.forEach((item, index) => { item.provenance = { kind: 'measured', source: `measurement-${index}`, notes: `observation-${index}` }; });
+    const report = executionReport(plan, scenario, undefined, false, t);
+    entries.forEach((_, index) => expect(report).toContain(`${t.review.sources.measured} · measurement-${index} · observation-${index}`));
+    node.duration.provenance = { kind: 'user_estimate', source: ' ', notes: ' ' };
+    expect(executionReport(plan, scenario, undefined, false, t)).toContain(`[${t.review.sources.user_estimate}]`);
+  });
+
+  it.each(['en', 'zh'] as const)('exports actionable rules and sources in %s without serialized model JSON', lang => {
+    const t = MESSAGES[lang], haunted = halloweenProject('haunted', t);
+    const report = executionReport(haunted.plans[0], haunted.scenarios[0], undefined, false, t);
+    expect(report).toContain(lang === 'en' ? 'Release 6 guests per batch' : '每批放行 6 人');
+    expect(report).toContain(lang === 'en' ? 'hold at most 1.0 min' : '最长等待 1.0 分');
+    expect(report).toContain(t.review.sources.synthetic);
+    expect(report).not.toContain('```json');
+    const openHouse = executionReport(document.plans[1], document.scenarios[0], b, false, t, document.plans[0]);
+    expect(openHouse).toContain('ticket ∈ vip');
+    expect(openHouse).toContain('10:00');
+    expect(openHouse).toContain(`${t.review.devices}: 1 → 2`);
+    expect(openHouse).toContain(t.inspector.fullReroute);
   });
 });

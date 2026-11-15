@@ -152,7 +152,7 @@ export function simulate(request: RunRequest): SimulationRun {
   const route = (visitor: Visitor, node: Node, edge = out.get(node.id)![0], details?: SimulationEvent['details']) => {
     const u = draw(visitor, 'transfer', edge.id);
     const duration = edge.transferDuration ? ms(sample(edge.transferDuration, u)) : 0;
-    const seq = emit('ROUTE_TRANSITION', visitor.person.id, node.id, { edgeId: edge.id, ...(details ? { details } : {}) });
+    const seq = emit('ROUTE_TRANSITION', visitor.person.id, node.id, { edgeId: edge.id, details: { ...details, arrivalAt: (now + duration) / 1000 } });
     arriveLater(visitor, edge.target, now + duration, seq, edge);
   };
   const redirect = (visitor: Visitor, node: Node, target: string, reason: string) => {
