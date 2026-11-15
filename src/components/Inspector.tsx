@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import { cloneElement, isValidElement, useId } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { ArrowUp, BookmarkPlus, Braces, Lightbulb, PanelRightClose, PanelRightOpen, Plus, Route, Trash2, TriangleAlert, Users, X } from 'lucide-react';
 import type { Edge, Node, Plan, Scenario, ValidationIssue } from '../schemas';
 import { issueText, useI18n } from '../i18n';
@@ -7,15 +8,22 @@ import { Ghost, NodeIcon } from './Icons';
 import { formatTime, newId } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
+import { NumericInput } from './forms/NumericInput';
+import { minutesToSeconds, secondsToMinutes } from './forms/numberDraft';
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
-  return <label className="field"><span>{label}</span>{children}{hint && <small>{hint}</small>}</label>;
+  const hintId = useId();
+  return <label className="field"><span>{label}</span>{hint && isValidElement(children) ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, { 'aria-describedby': hintId }) : children}{hint && <small id={hintId}>{hint}</small>}</label>;
 }
-export function NumberInput({ value, onChange, min = 0, max, step = 1, label }: { value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number; label?: string }) {
-  return <input aria-label={label} type="number" value={value} min={min} max={max} step={step} onChange={event => { const next = event.target.valueAsNumber; if (Number.isFinite(next)) onChange(next); }} />;
+export function FieldGroup({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+  const hintId = useId();
+  return <fieldset className="field forms-group" aria-describedby={hint ? hintId : undefined}><legend>{label}</legend>{children}{hint && <small id={hintId}>{hint}</small>}</fieldset>;
 }
-export function MinuteInput({ value, onChange, label, min = 0 }: { value: number; onChange: (seconds: number) => void; label?: string; min?: number }) {
-  return <NumberInput label={label} value={Number((value / 60).toFixed(4))} min={min / 60} step={0.1} onChange={minutes => onChange(Math.round(minutes * 60000) / 1000)} />;
+export function NumberInput({ onChange, ...props }: { value: number; onChange: (value: number) => void; min?: number; max?: number; step?: number; label?: string; 'aria-describedby'?: string }) {
+  return <NumericInput {...props} onChange={value => { if (value !== undefined) onChange(value); }} />;
+}
+export function MinuteInput({ value, onChange, min = 0, ...props }: { value: number; onChange: (seconds: number) => void; label?: string; min?: number; 'aria-describedby'?: string }) {
+  return <NumberInput {...props} value={secondsToMinutes(value)} min={min / 60} step={0.0001} onChange={minutes => onChange(minutesToSeconds(minutes))} />;
 }
 
 interface Props {
@@ -35,7 +43,7 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
   const metric = statisticsAt(run, basis)?.nodes.find(item => item.id === node?.id);
   const possibleTargets = plan.graph.nodes.filter(item => item.id !== node?.id && item.type !== 'entrance' && item.type !== 'subflow');
   const queueSettings = node && (node.type === 'service' || node.type === 'waiting_area') ? <>
-    <Field label={s.queueCapacity} hint={s.queueCapacityHint}><input aria-label={s.queueCapacity} type="number" min={1} value={node.queueCapacity ?? ''} placeholder={t.common.unlimited} onChange={event => onNode({ ...node, queueCapacity: event.target.value === '' ? null : Number(event.target.value) })} /></Field>
+    <Field label={s.queueCapacity} hint={s.queueCapacityHint}><NumericInput label={s.queueCapacity} optional min={1} value={node.queueCapacity} placeholder={t.common.unlimited} onChange={queueCapacity => onNode({ ...node, queueCapacity: queueCapacity ?? null })} /></Field>
     <Field label={s.whenFull}><select value={node.fullPolicy?.kind ?? 'block'} onChange={event => onNode({ ...node, fullPolicy: event.target.value === 'reroute' ? { kind: 'reroute', targetNodeId: possibleTargets[0]?.id ?? 'target' } : { kind: event.target.value as 'block' | 'reject' } })}><option value="block">{s.fullBlock}</option><option value="reroute">{s.fullReroute}</option><option value="reject">{s.fullReject}</option></select></Field>
     {node.fullPolicy?.kind === 'reroute' && <Field label={s.overflowTarget}><select value={node.fullPolicy.targetNodeId} onChange={event => onNode({ ...node, fullPolicy: { kind: 'reroute', targetNodeId: event.target.value } })}>{possibleTargets.map(target => <option key={target.id} value={target.id}>{target.name}</option>)}</select></Field>}
   </> : null;
@@ -64,7 +72,7 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
       </>}
       {node && <>
         <div className={`entity-badge type-${node.type}`}><span className="entity-icon"><NodeIcon type={node.type} size={16} /></span><div><b>{t.nodeTypes[node.type]}</b><code>{node.id}</code></div></div>
-        <fieldset disabled={!editable} className="form-fields">
+        <fieldset key={`${plan.id}:${node.id}:${node.type}`} disabled={!editable} className="form-fields">
           <Field label={s.name}><input aria-label={s.name} key={`${node.id}-${node.name}`} defaultValue={node.name} onBlur={event => { if (event.target.value !== node.name) onNode({ ...node, name: event.target.value }); }} /></Field>
           {node.type === 'service' && <>
             <h3 className="form-heading">{s.serviceRules}</h3>
@@ -73,9 +81,9 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
               onNode({ ...node, duration: kind === 'fixed' ? { kind, value: 30, provenance } : kind === 'uniform' ? { kind, min: 15, max: 45, provenance } : kind === 'triangular' ? { kind, min: 15, mode: 30, max: 45, provenance } : { kind: 'empirical', samples: [20, 30, 40], provenance } });
             }}>{(['fixed', 'uniform', 'triangular', 'empirical'] as const).map(kind => <option key={kind} value={kind}>{s.distributions[kind]}</option>)}</select></Field>
             {node.duration.kind === 'fixed' && <Field label={s.serviceTime}><NumberInput label={s.serviceTime} value={node.duration.value} step={0.1} onChange={value => onNode({ ...node, duration: { kind: 'fixed', value, provenance: { kind: 'user_estimate' } } })} /></Field>}
-            {(node.duration.kind === 'uniform' || node.duration.kind === 'triangular') && <div className="form-row">{(['min', ...(node.duration.kind === 'triangular' ? ['mode'] : []), 'max'] as ('min' | 'mode' | 'max')[]).map(field => <Field key={field} label={s[field]}><NumberInput value={Number((node.duration as unknown as Record<string, number>)[field])} onChange={value => onNode({ ...node, duration: { ...node.duration, [field]: value, provenance: { kind: 'user_estimate' } } })} /></Field>)}</div>}
+            {(node.duration.kind === 'uniform' || node.duration.kind === 'triangular') && <div className="form-row">{(['min', ...(node.duration.kind === 'triangular' ? ['mode'] : []), 'max'] as ('min' | 'mode' | 'max')[]).map(field => <Field key={field} label={s[field]}><NumberInput step={0.1} value={Number((node.duration as unknown as Record<string, number>)[field])} onChange={value => onNode({ ...node, duration: { ...node.duration, [field]: value, provenance: { kind: 'user_estimate' } } })} /></Field>)}</div>}
             {node.duration.kind === 'empirical' && <Field label={t.review.samples}><textarea key={`${node.id}-${node.duration.samples.join(',')}`} defaultValue={node.duration.samples.join(', ')} onChange={event => event.target.setCustomValidity('')} onBlur={event => { const samples = event.target.value.trim().split(/[,，\s]+/).map(Number); if (!event.target.value.trim() || samples.some(value => !Number.isFinite(value) || value < 0)) { event.target.setCustomValidity(t.review.samplesInvalid); event.target.reportValidity(); return; } onNode({ ...node, duration: { kind: 'empirical', samples, provenance: { kind: 'user_estimate' } } }); }} /></Field>}
-            <Field label={s.maxConcurrent} hint={s.maxConcurrentHint}><input type="number" min={1} value={node.maxConcurrent ?? ''} placeholder={t.common.unlimited} onChange={event => onNode({ ...node, maxConcurrent: event.target.value === '' ? undefined : Number(event.target.value) })} /></Field>
+            <Field label={s.maxConcurrent} hint={s.maxConcurrentHint}><NumericInput optional min={1} value={node.maxConcurrent} placeholder={t.common.unlimited} onChange={maxConcurrent => onNode({ ...node, maxConcurrent })} /></Field>
             <h3 className="form-heading">{s.perService}</h3>
             {!node.requirements.length && <p className="subtle">{s.noRequirements}</p>}
             {node.requirements.map((item, index) => <div className="requirement-row" key={index}>
@@ -88,9 +96,9 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
             </div>)}
             <button type="button" className="text-btn" disabled={!plan.skills.length && !plan.deviceTypes.length} onClick={() => onNode({ ...node, requirements: [...node.requirements, plan.skills.length ? { kind: 'staff', skillId: plan.skills[0].id, quantity: 1 } : { kind: 'device', deviceTypeId: plan.deviceTypes[0].id, quantity: 1 }] })}><Plus size={14} aria-hidden="true" />{s.addRequirement}</button>
             <h3 className="form-heading">{s.queueHours}</h3>{queueSettings}
-            <div className="form-row"><Field label={s.opensAt}><MinuteInput value={node.openWindows[0]?.openAt ?? 0} onChange={openAt => onNode({ ...node, openWindows: [{ openAt, closeAt: node.openWindows[0]?.closeAt ?? scenario.observationCutoff, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field><Field label={s.closesAt}><input type="number" min={0} placeholder={s.alwaysOpen} value={node.openWindows[0] ? node.openWindows[0].closeAt / 60 : ''} onChange={event => onNode({ ...node, openWindows: event.target.value === '' ? [] : [{ openAt: node.openWindows[0]?.openAt ?? 0, closeAt: Number(event.target.value) * 60, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field></div>
+            <div className="form-row"><Field label={s.opensAt}><MinuteInput value={node.openWindows[0]?.openAt ?? 0} onChange={openAt => onNode({ ...node, openWindows: [{ openAt, closeAt: node.openWindows[0]?.closeAt ?? scenario.observationCutoff, provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field><Field label={s.closesAt}><NumericInput optional step={0.0001} placeholder={s.alwaysOpen} value={node.openWindows[0] ? secondsToMinutes(node.openWindows[0].closeAt) : undefined} onChange={minutes => onNode({ ...node, openWindows: minutes === undefined ? [] : [{ openAt: node.openWindows[0]?.openAt ?? 0, closeAt: minutesToSeconds(minutes), provenance: { kind: 'user_estimate' } }, ...node.openWindows.slice(1)] })} /></Field></div>
           </>}
-          {node.type === 'entrance' && <Field label={s.streams}><div className="check-list">{scenario.arrivalStreams.map(stream => <label key={stream.id}><input type="checkbox" checked={node.arrivalStreamIds.includes(stream.id)} onChange={event => onNode({ ...node, arrivalStreamIds: event.target.checked ? [...node.arrivalStreamIds, stream.id] : node.arrivalStreamIds.filter(id => id !== stream.id) })} />{stream.name ?? stream.id}</label>)}</div></Field>}
+          {node.type === 'entrance' && <FieldGroup label={s.streams}><div className="check-list">{scenario.arrivalStreams.map(stream => <label key={stream.id}><input type="checkbox" checked={node.arrivalStreamIds.includes(stream.id)} onChange={event => onNode({ ...node, arrivalStreamIds: event.target.checked ? [...node.arrivalStreamIds, stream.id] : node.arrivalStreamIds.filter(id => id !== stream.id) })} />{stream.name ?? stream.id}</label>)}</div></FieldGroup>}
           {node.type === 'decision' && <>
             <Field label={t.review.routing}><select value={node.routing.kind} onChange={event => {
               const branches = node.routing.branches;
@@ -117,13 +125,13 @@ export function Inspector({ plan, scenario, node, edge, editable, issues, run, s
             {node.loopGuard && <Field label={s.maxVisits}><NumberInput min={1} value={node.loopGuard.maxVisits} onChange={maxVisits => onNode({ ...node, loopGuard: { ...node.loopGuard!, maxVisits } })} /></Field>}
             <p className="subtle">{s.branchHint}</p>
           </>}
-          {node.type === 'waiting_area' && <><Field label={s.release}><select value={node.release.kind} onChange={event => onNode({ ...node, release: event.target.value === 'batch' ? { kind: 'batch', batchSize: 10, maxHoldSec: 60 } : { kind: 'until_time', releaseAt: 300 } })}><option value="until_time">{s.releaseTime}</option><option value="batch">{s.releaseBatch}</option></select></Field>{node.release.kind === 'until_time' ? <Field label={s.releaseAt}><MinuteInput value={node.release.releaseAt} onChange={releaseAt => onNode({ ...node, release: { kind: 'until_time', releaseAt } })} /></Field> : <div className="form-row"><Field label={s.batchSize}><NumberInput min={1} value={node.release.batchSize} onChange={batchSize => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, batchSize } }); }} /></Field><Field label={s.maxHold}><NumberInput min={1} value={node.release.maxHoldSec ?? 60} onChange={maxHoldSec => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, maxHoldSec } }); }} /></Field></div>}{queueSettings}</>}
+          {node.type === 'waiting_area' && <><Field label={s.release}><select value={node.release.kind} onChange={event => onNode({ ...node, release: event.target.value === 'batch' ? { kind: 'batch', batchSize: 10, maxHoldSec: 60 } : { kind: 'until_time', releaseAt: 300 } })}><option value="until_time">{s.releaseTime}</option><option value="batch">{s.releaseBatch}</option></select></Field>{node.release.kind === 'until_time' ? <Field label={s.releaseAt}><MinuteInput value={node.release.releaseAt} onChange={releaseAt => onNode({ ...node, release: { kind: 'until_time', releaseAt } })} /></Field> : <div className="form-row"><Field label={s.batchSize}><NumberInput min={1} value={node.release.batchSize} onChange={batchSize => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, batchSize } }); }} /></Field><Field label={s.maxHold}><NumericInput optional min={0.001} step={0.001} value={node.release.maxHoldSec} placeholder={t.common.unlimited} onChange={maxHoldSec => { if (node.release.kind === 'batch') onNode({ ...node, release: { ...node.release, maxHoldSec } }); }} /></Field></div>}{queueSettings}</>}
           {node.type === 'exit' && <label className="check-row"><input type="checkbox" checked={node.countsAsCompleted !== false} onChange={event => onNode({ ...node, countsAsCompleted: event.target.checked })} />{s.countsCompleted}</label>}
           {node.type === 'merge' && <><h3 className="form-heading">{s.priority}</h3>{node.incomingPriority.map((id, index) => <div className="priority-row" key={id}><span className="priority-rank">{index + 1}</span><code>{id}</code><button type="button" className="icon-btn" disabled={!index} aria-label={s.raise(id)} onClick={() => { const incomingPriority = [...node.incomingPriority]; [incomingPriority[index - 1], incomingPriority[index]] = [incomingPriority[index], incomingPriority[index - 1]]; onNode({ ...node, incomingPriority }); }}><ArrowUp size={14} /></button></div>)}</>}
-          {node.type === 'subflow' && <Field label={s.members}><div className="check-list">{plan.graph.nodes.filter(item => item.id !== node.id).map(item => <label key={item.id}><input type="checkbox" checked={node.memberNodeIds.includes(item.id)} onChange={event => onNode({ ...node, memberNodeIds: event.target.checked ? [...node.memberNodeIds, item.id] : node.memberNodeIds.filter(id => id !== item.id) })} />{item.name}</label>)}</div></Field>}
+          {node.type === 'subflow' && <FieldGroup label={s.members}><div className="check-list">{plan.graph.nodes.filter(item => item.id !== node.id).map(item => <label key={item.id}><input type="checkbox" checked={node.memberNodeIds.includes(item.id)} onChange={event => onNode({ ...node, memberNodeIds: event.target.checked ? [...node.memberNodeIds, item.id] : node.memberNodeIds.filter(id => id !== item.id) })} />{item.name}</label>)}</div></FieldGroup>}
         </fieldset>
       </>}
-      {edge && <fieldset disabled={!editable} className="form-fields">
+      {edge && <fieldset key={`${plan.id}:${edge.id}`} disabled={!editable} className="form-fields">
         <div className="entity-badge type-route"><span className="entity-icon"><Route size={16} aria-hidden="true" /></span><div><b>{s.route}</b><code>{edge.id}</code></div></div>
         <p className="route-path"><span>{plan.graph.nodes.find(item => item.id === edge.source)?.name}</span><i>→</i><span>{plan.graph.nodes.find(item => item.id === edge.target)?.name}</span></p>
         <Field label={s.transfer} hint={s.transferHint}><NumberInput value={edge.transferDuration?.kind === 'fixed' ? edge.transferDuration.value : 0} step={0.1} onChange={value => onEdge({ ...edge, transferDuration: { kind: 'fixed', value, provenance: { kind: 'user_estimate' } } })} /></Field>
