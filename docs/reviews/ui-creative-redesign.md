@@ -1,5 +1,7 @@
 # Ghostlight UI redesign — review and delivery
 
+The subsequent [black-theme and navigation correction](ui-creative-redesign/black-theme/review.md) implements the owner's visual feedback and supersedes the palette and name-editing flow described in the original delivery below. Its evidence and validation are recorded separately.
+
 The interface is implemented on `feat/ui-creative-redesign`, against baseline `f8371999e64d25c250699e5cd96f85eabb79bb32`. The tested implementation is `cec4204bc40f378d680a4c30c8ef6581e9309e7a`: `af34260` implements Ghostlight and `cec4204` makes narrow comparison reports reachable after leaving the guide. Verification records and screenshots are added in subsequent records-only commits. The final handoff names HEAD and verifies that the application and test trees still equal the tested implementation.
 
 Local production preview: **http://127.0.0.1:4193/ghost-rehearsal/**. No deployment or push was made. The earlier 4190 preview worked in Chromium but did not navigate in this host's WebKit; use 4193.

@@ -25,7 +25,7 @@ No exported function was removed, renamed or moved. No App state, reducer, ref o
 | Activity name | Name shown inside the native **Active event / 当前活动** select | The visible name is now a button opening existing **Event settings / 活动设置**. An adjacent native select retains the original accessible name, values and switching action. |
 | Current plan in Build | Clicking the selected plan repeated selection; rename available in its menu | Clicking the selected card now opens existing **Rename plan / 重命名方案**. Other cards still select plans; Rehearse/Compare selection is unchanged. |
 
-Existing roles are retained except the static legend becomes native `details`/`summary` with a note inside. No baseline test locator was removed. Theme tests update only the selected surface RGB values. `tests/ui-shell.test.ts` supplies the new display prop; `tests/canvas.test.ts` supplies the newly consumed population on its partial run fixture; no assertion is weakened. The six-result equivalence test is additional.
+The static legend becomes native `details`/`summary` with a note inside; the activity name becomes a button alongside the original native combobox. Other roles and baseline test locators are retained. Theme tests update only the selected surface RGB values. `tests/ui-shell.test.ts` supplies the new display prop; `tests/canvas.test.ts` supplies the newly consumed population on its partial run fixture; no assertion is weakened. The six-result equivalence test is additional.
 
 ## Ownership exceptions
 
