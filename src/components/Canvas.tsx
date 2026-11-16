@@ -216,7 +216,6 @@ function CanvasInner(props: Props) {
   const api = useReactFlow<AnyNode>();
   const shell = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
-  const selection = useRef({ planId: plan.id, id: props.selected });
   const zoom = useStore(store => store.transform[2]);
   const width = useStore(store => store.width);
   const height = useStore(store => store.height);
@@ -265,17 +264,22 @@ function CanvasInner(props: Props) {
     });
     return [...frames, ...stages, ...cards];
   }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, props.chooseVisitor, props.visitorName, props.changed, props.editable, running, draggable]);
-  const [flowNodes, setFlowNodes] = useState(mapped);
-  useEffect(() => {
-    const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
-    selection.current = { planId: plan.id, id: props.selected };
-    setFlowNodes(previousNodes => mapped.map(node => {
+  const [nodeState, setNodeState] = useState(() => ({ source: mapped, planId: plan.id, selected: props.selected, nodes: mapped }));
+  let flowNodes = nodeState.nodes;
+  if (nodeState.source !== mapped) {
+    // Reconcile before children commit. An effect would first show old node content
+    // inside the new canvas layout, then change its size during resize observation.
+    // Keep React Flow's transient drag/selection state while accepting current data.
+    const selectionChanged = nodeState.planId !== plan.id || nodeState.selected !== props.selected;
+    const previous = new Map(nodeState.nodes.map(node => [node.id, node]));
+    flowNodes = mapped.map(node => {
       // A stage ID can switch between frame and card; never carry a frame's size over to a card.
-      const found = previousNodes.find(item => item.id === node.id);
+      const found = previous.get(node.id);
       const current = found?.type === node.type ? found : undefined;
-      return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
-    }));
-  }, [mapped, plan.id, props.selected]);
+      return { ...current, ...node, selected: selectionChanged ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
+    });
+    setNodeState({ source: mapped, planId: plan.id, selected: props.selected, nodes: flowNodes });
+  }
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------
@@ -377,7 +381,7 @@ function CanvasInner(props: Props) {
     {!props.compact && <HauntedBackdrop quiet={!!plan.graph.nodes.length} />}
     <ReactFlow<AnyNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode="dark" onInit={setInstance} elevateNodesOnSelect={false}
       onNodesChange={changes => {
-        setFlowNodes(nodes => applyNodeChanges(changes, nodes));
+        setNodeState(state => ({ ...state, nodes: applyNodeChanges(changes, state.nodes) }));
         const positions = changes.flatMap(change => change.type === 'position' && change.position && !change.dragging && isRealNode(change.id) ? [{ id: change.id, ...change.position }] : []);
         if (positions.length && props.editable && !display.derived) props.onMove(positions);
       }}
