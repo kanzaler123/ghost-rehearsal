@@ -1,0 +1,9 @@
+
+Running 6 tests using 1 worker
+
+(node:11072) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[capture] welcome unreachable: Error: expect(locator).toBeVisible() failed
+  x  1 [desktop-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (30.3s)
+(node:10512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)

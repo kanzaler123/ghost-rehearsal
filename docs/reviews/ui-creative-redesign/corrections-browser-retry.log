@@ -1,0 +1,174 @@
+[WebServer] (node:5064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] (node:45524) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 16 tests using 2 workers
+
+(node:31456) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  2 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (2.2s)
+  ok  3 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (2.6s)
+  x   1 [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference (3.1s)
+(node:12348) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  4 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (3.0s)
+  ok  6 [desktop-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (2.2s)
+  x   5 [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce (2.1s)
+(node:30468) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  7 [desktop-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (2.1s)
+  ok  8 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (2.2s)
+  x   9 [desktop-en] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (2.5s)
+(node:12320) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 10 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (2.3s)
+  ok 11 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (2.4s)
+  ok 13 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (2.3s)
+  ok 14 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (2.6s)
+  ok 12 [mobile-zh] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference (15.7s)
+  ok 16 [mobile-zh] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce (11.8s)
+  x  15 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (4.4s)
+
+
+  1) [desktop-en] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 12.333333333333334
+    Received: 12.3333
+
+    Expected precision:    5
+    Expected difference: < 0.000005
+    Received difference:   0.000033333333334439885
+
+      79 |     })));
+      80 |     expect(queues.length).toBeGreaterThan(0);
+    > 81 |     for (const queue of queues) expect(queue.width).toBeCloseTo(queue.waiting / 300 * 100, 5);
+         |                                                     ^
+      82 |   }
+      83 | });
+      84 |
+        at C:\Users\kanzaler\Desktop\KIROWWEN\e2e\ui\creative-redesign.spec.ts:81:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-desktop-en\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-desktop-en\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-desktop-en\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-desktop-en\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 738
+    Received:    738.90625
+
+      29 |       const report = await page.locator('.is-report').boundingBox();
+      30 |       const lastRow = await page.locator('.snapshot-item').last().boundingBox();
+    > 31 |       expect(lastRow!.y + lastRow!.height).toBeLessThanOrEqual(report!.y + report!.height);
+         |                                            ^
+      32 |     }
+      33 |     for (const row of await page.locator('.snapshot-item:not(.resource-summary)').all()) {
+      34 |       const label = await row.locator(':scope > span').boundingBox();
+        at C:\Users\kanzaler\Desktop\KIROWWEN\e2e\ui\layout.spec.ts:31:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-layout-layout-and-genui-81139-s-with-motion-no-preference-desktop-en\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-layout-layout-and-genui-81139-s-with-motion-no-preference-desktop-en\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ui-layout-layout-and-genui-81139-s-with-motion-no-preference-desktop-en\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ui-layout-layout-and-genui-81139-s-with-motion-no-preference-desktop-en\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce 
+
+    Error: expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 738
+    Received:    738.90625
+
+      29 |       const report = await page.locator('.is-report').boundingBox();
+      30 |       const lastRow = await page.locator('.snapshot-item').last().boundingBox();
+    > 31 |       expect(lastRow!.y + lastRow!.height).toBeLessThanOrEqual(report!.y + report!.height);
+         |                                            ^
+      32 |     }
+      33 |     for (const row of await page.locator('.snapshot-item:not(.resource-summary)').all()) {
+      34 |       const label = await row.locator(':scope > span').boundingBox();
+        at C:\Users\kanzaler\Desktop\KIROWWEN\e2e\ui\layout.spec.ts:31:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-layout-layout-and-genui-c0abc-ss-modes-with-motion-reduce-desktop-en\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-layout-layout-and-genui-c0abc-ss-modes-with-motion-reduce-desktop-en\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ui-layout-layout-and-genui-c0abc-ss-modes-with-motion-reduce-desktop-en\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ui-layout-layout-and-genui-c0abc-ss-modes-with-motion-reduce-desktop-en\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) [mobile-zh] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale 
+
+    Error: expect(received).toBeCloseTo(expected, precision)
+
+    Expected: 12.333333333333334
+    Received: 12.3333
+
+    Expected precision:    5
+    Expected difference: < 0.000005
+    Received difference:   0.000033333333334439885
+
+      79 |     })));
+      80 |     expect(queues.length).toBeGreaterThan(0);
+    > 81 |     for (const queue of queues) expect(queue.width).toBeCloseTo(queue.waiting / 300 * 100, 5);
+         |                                                     ^
+      82 |   }
+      83 | });
+      84 |
+        at C:\Users\kanzaler\Desktop\KIROWWEN\e2e\ui\creative-redesign.spec.ts:81:53
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-mobile-zh\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-mobile-zh\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-mobile-zh\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\ui-creative-redesign-visib-24171-the-actual-population-scale-mobile-zh\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4 failed
+    [desktop-en] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale 
+    [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference 
+    [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce 
+    [mobile-zh] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale 
+  12 passed (1.2m)

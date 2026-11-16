@@ -1,0 +1,27 @@
+{
+  "state": "robustness",
+  "file": "robustness-390x844-zh.png",
+  "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+  "phase": "after",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "lang": "zh",
+  "capturedAt": "2026-11-16T14:58:54.525Z",
+  "timezone": "Asia/Singapore",
+  "replayTime": null,
+  "statisticsBasis": null,
+  "waitingRule": null,
+  "followedGuest": null,
+  "projectDigest": "f23f09b412b2398249a58653d0ec31e67ad56e752caffe2581899c5215e20c9c",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "none",
+    "none"
+  ],
+  "workerURLs": [
+    "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": []
+}

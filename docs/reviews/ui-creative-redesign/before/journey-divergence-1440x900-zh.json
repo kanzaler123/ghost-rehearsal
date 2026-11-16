@@ -1,0 +1,25 @@
+{
+  "state": "journey-divergence",
+  "file": "journey-divergence-1440x900-zh.png",
+  "commit": "f8371999e64d25c250699e5cd96f85eabb79bb32",
+  "phase": "before",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "lang": "zh",
+  "replayTime": 210,
+  "statisticsBasis": "cutoff",
+  "waitingRule": 60,
+  "followedGuest": "side-stream:10",
+  "projectDigest": "8799403ac946c8c774c3489add2fc1b8dfacc7c3061d88f92a49fb2955729cf2",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "none",
+    "none"
+  ],
+  "workerURLs": [
+    "http://127.0.0.1:4191/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": []
+}

@@ -1,0 +1,26 @@
+{
+  "state": "empty-canvas",
+  "file": "empty-canvas-1440x900-en.png",
+  "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+  "phase": "after",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "lang": "en",
+  "capturedAt": "2026-11-16T14:57:37.888Z",
+  "timezone": "Asia/Singapore",
+  "replayTime": null,
+  "statisticsBasis": null,
+  "waitingRule": null,
+  "followedGuest": null,
+  "projectDigest": "d52b9eb223e81f013ccb5662e95e261b000cdc615180646175e1e1e0617ca2f2",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "matrix(0.92, 0, 0, 0.92, 40, 79.32)"
+  ],
+  "workerURLs": [
+    "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": []
+}

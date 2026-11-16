@@ -1,0 +1,233 @@
+[
+  {
+    "state": "welcome",
+    "file": "welcome-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:27.264Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": null,
+    "statisticsBasis": null,
+    "waitingRule": null,
+    "followedGuest": null,
+    "projectDigest": null,
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(1, 0, 0, 1, 0, 0)"
+    ],
+    "workerURLs": [],
+    "errors": []
+  },
+  {
+    "state": "build",
+    "file": "build-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:30.137Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": null,
+    "statisticsBasis": null,
+    "waitingRule": null,
+    "followedGuest": null,
+    "projectDigest": "b45675bce5a997f26d1929b18372b5517462a336d8baa407f68d25872514e440",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(0.92, 0, 0, 0.92, 40, 246.3)"
+    ],
+    "workerURLs": [],
+    "errors": []
+  },
+  {
+    "state": "build-inspector",
+    "file": "build-inspector-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:31.045Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": null,
+    "statisticsBasis": null,
+    "waitingRule": null,
+    "followedGuest": null,
+    "projectDigest": "b45675bce5a997f26d1929b18372b5517462a336d8baa407f68d25872514e440",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(1.05, 0, 0, 1.05, -1466.2, 219)"
+    ],
+    "workerURLs": [],
+    "errors": []
+  },
+  {
+    "state": "rehearse-playing",
+    "file": "rehearse-playing-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:34.558Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": null,
+    "statisticsBasis": null,
+    "waitingRule": null,
+    "followedGuest": null,
+    "projectDigest": "b45675bce5a997f26d1929b18372b5517462a336d8baa407f68d25872514e440",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(0.820895, 0, 0, 0.820895, 270.149, 144.448)"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  },
+  {
+    "state": "rehearse-tracked",
+    "file": "rehearse-tracked-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:35.565Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": 210,
+    "statisticsBasis": "cutoff",
+    "waitingRule": null,
+    "followedGuest": "side-stream:10",
+    "projectDigest": "b45675bce5a997f26d1929b18372b5517462a336d8baa407f68d25872514e440",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(0.970149, 0, 0, 0.970149, 418.657, 255.119)"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  },
+  {
+    "state": "rehearse-end",
+    "file": "rehearse-end-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:36.163Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": 1800,
+    "statisticsBasis": "cutoff",
+    "waitingRule": null,
+    "followedGuest": null,
+    "projectDigest": "b45675bce5a997f26d1929b18372b5517462a336d8baa407f68d25872514e440",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(0.970149, 0, 0, 0.970149, 418.657, 255.119)"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  },
+  {
+    "state": "compare-overview",
+    "file": "compare-overview-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:37.828Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": 210,
+    "statisticsBasis": "cutoff",
+    "waitingRule": 60,
+    "followedGuest": null,
+    "projectDigest": "4d5670c10ae679d2792f93147d0e707399cfcd75897323f59168f6e543f96660",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(1, 0, 0, 1, 72, 181.5)",
+      "matrix(1, 0, 0, 1, 72, 181.5)"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  },
+  {
+    "state": "journey-divergence",
+    "file": "journey-divergence-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:38.645Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": 210,
+    "statisticsBasis": "cutoff",
+    "waitingRule": 60,
+    "followedGuest": "side-stream:10",
+    "projectDigest": "4d5670c10ae679d2792f93147d0e707399cfcd75897323f59168f6e543f96660",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "none",
+      "none"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  },
+  {
+    "state": "guide-bc",
+    "file": "guide-bc-1920x1080-en.png",
+    "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+    "phase": "checks",
+    "viewport": {
+      "width": 1920,
+      "height": 1080
+    },
+    "lang": "en",
+    "capturedAt": "2026-11-16T14:59:40.997Z",
+    "timezone": "Asia/Singapore",
+    "replayTime": 210,
+    "statisticsBasis": "cutoff",
+    "waitingRule": 60,
+    "followedGuest": null,
+    "projectDigest": "1ae55e1cb65126fd9a563588b92a2a4efdbb59fd9b6f831a83cc828f84b5f1ff",
+    "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+    "canvasZoom": [
+      "matrix(0.6, 0, 0, 0.6, 103.6, 231)",
+      "matrix(0.6, 0, 0, 0.6, 103.6, 231)"
+    ],
+    "workerURLs": [
+      "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+    ],
+    "errors": []
+  }
+]

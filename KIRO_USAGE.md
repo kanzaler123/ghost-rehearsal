@@ -1,12 +1,12 @@
 # Ghost Rehearsal — Kiro 使用记录
 
-状态：记录模板，尚未填写实际 Kiro 开发记录。本模板由 Codex 准备；模板创建本身不计为 Kiro 的开发贡献。
+状态：已核实一条 Kiro 需求与基线截图准备记录；界面实现与验证由 Codex 接手完成。Hook 执行仍未核实。本记录由 Codex 手动补充。
 
 ## English status for reviewers
 
-No actual Kiro development sessions have been verified in this log. The requirements and hook configuration existed before the implementation, but no exported Kiro sessions were available to establish their authorship or execution. The application implementation, tests, UI updates, and repository preparation were completed with Codex.
+The 2026-11-16 local Kiro session was inspected and supports Kiro's authorship of the UI redesign requirements and initial capture preparation. Codex subsequently implemented and verified that redesign. A portable session export remains pending; see `docs/kiro/ui-creative-redesign-usage.md` for the evidence boundaries.
 
-The tracked `.kiro/` folder contains a requirements-first specification and a hook configured to record substantive Kiro work. Configuration alone is not evidence that the hook ran. The Chinese sections below are a recording template and instructions, not completed usage records.
+The tracked `.kiro/` folder contains a requirements-first specification and a hook configured to record substantive Kiro work. Configuration alone is not evidence that the hook ran; execution remains unverified. The actual record below was written manually by Codex.
 
 For each future Kiro task, record its date, problem, Kiro features actually used, concrete contributions, human or other-tool contributions, changed files or commit, verification results, and supporting session export. Raw exports stay in the ignored `kiro-evidence/` directory; prepare appropriate public evidence and an English account of actual Kiro use before submission. Do not attribute Codex work to Kiro.
 
@@ -39,7 +39,18 @@ For each future Kiro task, record its date, problem, Kiro features actually used
 
 ## 实际记录
 
-待首次 Kiro 任务后追加。
+### 2026-11-16：UI 创意改版需求与接手实现
+
+- 日期与时间（UTC+8）：2026-11-16；Kiro 会话约 17:00–21:48，随后由 Codex 接手。
+- 任务名称／对应 Spec：`ui-creative-redesign`。
+- 本次要解决的问题：需求讨论耗时后仍没有应用界面交付；按已形成的需求推进真实界面与验收。
+- 实际使用的 Kiro 功能：Spec 需求工作流、需求细化子执行、代码与文件读取、初始截图准备；Hook 执行未核实。
+- Kiro 实际完成的工作：22 项需求文档、初始 Playwright 截图脚本与一批改版前图片；接手时应用仍在基线提交。
+- 人工／Codex 的修改、审查或决策：用户决定接手；Codex 选择 Ghostlight 方向，完成界面、测试、截图脚本修正和检查记录。仿真实现不归为 Kiro 本轮贡献。
+- 产物文件／Git 提交编号：`.kiro/specs/ui-creative-redesign/requirements.md`；Codex 实现 `af34260`；设计、截图、接口清单及后续证据见 `docs/reviews/ui-creative-redesign.md`。
+- 验证方法与实际结果：基线单元检查 463 通过；基线浏览器整套超时且有失败，未计为通过；实现后 464 项单元检查通过，24 项 WebKit 新交互测试通过。最终交付检查、后续修正及完整运行结果以追加式 `verification.md` 为准。
+- 原始对话文件／相关截图：本机 Kiro `sess_286db17c-aa87-47be-a7e8-e92b05f746a1` 的 `messages.jsonl` 和子执行被读取核实；会话界面导出待导出，Kiro 界面证据待截图。改版前后产品截图保存在 review 目录。
+- 遇到的问题、纠正过程与尚未完成的事项：需求细化反复执行；初始截图基路径、手机导航和选择器需修正；界面裁切与测试夹具问题已逐次记录。原始会话导出、Hook 执行证明不作已完成声明。当前 PR 状态与需求中的历史快照不同，整合由独立会话负责。
 
 ## 最终参赛汇总
 

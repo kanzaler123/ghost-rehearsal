@@ -1,0 +1,49 @@
+diff --git a/README.md b/README.md
+index 170286c..839d6cc 100644
+--- a/README.md
++++ b/README.md
+@@ -25,7 +25,7 @@ No account, API key, or backend is needed. Simulation runs in a browser worker;
+ 
+ ## Quick start
+ 
+-1. [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) or [run locally](#run-locally), then choose **Start the A/B/C guide** on the welcome screen or in the Build sidebar. The guide adds independent example plans and preserves existing events.
++1. [Run this branch locally](#run-locally), then choose **Follow a guest through A/B** on the welcome screen or **Start the A/B/C guide** in the Build sidebar. The public deployment updates after integration into main. The guide adds independent example plans and preserves existing events.
+ 2. Read the A/B results: completed, unfinished, early departures, average/P90 waiting and resource costs. The example is synthetic, and B changes several arrangements at once.
+ 3. Choose **Follow the same guest**, then **Jump to first difference**. Inspect the same ID's two recorded journeys, station table and events.
+ 4. Choose **Inspect posts and resources**, then **Inspect packing evidence**. Check staff eligibility, actual postings and availability; the backlog alone does not establish a unique cause.
+@@ -42,7 +42,7 @@ The original two-plan example, blank flows, Haunted house and reusable templates
+ 
+ ## Reading comparison results
+ 
+-Use **More options → Run scope → Run to completion**, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
++Use **Run scope → Run to completion** in the strip below the top toolbar, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
+ 
+ The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting.
+ 
+@@ -121,7 +121,7 @@ Intended category: **Costume Contest**. Ghosts represent the same simulated gues
+ 
+ The public repository includes the source, examples, setup instructions, an open-source license, and the root [`.kiro/`](.kiro/) directory. English product and testing instructions are above; the original internal planning documents remain in Chinese.
+ 
+-**Submission is not complete.** The existing Kiro usage log has no verified development entries or exported sessions. The current implementation and repository preparation were completed with Codex; the presence of spec and hook files does not establish that Kiro executed them. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
++**Submission is not complete.** The usage log contains one manually recorded, evidence-backed entry for the UI redesign. The inspected Kiro session produced the requirements and initial screenshot preparation; Codex implemented and verified the interface. Raw session exports remain pending and execution of the Stop Hook remains unverified. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
+ 
+ Before submitting, complete substantive work in Kiro and document its actual contribution, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
+ 
+@@ -142,6 +142,17 @@ Before submitting, complete substantive work in Kiro and document its actual con
+ 
+ Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
+ 
++## 中文快速说明
++
++Ghost Rehearsal（幽灵预演）用于搭建活动流程、模拟排队与人员设备安排，并比较同一批访客在不同方案中的经历。本分支请先本地运行；首次进入欢迎页可切换中文。
++
++1. 点击 **跟随一位访客，比较 A / B**，自动运行 300 人示例。原有的 **体验双方案示例**、**导入项目** 和创建活动表单仍可使用。
++2. 依次选择 **跟随同一位访客**、**跳到首次差异**，查看侧入口 #10 在 03:30 的两种状态：A 仍在排队，B 已开始服务。它说明可观察到的差异，不能单独证明原因。
++3. 继续引导可检查岗位与资源、创建 C、比较 B/C 并导出安排或独立的 A/B/C 实验。切回 **搭建** 可编辑流程，**预演** 可回放，**双未来** 可比较方案。
++4. 运行范围位于顶部工具栏下方，同处显示本次方案及错误、提示数量。要查看最终汇总，先选择 **运行到完成 / 上限** 并重跑，再切换统计口径；回放时刻和汇总口径是不同概念。
++
++本轮 Kiro 贡献为需求文档及初步截图准备，Codex 完成界面实现和验证。用量日志已有一条人工核实记录；原始会话待导出，Stop Hook 的实际执行仍未核实。完整结果和验收边界见 [界面交付记录](docs/reviews/ui-creative-redesign.md)。
++
+ ## License
+ 
+ Original project code is available under the [MIT license](LICENSE). Bundled dependencies and fonts retain their own licenses; their notices are included in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt) and distributed with the live build.

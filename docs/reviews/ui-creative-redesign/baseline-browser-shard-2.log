@@ -1,0 +1,4 @@
+
+> ghost-rehearsal@0.1.0 test:browser
+> playwright test --shard=2/2
+
