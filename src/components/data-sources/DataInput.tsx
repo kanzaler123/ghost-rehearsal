@@ -2,13 +2,14 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import type { TimeUnit } from '../../features/data-sources';
 import { dataSourceText, type DataSourceLang } from './text';
 
-export function DataInput({ text, unit, lang, template, onTextChange, onUnitChange, submitError }: {
+export function DataInput({ text, unit, lang, template, onTextChange, onUnitChange, onReadingChange, submitError }: {
   text: string;
   unit: TimeUnit | '';
   lang: DataSourceLang;
   template: string;
   onTextChange: (text: string) => void;
   onUnitChange: (unit: TimeUnit | '') => void;
+  onReadingChange: (reading: boolean) => void;
   submitError?: string;
 }) {
   const t = dataSourceText(lang);
@@ -16,9 +17,11 @@ export function DataInput({ text, unit, lang, template, onTextChange, onUnitChan
   const [reading, setReading] = useState(false);
   const [failed, setFailed] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
-  const error = submitError === undefined ? '' : reading ? t.loading : failed ? t.fileError : submitError;
+  // A failed replacement leaves the current draft valid; an active read still blocks submission.
+  const error = submitError === undefined ? '' : reading ? t.loading : submitError;
   useLayoutEffect(() => { input.current?.setCustomValidity(error); }, [error]);
-  useLayoutEffect(() => () => { request.current += 1; }, []);
+  useLayoutEffect(() => () => { request.current += 1; onReadingChange(false); }, [onReadingChange]);
+  function updateReading(value: boolean) { setReading(value); onReadingChange(value); }
   return <div className="ds-input">
     <label>{t.file}<input type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values,text/plain" onChange={async event => {
       const file = event.target.files?.[0];
@@ -26,22 +29,21 @@ export function DataInput({ text, unit, lang, template, onTextChange, onUnitChan
       if (!file) return;
       const current = ++request.current;
       setFailed(false);
-      setReading(true);
-      onTextChange('');
+      updateReading(true);
       try {
         const next = await file.text();
         if (current === request.current) onTextChange(next);
       } catch {
         if (current === request.current) setFailed(true);
       } finally {
-        if (current === request.current) setReading(false);
+        if (current === request.current) updateReading(false);
       }
     }} /></label>
     {reading && <p role="status">{t.loading}</p>}
     {failed && <p role="alert" className="ds-error">{t.fileError}</p>}
     <label>{t.text}<textarea ref={input} className="ds-csv" spellCheck={false} rows={7} value={text} onChange={event => {
       request.current += 1;
-      setReading(false);
+      updateReading(false);
       setFailed(false);
       onTextChange(event.target.value);
     }} /></label>
