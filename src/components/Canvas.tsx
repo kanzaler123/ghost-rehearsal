@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore, useStoreApi } from '@xyflow/react';
 import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, ChevronsDownUp, Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
@@ -175,7 +175,26 @@ function StageFrame({ data }: NodeProps<FrameNode>) {
   </div>;
 }
 
-const nodeTypes = { workflow: FlowCard, stage: StageCard, frame: StageFrame };
+const sameIds = (a: string[], b: string[]) => a === b || (a.length === b.length && a.every((id, index) => id === b[index]));
+function sameCard(a: NodeProps<CardNode>, b: NodeProps<CardNode>) {
+  if (a.selected !== b.selected) return false;
+  const x = a.data, y = b.data;
+  if (x === y) return true;
+  if (x.node !== y.node || x.running !== y.running || x.tracked !== y.tracked || x.chooseVisitor !== y.chooseVisitor || x.visitorName !== y.visitorName
+    || x.trend !== y.trend || x.issues !== y.issues || x.changed !== y.changed || x.connected !== y.connected || x.exits !== y.exits) return false;
+  const s = x.state, t = y.state;
+  return s === t || (!!s && !!t && s.completed === t.completed && sameIds(s.serving, t.serving) && sameIds(s.queued, t.queued)
+    && sameIds(s.holding, t.holding) && sameIds(s.blocked, t.blocked));
+}
+
+// Playback rebuilds state arrays, including for unchanged nodes. Compare every
+// value the card consumes; zoom and language still update through subscriptions.
+// NodeWrapper's measurement/position changes do not affect the card content.
+const nodeTypes = {
+  workflow: memo(FlowCard, sameCard),
+  stage: memo(StageCard, (a, b) => a.data === b.data && a.selected === b.selected),
+  frame: memo(StageFrame, (a, b) => a.data === b.data),
+};
 /** Frames get their own React Flow ID so a stage switching between frame and card never reuses stale handle data. */
 const frameId = (id: string) => `frame:${id}`;
 
@@ -214,9 +233,13 @@ function CanvasInner(props: Props) {
   const { plan, view, previous } = props;
   const { t } = useI18n();
   const api = useReactFlow<AnyNode>();
+  const store = useStoreApi<AnyNode>();
+  const visitorAction = useRef(props.chooseVisitor);
+  useLayoutEffect(() => { visitorAction.current = props.chooseVisitor; }, [props.chooseVisitor]);
+  // Retain one event handler without retaining an obsolete playback-time closure.
+  const chooseVisitor = useCallback((id: string) => visitorAction.current(id), []);
   const shell = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
-  const selection = useRef({ planId: plan.id, id: props.selected });
   const zoom = useStore(store => store.transform[2]);
   const width = useStore(store => store.width);
   const height = useStore(store => store.height);
@@ -232,7 +255,7 @@ function CanvasInner(props: Props) {
   const summary = useMemo(() => liveSummary(view), [view]);
   const issueCount = (id: string) => props.issues.filter(issue => issue.entityIds.includes(id)).length;
   const mapped = useMemo<AnyNode[]>(() => {
-    const shared: Shared = { running, tracked: props.tracked, chooseVisitor: props.chooseVisitor, visitorName: props.visitorName };
+    const shared: Shared = { running, tracked: props.tracked, chooseVisitor, visitorName: props.visitorName };
     const trendOf = (id: string) => previous ? waitingAt(view, id) - waitingAt(previous, id) : 0;
     const frames: FrameNode[] = [...display.frames.entries()].sort((a, b) => a[1].depth - b[1].depth).map(([id, box]) => {
       const subflow = index.subflows.get(id)!;
@@ -264,18 +287,27 @@ function CanvasInner(props: Props) {
         data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0 } }];
     });
     return [...frames, ...stages, ...cards];
-  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, props.chooseVisitor, props.visitorName, props.changed, props.editable, running, draggable]);
-  const [flowNodes, setFlowNodes] = useState(mapped);
-  useEffect(() => {
-    const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
-    selection.current = { planId: plan.id, id: props.selected };
-    setFlowNodes(previousNodes => mapped.map(node => {
+  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, props.onStage, props.onSelect, running, draggable]);
+  const [nodeState, setNodeState] = useState(() => ({ source: mapped, planId: plan.id, selected: props.selected, nodes: mapped }));
+  let flowNodes = nodeState.nodes;
+  if (nodeState.source !== mapped) {
+    // Reconcile before children commit. An effect would first show old node content
+    // inside the new canvas layout, then change its size during resize observation.
+    // Keep React Flow's transient drag/selection state while accepting current data.
+    const selectionChanged = nodeState.planId !== plan.id || nodeState.selected !== props.selected;
+    const previous = new Map(nodeState.nodes.map(node => [node.id, node]));
+    flowNodes = mapped.map(node => {
       // A stage ID can switch between frame and card; never carry a frame's size over to a card.
-      const found = previousNodes.find(item => item.id === node.id);
+      const found = previous.get(node.id);
       const current = found?.type === node.type ? found : undefined;
-      return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
-    }));
-  }, [mapped, plan.id, props.selected]);
+      return { ...current, ...node, selected: selectionChanged ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
+    });
+    setNodeState({ source: mapped, planId: plan.id, selected: props.selected, nodes: flowNodes });
+  }
+  // Publish the controlled nodes before resize observation. React Flow's prop
+  // bridge otherwise waits for a passive effect, retaining the old card sizes.
+  // The store action avoids the onNodesChange round-trip of instance.setNodes().
+  useLayoutEffect(() => { store.getState().setNodes(flowNodes); }, [store, flowNodes]);
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------
@@ -344,14 +376,14 @@ function CanvasInner(props: Props) {
       const isSelected = props.selected === edge.id || edge.source === props.selected || edge.target === props.selected;
       const changed = edge.ids.some(id => props.changed?.has(id));
       const color = isSelected ? 'var(--text-primary)' : changed ? 'var(--tone-diff)' : active ? 'var(--tone-serve)' : 'var(--text-muted)';
-      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', data: { travelers, chooseVisitor: props.chooseVisitor }, label: edge.label,
+      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', data: { travelers, chooseVisitor }, label: edge.label,
         selected: props.selected === edge.id, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
         markerEnd: { type: MarkerType.ArrowClosed, color, width: isSelected ? 20 : 16, height: isSelected ? 20 : 16 },
         style: { stroke: color, strokeWidth: isSelected ? 3 : active || changed ? 2 : 1.6 },
         labelStyle: { fill: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
       };
     });
-  }, [plan.graph.edges, display, view, running, props.time, props.tracked, props.chooseVisitor, props.selected, props.changed]);
+  }, [plan.graph.edges, display, view, running, props.time, props.tracked, chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
     placement.userMove();
@@ -377,7 +409,7 @@ function CanvasInner(props: Props) {
     {!props.compact && <HauntedBackdrop quiet={!!plan.graph.nodes.length} />}
     <ReactFlow<AnyNode> nodes={flowNodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes} colorMode="dark" onInit={setInstance} elevateNodesOnSelect={false}
       onNodesChange={changes => {
-        setFlowNodes(nodes => applyNodeChanges(changes, nodes));
+        setNodeState(state => ({ ...state, nodes: applyNodeChanges(changes, state.nodes) }));
         const positions = changes.flatMap(change => change.type === 'position' && change.position && !change.dragging && isRealNode(change.id) ? [{ id: change.id, ...change.position }] : []);
         if (positions.length && props.editable && !display.derived) props.onMove(positions);
       }}
