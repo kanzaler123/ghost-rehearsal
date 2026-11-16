@@ -43,6 +43,9 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await expect(start).toHaveAccessibleDescription(t.guide.welcomeHint);
   await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toHaveValue('');
   await expect(dialog.getByRole('button', { name: t.eventSetup.create, exact: true })).toBeDisabled();
+  // The existing dialog entrance scales its descendants for 220ms. Measure the
+  // settled touch target, as native pointer actionability does, without reducing motion.
+  await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
   const box = await start.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
