@@ -11,6 +11,8 @@ The upload is separate from the Pages artifact. A failed test still fails the bu
 3. Open an individual `test-results/<case>/trace.zip` with `npx playwright show-trace <path-to-trace.zip>`. Compare the screenshot, action log and reported assertion; a screenshot alone may not establish timing or causality.
 4. Preserve the original failure when recording any rerun. Download needed evidence before it expires.
 
+The separate WebKit job uses `browser-failure-webkit-<run-id>-<run-attempt>` and its HTML report is under `playwright-report/webkit`. See [browser coverage](browser-coverage.md) for scope and limitations.
+
 CLI alternative:
 
 ```sh
