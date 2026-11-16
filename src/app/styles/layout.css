@@ -297,7 +297,7 @@
 .sidebar .workspace-menu-body { width: var(--card-w); z-index: 40; }
 .sidebar.plan-navigator.is-collapsed .side-collapse { margin: var(--space-3); padding: var(--space-2); justify-content: center; }
 .context-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.save-state { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--text-muted); font-size: var(--fs-xs); }
+.save-state { display: inline-flex; align-items: center; gap: var(--space-1); min-width: 11ch; color: var(--text-muted); font-size: var(--fs-xs); }
 .mode-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
 .mode-action-reason { font-size: var(--fs-xs); color: var(--text-muted); }
 .sidebar.plan-navigator.is-collapsed { width: var(--nav-rail-w); }

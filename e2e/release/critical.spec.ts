@@ -47,6 +47,21 @@ async function open(page: Page, info: TestInfo) {
   return t;
 }
 
+test('saving keeps header actions and the event menu stationary', async ({ page }, info) => {
+  const t = await open(page, info);
+  await activate(page.getByRole('button', { name: t.eventSetup.demo, exact: true }), info);
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  await page.evaluate(() => document.fonts.ready.then(() => undefined));
+  const positions = () => page.evaluate(() => ['.command-group', '.event-card summary'].map(selector => {
+    const rect = document.querySelector(selector)!.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }));
+  const before = await positions();
+  await activate(page.getByTitle(t.header.saveTitle, { exact: true }), info);
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  expect(await positions()).toEqual(before);
+});
+
 async function exportProject(page: Page, t: Messages, info: TestInfo) {
   await activate(page.getByLabel(t.header.more, { exact: true }), info);
   await activate(page.getByRole('button', { name: t.header.export, exact: true }), info);
