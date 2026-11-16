@@ -1,3 +1,4 @@
+import { storedProject } from '../persistence/browser';
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
@@ -85,7 +86,7 @@ test('arrival file import is staged, validates before outer Apply and round-trip
   expect(imported.plans).toEqual(original.plans);
   expect(imported.scenarios[0].arrivalStreams.slice(1)).toEqual(original.scenarios[0].arrivalStreams.slice(1));
   expect(imported.scenarios[0].arrivalStreams[0]).toMatchObject({ id: original.scenarios[0].arrivalStreams[0].id, kind: 'records', records: [{ id: 'fixture-1', arrivalTime: 0 }, { id: 'fixture-2', arrivalTime: 90 }], provenance: { kind: 'historical', source: 'Synthetic integration fixture', notes: 'Not real event observations' } });
-  await expect.poll(() => page.evaluate(() => !!localStorage.getItem('ghost-rehearsal.draft.v1'))).toBe(true);
+  await expect.poll(() => storedProject(page, 'draft').then(Boolean)).toBe(true);
   await page.reload();
   expect(await exportProject(page, t)).toEqual(imported);
   await page.locator('.workspace-menu > summary').click();

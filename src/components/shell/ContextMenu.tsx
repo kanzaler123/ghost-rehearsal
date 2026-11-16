@@ -6,6 +6,6 @@ export function ContextMenu({ label, children, className = 'context-menu' }: { l
     if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) { event.preventDefault(); event.currentTarget.open = true; }
   }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false; }}>
     <summary className="icon-btn" aria-label={label} title={label}><MoreHorizontal size={19} aria-hidden="true" /></summary>
-    <div className="workspace-menu-body" onClick={event => { if ((event.target as HTMLElement).closest('button')) { const details = event.currentTarget.parentElement as HTMLDetailsElement; details.open = false; details.querySelector('summary')?.focus(); } }}>{children}</div>
+    <div className="workspace-menu-body" onPointerDown={event => { const button = (event.target as HTMLElement).closest('button'); if (button) { event.preventDefault(); button.focus(); } }} onClick={event => { if ((event.target as HTMLElement).closest('button')) { const details = event.currentTarget.parentElement as HTMLDetailsElement; details.open = false; details.querySelector('summary')?.focus(); } }}>{children}</div>
   </details>;
 }

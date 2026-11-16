@@ -1,3 +1,4 @@
+import { storedProject } from '../persistence/browser';
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
 
@@ -15,7 +16,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await page.getByRole('button', { name: t.eventSetup.settings, exact: true }).click();
       await page.getByRole('textbox', { name: t.dialogs.eventName, exact: true }).fill('Keyboard isolation');
       await page.getByRole('button', { name: t.dialogs.applyShared(2), exact: true }).click();
-      const saved = await page.evaluate(() => localStorage.getItem('ghost-rehearsal.project.v1'));
+      const saved = await storedProject(page, 'saved');
       await page.getByLabel(t.header.more, { exact: true }).click();
       const picker = page.waitForEvent('filechooser');
       await page.getByRole('button', { name: t.header.import, exact: true }).click();
@@ -27,7 +28,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await expect(close).toBeFocused();
       await page.keyboard.press('Control+z');
       await page.keyboard.press('Control+s');
-      expect(await page.evaluate(() => localStorage.getItem('ghost-rehearsal.project.v1'))).toBe(saved);
+      expect(await storedProject(page, 'saved')).toBe(saved);
       await page.keyboard.press('Escape');
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByLabel(t.eventSetup.active)).toContainText('Keyboard isolation');

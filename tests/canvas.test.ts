@@ -231,6 +231,39 @@ describe('read-only Full map', () => {
 
 
 describe('canvas data and interaction reconciliation', () => {
+  it('does not resynchronize unchanged replay nodes when parent actions are recreated', () => {
+    mount(); rehearse();
+    const nodes = flow().nodes;
+    const stage = nodes.find((node: any) => node.type === 'stage');
+    expect(stage).toBeDefined();
+    const latest = vi.fn();
+    props = { ...props, onStage: latest, onSelect: vi.fn() }; render();
+    expect(flow().nodes).toBe(nodes);
+    stage.data.onOpen();
+    expect(latest).toHaveBeenCalledWith(stage.id, true);
+    props = { ...props, expanded: new Set([stage.id]) }; render();
+    const frame = flow().nodes.find((node: any) => node.type === 'frame' && node.data.id === stage.id);
+    expect(frame).toBeDefined();
+    const next = vi.fn();
+    props = { ...props, onStage: next }; render();
+    frame.data.onCollapse();
+    expect(next).toHaveBeenCalledWith(stage.id, false);
+    expect(latest).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps frame selection current without republishing unchanged Build nodes', () => {
+    mount();
+    const nodes = flow().nodes;
+    const frame = nodes.find((node: any) => node.type === 'frame');
+    expect(frame).toBeDefined();
+    const previous = props.onSelect, latest = vi.fn();
+    props = { ...props, onSelect: latest, onStage: vi.fn() }; render();
+    expect(flow().nodes).toBe(nodes);
+    frame.data.onSelect();
+    expect(latest).toHaveBeenCalledWith(frame.data.id, 'node');
+    expect(previous).not.toHaveBeenCalled();
+  });
+
   it('keeps ghost handlers stable while calling the latest committed visitor action', () => {
     const first = vi.fn(), latest = vi.fn();
     props = { ...props, chooseVisitor: first }; mount();

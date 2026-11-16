@@ -1,21 +1,23 @@
 # Browser failure diagnostics
 
-The `Check and deploy` workflow uploads `test-results/` and `playwright-report/` when a Chromium shard fails. The artifact is named `browser-failure-<run-id>-<run-attempt>-shard-<shard>` and is retained for 14 days. It contains the available Playwright JSON/HTML reports, failure screenshots and retained traces. If tests never started, no files may exist; the upload then does nothing. Cancelled jobs are not guaranteed to upload diagnostics.
+The `Check and deploy` workflow uploads `ci-logs/`, `test-results/` and `playwright-report/` after every Chromium shard. The artifact is named `chromium-<run-id>-<run-attempt>-shard-<shard>` and is retained for 14 days. It contains available setup logs, Playwright JSON/HTML reports, failure screenshots and retained traces. Missing artifacts fail the upload; cancelled jobs are not guaranteed to upload diagnostics.
 
-The upload is separate from the Pages artifact. A failed test still fails the build and blocks deployment. Passing runs do not upload browser diagnostics. No extra repository permissions are granted. Only the two test-output directories are included, not the workspace or credentials.
+The upload is separate from the Pages artifact. A failed test still fails the build and blocks deployment. Passing runs also upload diagnostics. No extra repository permissions are granted. Only the listed diagnostic directories are included, not the workspace or credentials.
 
 ## Inspect a failure
 
-1. Open the failed Actions run and download its `browser-failure-…` artifact while signed in to GitHub. Check the run ID, attempt and shard so a rerun is not confused with the original failure.
+1. Open the failed Actions run and download its job's diagnostic artifact while signed in to GitHub. Check the run ID, attempt and shard so a rerun is not confused with the original failure.
 2. Extract the ZIP. Open the report with `npx playwright show-report <extracted>/playwright-report` using the repository's installed Playwright version.
 3. Open an individual `test-results/<case>/trace.zip` with `npx playwright show-trace <path-to-trace.zip>`. Compare the screenshot, action log and reported assertion; a screenshot alone may not establish timing or causality.
 4. Preserve the original failure when recording any rerun. Download needed evidence before it expires.
+
+Other browser artifacts use `<job>-<run-id>-<run-attempt>`. The `webkit`, `firefox` and `chromium-touch` reports are under `test-results/release-report`; import and comparison reports are under `test-results/import-webkit-report` and `test-results/comparison-webkit-report`. See [browser coverage](browser-coverage.md) for scope and limitations.
 
 CLI alternative:
 
 ```sh
 gh run download RUN_ID --repo kanzaler123/ghost-rehearsal \
-  --name browser-failure-RUN_ID-ATTEMPT-shard-SHARD --dir /tmp/ghost-browser-failure
+  --name chromium-RUN_ID-ATTEMPT-shard-SHARD --dir /tmp/ghost-browser-failure
 ```
 
 ## Validation record

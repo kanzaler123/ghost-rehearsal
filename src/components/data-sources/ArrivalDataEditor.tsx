@@ -1,7 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Scenario } from '../../schemas';
-import { buildArrivalStream, createArrivalTemplate, parseArrivalData, updateProvenance } from '../../features/data-sources';
+import { buildArrivalStream, createArrivalTemplate, updateProvenance } from '../../features/data-sources';
 import type { TimeUnit } from '../../features/data-sources';
+import { ImportClient } from '../../features/imports/client';
+import type { ImportState } from '../../features/imports/client';
+import { ImportDiagnostics } from '../ImportDiagnostics';
 import { DataInput } from './DataInput';
 import { ProvenanceFields } from './ProvenanceFields';
 import { dataSourceText, type DataSourceLang } from './text';
@@ -28,13 +31,17 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
   const [reading, setReading] = useState(false);
   const [unit, setUnit] = useState<TimeUnit | ''>('');
   const [provenance, setProvenance] = useState(stream.provenance);
-  const [preview, setPreview] = useState<ReturnType<typeof parseArrivalData> | null>(null);
+  const client = useRef<ImportClient | null>(null);
+  const [importState, setImportState] = useState<ImportState | null>(null);
+  useEffect(() => { const current = new ImportClient(setImportState); client.current = current; return () => current.dispose(); }, []);
+  const preview = importState?.value?.kind === 'arrivals' ? importState.value.preview : null;
+  const parsing = importState?.status === 'parsing';
   const [notice, setNotice] = useState<'applied' | 'cancelled' | 'chooseUnitError' | 'invalidModel' | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const applied = useRef(false);
   const candidate = preview ? buildArrivalStream(stream, preview, provenance) : null;
   const invalidate = () => {
-    setPreview(null);
+    client.current?.cancel();
     setNotice(null);
     setProvenance(current => updateProvenance(current, { valueChanged: true }));
     applied.current = false;
@@ -42,7 +49,7 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
   const reset = () => {
     setText('');
     setUnit('');
-    setPreview(null);
+    client.current?.cancel();
     setProvenance(stream.provenance);
     setInputKey(current => current + 1);
   };
@@ -56,10 +63,10 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
       onTextChange={value => { setText(value); invalidate(); }}
       onUnitChange={value => { setUnit(value); invalidate(); }} />
     <p className="ds-hint">{t.estimateHint}</p>
-    <button type="button" disabled={reading} onClick={() => {
-      if (reading) return;
+    <button type="button" disabled={reading || parsing} onClick={() => {
+      if (reading || parsing) return;
       if (!unit) { setNotice('chooseUnitError'); return; }
-      setPreview(parseArrivalData(text, unit, attributes, observationCutoff, horizon));
+      void client.current?.startTexts([{ name: t.text, text }], { kind: 'arrivals', unit, attributes, observationCutoff, horizon });
       setNotice(null);
       applied.current = false;
     }}>{t.preview}</button>
@@ -77,25 +84,24 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
       </dl>
       <p>{t.cutoff}: {observationCutoff} {t.seconds} · {t.horizon}: {horizon} {t.seconds}</p>
       <p className="ds-hint">{t.rangeHint}</p>
-      {preview.errors.length > 0 && <div className="ds-table-scroll" role="alert" tabIndex={0}><table className="ds-errors">
-        <caption>{t.errors}</caption><thead><tr><th>{t.row}</th><th>{t.column}</th><th>{t.errors}</th></tr></thead>
-        <tbody>{preview.errors.map((error, index) => <tr key={index}><td>{error.row}</td><td>{error.column}{error.field ? ` (${error.field})` : ''}</td><td>{error.message}</td></tr>)}</tbody>
-      </table><p className="ds-error">{t.atomicHint}</p></div>}
       {preview.records.length > 0 && <div className="ds-table-scroll" tabIndex={0} aria-label={t.converted}><table>
         <caption>{t.converted}</caption><thead><tr><th>id</th><th>arrival_time</th>{attributes.map(attribute => <th key={attribute.id}>attr:{attribute.id}</th>)}</tr></thead>
         <tbody>{preview.records.slice(0, 20).map((record, index) => <tr key={index}><td>{record.id}</td><td>{record.arrivalTime}</td>{attributes.map(attribute => <td key={attribute.id}>{record.attributes[attribute.id]}</td>)}</tr>)}</tbody>
       </table>{preview.records.length > 20 && <p className="ds-hint">{t.samplePreview}</p>}</div>}
     </div>}
+    <ImportDiagnostics client={client.current} state={importState} lang={lang} />
     <ProvenanceFields value={provenance} lang={lang} onChange={setProvenance} kindDisabled={!preview || preview.errors.length > 0} />
     <p className="ds-hint">{t.sharedHint}</p>
     <div className="ds-actions">
-      <button type="button" disabled={reading || !candidate} onClick={() => {
-        if (reading || applied.current) return;
-        if (!candidate) { setNotice('invalidModel'); return; }
+      <button type="button" disabled={reading || parsing || !candidate} onClick={() => {
+        if (reading || parsing || applied.current) return;
+        const value = client.current?.getValue(importState?.requestId ?? -1);
+        const current = value?.kind === 'arrivals' ? buildArrivalStream(stream, value.preview, provenance) : null;
+        if (!current) { setNotice('invalidModel'); return; }
         applied.current = true;
         reset();
         setNotice('applied');
-        onChange(candidate);
+        onChange(current);
       }}>{t.apply}</button>
       <button type="button" onClick={() => { reset(); setNotice('cancelled'); }}>{t.cancel}</button>
     </div>

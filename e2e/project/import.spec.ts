@@ -13,6 +13,33 @@ function projectFile(name: string, planName: string) {
   return { name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) };
 }
 
+for (const action of ['cancel', 'close'] as const) test(`welcome ${action} cancels a pending project import`, async ({ page }, info) => {
+  const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
+  await page.goto('./');
+  await page.evaluate(() => {
+    const read = File.prototype.text;
+    File.prototype.text = function () {
+      const file = this;
+      return new Promise<string>(resolve => {
+        (window as typeof window & { finishImport: () => Promise<void> }).finishImport = async () => resolve(await read.call(file));
+      });
+    };
+  });
+  await page.locator('input[type=file]').first().setInputFiles(projectFile('canceled.json', 'Canceled project'));
+  const dialog = page.getByRole('dialog');
+  if (action === 'cancel') {
+    await dialog.getByRole('status').getByRole('button', { name: t.common.cancel, exact: true }).click();
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+  } else await dialog.getByRole('button', { name: t.common.closeDialog, exact: true }).click();
+  await page.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(dialog).toHaveCount(action === 'cancel' ? 1 : 0);
+  await expect(page.locator('.status-notice')).not.toHaveText(t.notices.imported);
+  expect(errors).toEqual([]);
+});
+
 test('unreadable project preserves work and permits retrying the same file', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -88,9 +115,27 @@ test('undoing a delayed import restores edits made while reading', async ({ page
   await dialog.getByLabel(t.review.planName, { exact: true }).fill('Edit made while reading');
   await dialog.getByRole('button', { name: t.header.save, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText('Edit made while reading');
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
   await page.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
   await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText('Imported project');
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  const retained = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('ghost-rehearsal.persistence.v2', 1);
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    try {
+      const rows = await new Promise<{ id: string; parents: string[]; raw: string }[]>((resolve, reject) => {
+        const request = db.transaction('revisions').objectStore('revisions').getAll();
+        request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+      });
+      const parents = new Set(rows.flatMap(row => row.parents));
+      return rows.filter(row => !parents.has(row.id)).map(row => row.raw);
+    } finally { db.close(); }
+  });
+  expect(retained.some(raw => raw.includes('Edit made while reading'))).toBe(true);
   await page.getByRole('button', { name: t.header.undo, exact: true }).click();
+  await expect(page.locator('.plan-list')).toContainText('Edit made while reading');
   await page.locator('.workspace-menu > summary').click();
   await page.getByRole('button', { name: t.header.export, exact: true }).click();
   const pending = page.waitForEvent('download');

@@ -51,7 +51,7 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
+export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onGuide?: () => void; onImport: () => void; onCancelImport?: () => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
@@ -59,6 +59,7 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, importErr
   const [arrivalWindow, setArrivalWindow] = useState(10);
   const [preset, setPreset] = useState<'blank' | 'haunted' | 'candy'>('blank');
   const importErrorId = useId();
+  const guideHintId = useId();
   const [error, setError] = useState('');
   return <Modal title={t.eventSetup.title} icon={<CalendarDays size={19} />} onClose={onClose}>
     <form onSubmit={event => {
@@ -72,6 +73,10 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, importErr
       onCreate(document);
     }}>
       <div className="modal-body event-setup">
+        {onGuide && <div className="welcome-guide">
+          <button type="button" className="btn primary" aria-describedby={guideHintId} onClick={onGuide}>{t.guide.start}</button>
+          <p id={guideHintId}>{t.guide.welcomeHint}</p>
+        </div>}
         <span className="eyebrow">{t.eventSetup.steps}</span><p>{t.eventSetup.subtitle}</p>
         <Field label={t.dialogs.eventName}><input aria-label={t.dialogs.eventName} value={name} maxLength={100} required placeholder={t.eventSetup.namePlaceholder} onChange={event => setName(event.target.value)} /></Field>
         <div className="form-row">
@@ -85,6 +90,7 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, importErr
         <p className="form-error" role="alert">{error}</p>
         <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" aria-describedby={importError ? importErrorId : undefined} onClick={onImport}>{t.eventSetup.import}</button></div>
         <p id={importErrorId} className="form-error" role="alert">{importError}</p>
+        {onCancelImport && <p role="status">{t.imports.busy}<button type="button" onClick={onCancelImport}>{t.common.cancel}</button></p>}
       </div>
       <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>

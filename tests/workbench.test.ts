@@ -6,11 +6,12 @@ import type { Plan, RunRequest } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 import type { SimulationRun } from '../src/simulation/types';
 import { affectedVisitors } from '../src/features/analysis';
+import { readProject } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { issueText } from '../src/i18n/issues';
 
 /** Real App handlers, effects, validation, and simulation; only React's host hooks
- * and the Worker transport are replaced. Assertions follow the public component
+ * and storage/Worker transports are replaced. Assertions follow the public component
  * props/actions rather than App's state-slot indexes or CSS layout. */
 const hooks = vi.hoisted(() => {
   type Slot = { value?: unknown; deps?: readonly unknown[]; cleanup?: void | (() => void) };
@@ -69,6 +70,19 @@ vi.mock('react', async importOriginal => ({
   useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect,
   useCallback: (callback: unknown, deps?: readonly unknown[]) => hooks.useMemo(() => callback, deps),
   useContext: () => hooks.context,
+}));
+
+vi.mock('../src/features/persistence', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/features/persistence')>(),
+  openPersistence: async () => {
+    const value = readProject(localStorage.getItem('ghost-rehearsal.project.v1')!).document!;
+    const revision = { version: 1, id: 'saved', projectId: 'project', kind: 'saved', tabId: 'test', parents: [], createdAt: 0, raw: JSON.stringify(value), status: 'ready', value };
+    return { ok: true, value: {
+      readWorkspace: async () => ({ ok: true, value: { savedRevisionId: 'saved', projects: [{ projectId: 'project', status: 'ready', current: revision, heads: [revision], history: [revision] }], templates: { status: 'empty', heads: [], history: [] } } }),
+      writeProject: async (_id: string, document: unknown) => ({ ok: true, value: { revision: { ...revision, value: document }, status: 'draft-saved', snapshot: { heads: [revision] } } }),
+      subscribe: () => () => {}, close() {},
+    } };
+  },
 }));
 
 import { App } from '../src/app/App';
@@ -140,7 +154,7 @@ function browseMore() {
 }
 function moreIds() { return new Set(affectedVisitors(lastRuns[0].statistics!, lastRuns[1].statistics!, 'more').map(item => item.id)); }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers(); hooks.reset(); lastRuns = [];
   hooks.context = { t, lang: 'en', setLang() {} };
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
@@ -154,6 +168,7 @@ beforeEach(() => {
     }
   });
   render();
+  await vi.waitFor(() => { render(); expect(component(Canvas)).toBeDefined(); });
   // Canonical loading sorts plans and normalizes/localizes their graphs.
   selectPlan(planA.id);
   originalGraphA = structuredClone(canvas().plan.graph);

@@ -237,6 +237,12 @@ function CanvasInner(props: Props) {
   useLayoutEffect(() => { visitorAction.current = props.chooseVisitor; }, [props.chooseVisitor]);
   // Retain one event handler without retaining an obsolete playback-time closure.
   const chooseVisitor = useCallback((id: string) => visitorAction.current(id), []);
+  // Parent actions change on replay controls too; keep node data stable until its
+  // content changes, while forwarding clicks to the latest committed actions.
+  const canvasActions = useRef({ onStage: props.onStage, onSelect: props.onSelect });
+  useLayoutEffect(() => { canvasActions.current = { onStage: props.onStage, onSelect: props.onSelect }; }, [props.onStage, props.onSelect]);
+  const openStage = useCallback((id: string, open: boolean) => canvasActions.current.onStage(id, open), []);
+  const selectNode = useCallback((id: string) => canvasActions.current.onSelect(id, 'node'), []);
   const selection = useRef({ planId: plan.id, id: props.selected });
   const shell = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
@@ -264,8 +270,8 @@ function CanvasInner(props: Props) {
         draggable: false, selectable: false, focusable: false, className: 'frame-node',
         data: { id, name: subflow.name, steps: members.length, depth: box.depth, running, selected: props.selected === id, changed: props.changed?.has(id) ?? false,
           waiting: members.reduce((sum, member) => sum + waitingAt(view, member), 0),
-          onCollapse: display.derived && index.stages.includes(id) ? () => props.onStage(id, false) : undefined,
-          onSelect: props.editable ? () => props.onSelect(id, 'node') : undefined } };
+          onCollapse: display.derived && index.stages.includes(id) ? () => openStage(id, false) : undefined,
+          onSelect: props.editable ? () => selectNode(id) : undefined } };
     });
     const stages: StageNode[] = [...display.collapsed.entries()].map(([id, box]) => {
       const subflow = index.subflows.get(id)!;
@@ -278,7 +284,7 @@ function CanvasInner(props: Props) {
           waiting: members.reduce((sum, member) => sum + waitingAt(view, member.id), 0), serving: states.reduce((sum, state) => sum + (state?.serving.length ?? 0), 0),
           blocked: states.reduce((sum, state) => sum + (state?.blocked.length ?? 0), 0), trend: members.reduce((sum, member) => sum + trendOf(member.id), 0),
           exits: members.reduce((sum, member) => sum + (member.type === 'exit' ? view.nodes[member.id]?.completed ?? 0 : 0), 0), hasExit: members.some(member => member.type === 'exit'),
-          ghosts: states.flatMap(state => ghostsOf(state)), onOpen: () => props.onStage(id, true) } };
+          ghosts: states.flatMap(state => ghostsOf(state)), onOpen: () => openStage(id, true) } };
     });
     const cards: CardNode[] = plan.graph.nodes.flatMap(node => {
       const position = node.type === 'subflow' ? display.placeholders.get(node.id) : display.positions.get(node.id);
@@ -287,7 +293,7 @@ function CanvasInner(props: Props) {
         data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0 } }];
     });
     return [...frames, ...stages, ...cards];
-  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, props.onStage, props.onSelect, running, draggable]);
+  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, running, draggable]);
   const [flowNodes, setFlowNodes] = useState(mapped);
   useEffect(() => {
     const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
@@ -339,7 +345,7 @@ function CanvasInner(props: Props) {
   latestApply.current = apply;
   const reducedRef = useRef(props.reducedMotion); reducedRef.current = props.reducedMotion;
   const placement = useMemo(() => createViewportPlacement<ViewTarget>((target, duration) => latestApply.current(target, duration), { reduced: () => !!reducedRef.current }), []);
-  function userMove() { placement.userMove(); props.onManual?.(); }
+  function userMove() { setMenu(null); placement.userMove(); props.onManual?.(); }
   useEffect(() => {
     placement.request(props.request.target);
     return placement.cancelPending;
@@ -414,7 +420,7 @@ function CanvasInner(props: Props) {
       onPaneClick={() => { setMenu(null); props.onSelect('', 'node'); }} onConnect={props.onConnect} connectionLineType={ConnectionLineType.Bezier}
       onPaneContextMenu={event => { event.preventDefault(); if (props.editable) openMenu(event.clientX, event.clientY); }}
       onNodeContextMenu={(event, node) => { event.preventDefault(); if (node.type === 'workflow') openMenu(event.clientX, event.clientY, node.id); }}
-      onMoveStart={event => { setMenu(null); if (event) userMove(); }}
+      onMoveStart={event => { if (event) userMove(); }}
       onNodeDragStart={userMove}
       onDelete={({ nodes, edges: removed }) => props.onDelete(nodes.filter(node => node.type === 'workflow').map(node => node.id), removed.filter(edge => !edge.id.startsWith('agg:')).map(edge => edge.id))}
       nodesDraggable={draggable} nodesConnectable={props.editable && !panMode} elementsSelectable={!panMode} edgesReconnectable={false} deleteKeyCode={props.editable && !panMode ? ['Backspace', 'Delete'] : null}
