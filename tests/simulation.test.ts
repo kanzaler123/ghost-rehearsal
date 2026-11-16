@@ -23,6 +23,30 @@ function fixture(): RunRequest {
 const service = (request: RunRequest) => request.plan.graph.nodes[1] as ServiceNode;
 
 describe('离散事件仿真', () => {
+  it('replays passage and occupancy across node types after backward seeks and reordered plans', () => {
+    const request = fixture(); request.scenario.observationCutoff = 40;
+    request.plan.graph.nodes.push({ id: 'hold', type: 'waiting_area', name: 'Hold', layout: { x: 150, y: 0 }, release: { kind: 'until_time', releaseAt: 5 } });
+    request.plan.graph.edges[0].target = 'hold';
+    request.plan.graph.edges.push({ id: 'hold-service', source: 'hold', target: 'service' });
+    const run = simulate(request);
+    expect(run.status).toBe('succeeded');
+    expect(run.statistics!.outcomes.completed).toBe(3);
+    expect(run.statistics!.nodes.find(node => node.id === 'hold')).toMatchObject({ waiting: 15, maxQueue: 3 });
+    const final = playbackAt(run.events, request.plan, 40);
+    for (const state of Object.values(final.nodes)) expect(state).toEqual({ queued: [], blocked: [], holding: [], serving: [], completed: 3 });
+    const start = playbackAt(run.events, request.plan, 0);
+    expect(start.nodes.hold).toMatchObject({ holding: ['guests:a', 'guests:b', 'guests:c'], completed: 0 });
+    expect(start.nodes.service).toMatchObject({ queued: [], serving: [], completed: 0 });
+    const release = playbackAt(run.events, request.plan, 5);
+    expect(release.nodes.hold).toMatchObject({ holding: [], completed: 3 });
+    expect(release.nodes.service).toMatchObject({ queued: ['guests:b', 'guests:c'], serving: ['guests:a'], completed: 0 });
+    const firstDone = playbackAt(run.events, request.plan, 15);
+    expect(firstDone.nodes.service).toMatchObject({ queued: ['guests:c'], serving: ['guests:b'], completed: 1 });
+    expect(firstDone.nodes.exit.completed).toBe(1);
+    const reordered = structuredClone(request.plan); reordered.graph.nodes.reverse();
+    expect(playbackAt(run.events, reordered, 5)).toEqual(release);
+    expect(playbackAt(run.events, request.plan, 40)).toEqual(final);
+  });
   it('counts queues after all same-time events and reports passage at every node type', () => {
     const request = fixture();
     request.scenario.arrivalStreams = [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: [{ id: 'a', arrivalTime: 0, attributes: {} }] }];

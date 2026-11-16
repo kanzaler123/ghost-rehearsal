@@ -5,7 +5,9 @@ import type { NodeMetrics, Outcome, PlaybackState, SimulationEvent, Statistics, 
 const waitingTypes = new Set(['QUEUE_ENTER', 'QUEUE_BLOCKED', 'HOLD_ENTER']);
 const stateField = (type: string): 'queued' | 'blocked' | 'holding' | 'serving' | null => ({ QUEUE_ENTER: 'queued', QUEUE_BLOCKED: 'blocked', HOLD_ENTER: 'holding', SERVICE_START: 'serving' }[type] as 'queued' | 'blocked' | 'holding' | 'serving' | undefined) ?? null;
 
-function applyEvent(view: PlaybackState, event: SimulationEvent, plan: Plan) {
+const nodeTypesOf = (plan: Plan) => new Map(plan.graph.nodes.map(node => [node.id, node.type]));
+
+function applyEvent(view: PlaybackState, event: SimulationEvent, nodeTypes: ReadonlyMap<string, Plan['graph']['nodes'][number]['type']>) {
   if (!event.participantId || event.type === 'RUN_WARNING') return;
   const previous = view.visitors[event.participantId];
   const previousField = previous && stateField(previous.type);
@@ -15,7 +17,7 @@ function applyEvent(view: PlaybackState, event: SimulationEvent, plan: Plan) {
   const nextField = stateField(event.type);
   if (nextField && event.nodeId) view.nodes[event.nodeId]?.[nextField].push(event.participantId);
   if (event.nodeId) {
-    const type = plan.graph.nodes.find(node => node.id === event.nodeId)?.type;
+    const type = nodeTypes.get(event.nodeId);
     const passed = type === 'service' ? event.type === 'SERVICE_COMPLETE'
       : type === 'waiting_area' ? event.type === 'HOLD_RELEASE'
         : type === 'exit' ? event.type === 'VISITOR_COMPLETE' || event.type === 'VISITOR_LEAVE'
@@ -27,9 +29,10 @@ function applyEvent(view: PlaybackState, event: SimulationEvent, plan: Plan) {
 
 export function playbackAt(events: SimulationEvent[], plan: Plan, time: number): PlaybackState {
   const view: PlaybackState = { visitors: {}, nodes: Object.fromEntries(plan.graph.nodes.map(node => [node.id, { queued: [], blocked: [], holding: [], serving: [], completed: 0 }])) };
+  const nodeTypes = nodeTypesOf(plan);
   for (const event of events) {
     if (event.time > time) break;
-    applyEvent(view, event, plan);
+    applyEvent(view, event, nodeTypes);
   }
   return view;
 }
@@ -64,6 +67,7 @@ export function calculateStatistics(population: Participant[], events: Simulatio
   } as NodeMetrics]));
   const nodeVisitors = new Map([...metrics.keys()].map(id => [id, new Set<string>()]));
   const view = playbackAt([], plan, 0);
+  const nodeTypes = nodeTypesOf(plan);
   let previousTime = 0;
   const integrate = (time: number) => {
     const duration = time - previousTime;
@@ -84,7 +88,7 @@ export function calculateStatistics(population: Participant[], events: Simulatio
     integrate(event.time);
     if (event.nodeId && event.participantId && event.type !== 'RUN_WARNING') nodeVisitors.get(event.nodeId)?.add(event.participantId);
     if (event.type === 'SERVICE_COMPLETE') metrics.get(event.nodeId!)!.completedServices++;
-    applyEvent(view, event, plan);
+    applyEvent(view, event, nodeTypes);
     if (included[index + 1]?.time !== event.time) {
       for (const metric of metrics.values()) {
         const current = view.nodes[metric.id];
