@@ -21,6 +21,7 @@ export function ServiceDataEditor(props: ServiceDataEditorProps) {
 function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEditorProps) {
   const t = dataSourceText(lang);
   const [text, setText] = useState('');
+  const [reading, setReading] = useState(false);
   const [unit, setUnit] = useState<TimeUnit | ''>('');
   const [provenance, setProvenance] = useState(duration.provenance);
   const [preview, setPreview] = useState<ReturnType<typeof parseServiceData> | null>(null);
@@ -46,10 +47,12 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
     <p><b>{t.target}:</b> {targetName ?? t.service}</p>
     <p className="ds-hint">{t.serviceHint}</p>
     <DataInput key={inputKey} text={text} unit={unit} lang={lang} template={createServiceTemplate()}
+      onReadingChange={setReading}
       onTextChange={value => { setText(value); invalidate(); }}
       onUnitChange={value => { setUnit(value); invalidate(); }} />
     <p className="ds-hint">{t.estimateHint}</p>
-    <button type="button" onClick={() => {
+    <button type="button" disabled={reading} onClick={() => {
+      if (reading) return;
       if (!unit) { setNotice('chooseUnitError'); return; }
       setPreview(parseServiceData(text, unit));
       setNotice(null);
@@ -77,8 +80,8 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
     </div>}
     <ProvenanceFields value={provenance} lang={lang} onChange={setProvenance} kindDisabled={!preview || preview.errors.length > 0} />
     <div className="ds-actions">
-      <button type="button" disabled={!candidate} onClick={() => {
-        if (applied.current) return;
+      <button type="button" disabled={reading || !candidate} onClick={() => {
+        if (reading || applied.current) return;
         if (!candidate) { setNotice('invalidModel'); return; }
         applied.current = true;
         reset();
