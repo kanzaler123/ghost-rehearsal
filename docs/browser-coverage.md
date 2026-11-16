@@ -23,9 +23,12 @@ WebKit results use `test-results/webkit/`, `test-results/webkit-results.json` an
 
 ## CI and failures
 
-The Chromium `build` job and the `webkit` job run independently. Pages deployment requires both to succeed. WebKit failures retain the same two output roots as the main job, with artifact name `browser-failure-webkit-<run-id>-<attempt>` for 14 days. This distinct name avoids collisions when both jobs fail. Open its HTML report from the extracted `playwright-report/webkit` directory. See [failure diagnostics](ci-diagnostics.md) for trace inspection and retention limits.
+The `build` release gate requires quality, both Chromium shards, Chromium touch, WebKit, Firefox, import-WebKit and comparison-WebKit checks to succeed before Pages can deploy. The WebKit release job uses `e2e/release/playwright.config.ts`; its artifact is `webkit-<run-id>-<attempt>` and its report is under `test-results/release-report`. See [failure diagnostics](ci-diagnostics.md) for all artifact paths and retention limits.
 
-## Current validation blocker
+## Historical validation failures
+
+The integrated application now includes a targeted React Flow size-publication patch.
+See the [resize investigation](../diagnostics/resize-observer/README.md) for its implementation and validation. The failures below describe the earlier PR #19 revisions.
 
 The first focused WebKit run (43761211358, candidate 7a23250) passed 26
 cases and failed 6 desktop cases with `ResizeObserver loop completed with
@@ -69,5 +72,5 @@ publication was deferred, versus 0/4 for extent-cache deferral and 1/4 native.
 An isolated real-Canvas fixture subsequently passed 4/4 native WebKit cases
 (43764559153) and 2/2 local Chromium cases, so it has **not** reproduced the
 complete application's failure. Both reproducible diagnostic entry points are
-saved in `diagnostics/resize-observer/README.md`. No production or dependency
-patch is included; PR #19 remains blocked pending a reliable root-cause fix.
+saved in `diagnostics/resize-observer/README.md`. At that handoff, no production or dependency
+patch was included and PR #19 remained blocked pending a reliable root-cause fix.
