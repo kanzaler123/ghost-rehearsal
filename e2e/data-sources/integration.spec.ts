@@ -86,7 +86,7 @@ test('arrival file import is staged, validates before outer Apply and round-trip
   expect(imported.plans).toEqual(original.plans);
   expect(imported.scenarios[0].arrivalStreams.slice(1)).toEqual(original.scenarios[0].arrivalStreams.slice(1));
   expect(imported.scenarios[0].arrivalStreams[0]).toMatchObject({ id: original.scenarios[0].arrivalStreams[0].id, kind: 'records', records: [{ id: 'fixture-1', arrivalTime: 0 }, { id: 'fixture-2', arrivalTime: 90 }], provenance: { kind: 'historical', source: 'Synthetic integration fixture', notes: 'Not real event observations' } });
-  await expect.poll(() => storedProject(page, 'draft').then(Boolean)).toBe(true);
+  await expect.poll(() => storedProject(page, 'draft').then(text => text ? JSON.parse(text) : null)).toEqual(imported);
   await page.reload();
   expect(await exportProject(page, t)).toEqual(imported);
   await page.locator('.workspace-menu > summary').click();
