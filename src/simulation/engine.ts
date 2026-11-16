@@ -1,6 +1,6 @@
 import { flattenSubflows, runRequestSchema, validateGraph, validateRunRequest } from '../schemas';
 import type { Edge, Node, Participant, ResourceRequirement, RunRequest, ServiceNode } from '../schemas';
-import { compareIds, generatePopulation, inputKey, keyedDraw, milliseconds as ms, MODEL_VERSION, populationSize, resourceUnits, sample, scenarioKey } from './input';
+import { compareIds, generatePopulation, inputKey, keyedDraw, milliseconds as ms, MODEL_VERSION, populationSize, prepareSampler, resourceUnits, sample, scenarioKey } from './input';
 import { calculateStatistics } from './metrics';
 import type { EventType, Outcome, SimulationEvent, SimulationRun, Unit } from './types';
 
@@ -63,6 +63,8 @@ export function simulate(request: RunRequest): SimulationRun {
   const { scenario } = request;
   const plan = flattenSubflows(request.plan);
   const nodes = [...plan.graph.nodes].sort((a, b) => compareIds(a.id, b.id));
+  const serviceSamplers = new Map(nodes.filter((node): node is ServiceNode => node.type === 'service')
+    .map(node => [node.id, prepareSampler(node.duration)]));
   const nodeMap = new Map(nodes.map(node => [node.id, node]));
   const out = new Map(nodes.map(node => [node.id, plan.graph.edges.filter(edge => edge.source === node.id)]));
   const state = new Map(nodes.map(node => [node.id, { queue: [], blocked: [], active: 0, draining: false } as NodeState]));
@@ -288,7 +290,7 @@ export function simulate(request: RunRequest): SimulationRun {
         if (!current.queue.length && !current.blocked.length) current.draining = false;
         const factors = scenario.assumptionOverrides.filter(override => override.kind === 'service_multiplier' && (!override.stageKey || override.stageKey === node.stageKey));
         const factor = factors.reduce((product, override) => product * (override.kind === 'service_multiplier' ? override.factor : 1), 1);
-        const duration = ms(sample(node.duration, draw(visitor, 'service', node.stageKey)) * factor);
+        const duration = ms(serviceSamplers.get(node.id)!(draw(visitor, 'service', node.stageKey)) * factor);
         schedule(now + duration, 1, visitor.person.id, () => {
           emit('SERVICE_COMPLETE', visitor.person.id, node.id, { resourceUnitIds });
           current.active--;
