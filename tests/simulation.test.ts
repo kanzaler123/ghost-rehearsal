@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import example from '../examples/open-house.json';
 import { projectDocumentSchema } from '../src/schemas';
 import type { RunRequest, ServiceNode } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 import { generatePopulation, inputKey, keyedDraw, scenarioKey } from '../src/simulation/input';
+import * as input from '../src/simulation/input';
 import { playbackAt } from '../src/simulation/metrics';
 
 function fixture(): RunRequest {
@@ -47,6 +48,48 @@ describe('离散事件仿真', () => {
     expect(playbackAt(run.events, reordered, 5)).toEqual(release);
     expect(playbackAt(run.events, request.plan, 40)).toEqual(final);
   });
+  it.each([0, 42, 4294967295])('matches the legacy sampler across complete recordings and statistics for seed %s', seed => {
+    const request = fixture();
+    request.scenario.seed = seed;
+    request.scenario.observationCutoff = 50;
+    request.scenario.assumptionOverrides = [{ kind: 'service_multiplier', factor: 1.25 }];
+    service(request).duration = { kind: 'empirical', samples: Array.from({ length: 10000 }, (_, index) => ((index * 7919) % 997) / 100 + 0.00049), provenance: { kind: 'measured' } };
+    request.plan.graph.nodes.push({ ...structuredClone(service(request)), id: 'second', stageKey: 'second',
+      duration: { kind: 'empirical', samples: [5.00049, 0, 2.0005, 2.0005], provenance: { kind: 'measured' } } });
+    request.plan.graph.edges[1].target = 'second';
+    request.plan.graph.edges.push({ id: 'second-out', source: 'second', target: 'exit' });
+    request.plan.graph.edges[0].transferDuration = { kind: 'uniform', min: 0, max: 2, provenance: { kind: 'synthetic' } };
+    const before = structuredClone(request), fingerprint = inputKey(request);
+    for (const runMode of ['cutoff', 'run_to_completion'] as const) {
+      const actual = simulate({ ...request, runMode });
+      expect(actual.status).toBe('succeeded');
+      expect(actual.events.some(event => event.type === 'SERVICE_COMPLETE' && event.nodeId === 'second')).toBe(true);
+      const legacy = vi.spyOn(input, 'prepareSampler').mockImplementation(duration => u => input.sample(duration, u));
+      try { expect(actual).toEqual(simulate({ ...request, runMode })); }
+      finally { legacy.mockRestore(); }
+    }
+    expect(request).toEqual(before);
+    expect(inputKey(request)).toBe(fingerprint);
+  });
+
+  it('rebuilds empirical snapshots for each run after in-place edits, replacement or an aborted run', () => {
+    const request = fixture(); request.runMode = 'run_to_completion';
+    const duration = { kind: 'empirical' as const, samples: [10, 10], provenance: { kind: 'measured' as const } };
+    service(request).duration = duration;
+    const first = simulate(request), fingerprint = first.inputKey;
+    expect(first.coveredUntil).toBe(30);
+    duration.samples.fill(20);
+    const edited = simulate(request);
+    expect(edited.coveredUntil).toBe(60);
+    expect(edited.inputKey).not.toBe(fingerprint);
+    expect(simulate({ ...request, maxEvents: 4 }).status).toBe('aborted');
+    duration.samples = [30];
+    const replaced = simulate(request);
+    expect(replaced.coveredUntil).toBe(90);
+    expect(replaced.inputKey).not.toBe(edited.inputKey);
+    expect(duration.samples).toEqual([30]);
+  });
+
   it('counts queues after all same-time events and reports passage at every node type', () => {
     const request = fixture();
     request.scenario.arrivalStreams = [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: [{ id: 'a', arrivalTime: 0, attributes: {} }] }];

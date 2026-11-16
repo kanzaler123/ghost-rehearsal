@@ -25,6 +25,13 @@ export function sample(duration: ServiceNode['duration'], u: number): number {
     : duration.max - Math.sqrt((1 - u) * (duration.max - duration.min) * (duration.max - duration.mode));
 }
 
+/** Prepare an empirical snapshot for one run; rebuild it after editing the samples. */
+export function prepareSampler(duration: ServiceNode['duration']): (u: number) => number {
+  if (duration.kind !== 'empirical') return u => sample(duration, u);
+  const samples = [...duration.samples].sort((a, b) => a - b);
+  return u => samples[Math.floor(u * samples.length)];
+}
+
 export function populationSize(scenario: Scenario): number {
   return scenario.arrivalStreams.reduce((sum, stream) => sum + (stream.kind === 'records' ? stream.records.length
     : stream.kind === 'bucketed' ? stream.buckets.reduce((count, bucket) => count + bucket.count, 0) : stream.count), 0);

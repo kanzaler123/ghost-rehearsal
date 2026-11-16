@@ -129,8 +129,7 @@ export interface PickGroup { key: string; total: number; items: Pick[] }
 const arrived = (stats: Statistics) => stats.visitors.filter(visitor => visitor.outcome !== 'not_arrived');
 
 /** Ghosts worth following in a single rehearsal. */
-export function rehearsePicks(run: SimulationRun, view: PlaybackState, time: number, size = 3): PickGroup[] {
-  const stats = run.statistics;
+export function rehearsePicks(run: SimulationRun, view: PlaybackState, time: number, size = 3, stats: Statistics | null = run.statistics): PickGroup[] {
   const groups: PickGroup[] = [];
   const queued = Object.values(view.nodes).flatMap(node => [...node.queued, ...node.blocked, ...node.holding])
     .map(id => ({ id, value: time - (view.visitors[id]?.time ?? time) })).sort((a, b) => b.value - a.value);

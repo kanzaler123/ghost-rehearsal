@@ -123,6 +123,68 @@ describe('ghost journeys', () => {
 });
 
 describe('story picks', () => {
+  it('uses the chosen historical boundary while keeping current queues at the replay time', () => {
+    const request = serviceFixture(3, 1);
+    request.runMode = 'run_to_completion'; request.scenario.observationCutoff = 15;
+    const run = simulate(request), view = playbackAt(run.events, request.plan, 5);
+    expect(run.coveredUntil).toBe(30);
+    expect(run.statistics!.visitors.map(visitor => visitor.waiting)).toEqual([0, 10, 15]);
+    expect(run.completion!.visitors.map(visitor => visitor.waiting)).toEqual([0, 10, 20]);
+    const cutoff = rehearsePicks(run, view, 5, 3, statisticsAt(run, 'cutoff'));
+    const final = rehearsePicks(run, view, 5, 3, statisticsAt(run, 'completion'));
+    expect(cutoff.find(group => group.key === 'longest')!.items).toEqual([
+      { id: 'guests:p2', value: 15 }, { id: 'guests:p1', value: 10 }, { id: 'guests:p0', value: 0 },
+    ]);
+    expect(final.find(group => group.key === 'longest')!.items).toEqual([
+      { id: 'guests:p2', value: 20 }, { id: 'guests:p1', value: 10 }, { id: 'guests:p0', value: 0 },
+    ]);
+    expect(cutoff.find(group => group.key === 'unfinished')).toMatchObject({ total: 2, items: [{ id: 'guests:p2', value: 15 }, { id: 'guests:p1', value: 10 }] });
+    expect(final.find(group => group.key === 'unfinished')).toBeUndefined();
+    const queued = { key: 'queuedNow', total: 2, items: [{ id: 'guests:p1', value: 5 }, { id: 'guests:p2', value: 5 }] };
+    expect(cutoff.find(group => group.key === 'queuedNow')).toEqual(queued);
+    expect(final.find(group => group.key === 'queuedNow')).toEqual(queued);
+    expect(rehearsePicks(run, view, 5)).toEqual(cutoff);
+    expect(rehearsePicks(run, view, 5, 1)).toEqual(cutoff.map(group => ({ ...group, items: group.items.slice(0, 1) })));
+    expect(rehearsePicks(run, view, 5, 1, run.completion)).toEqual(final.map(group => ({ ...group, items: group.items.slice(0, 1) })));
+    expect(rehearsePicks(run, playbackAt(run.events, request.plan, 25), 25, 3, run.statistics)).toEqual(cutoff.filter(group => group.key !== 'queuedNow'));
+  });
+
+  it('does not substitute cutoff stories for explicitly unavailable statistics', () => {
+    const request = serviceFixture(3, 1), run = simulate(request);
+    const view = playbackAt(run.events, request.plan, 5);
+    const queued = rehearsePicks(run, view, 5).filter(group => group.key === 'queuedNow');
+    expect(statisticsAt(run, 'completion')).toBeNull();
+    expect(rehearsePicks(run, view, 5, 3, statisticsAt(run, 'completion'))).toEqual(queued);
+    for (const status of ['failed', 'aborted'] as const) {
+      expect(rehearsePicks(run, view, 5, 3, statisticsAt({ ...run, status }, 'cutoff'))).toEqual(queued);
+    }
+    expect(rehearsePicks(run, playbackAt(run.events, request.plan, -1), -1, 3, null)).toEqual([]);
+  });
+
+  it('keeps unfinished stories at a final run limit and excludes guests who have not arrived', () => {
+    const request = serviceFixture(4, 1);
+    request.runMode = 'run_to_completion'; request.scenario.observationCutoff = 15; request.scenario.horizon = 25;
+    const stream = request.scenario.arrivalStreams[0];
+    if (stream.kind === 'records') stream.records[3].arrivalTime = 50;
+    const run = simulate(request);
+    expect(run.status).toBe('succeeded');
+    const picks = rehearsePicks(run, playbackAt(run.events, request.plan, 25), 25, 3, run.completion);
+    expect(picks.find(group => group.key === 'longest')).toMatchObject({ total: 3 });
+    expect(picks.find(group => group.key === 'unfinished')).toEqual({ key: 'unfinished', total: 1, items: [{ id: 'guests:p2', value: 20 }] });
+    expect(picks.flatMap(group => group.items).some(item => item.id === 'guests:p3')).toBe(false);
+  });
+
+  it('uses the chosen boundary for departures as well as waiting', () => {
+    const request = serviceFixture(3, 1);
+    request.runMode = 'run_to_completion'; request.scenario.observationCutoff = 5;
+    const node = request.plan.graph.nodes[1];
+    if (node.type === 'service') { node.openWindows = [{ openAt: 0, closeAt: 15, provenance: { kind: 'synthetic' } }]; node.closePolicy = { queued: { kind: 'dismiss' } }; }
+    const run = simulate(request), view = playbackAt(run.events, request.plan, 5);
+    expect(run.status).toBe('succeeded');
+    expect(rehearsePicks(run, view, 5, 3, run.statistics).find(group => group.key === 'left')).toBeUndefined();
+    expect(rehearsePicks(run, view, 5, 3, run.completion).find(group => group.key === 'left')).toEqual({ key: 'left', total: 1, items: [{ id: 'guests:p2', value: 15 }] });
+  });
+
   it('offers ghosts who finished only in B, sorted by the time they saved', () => {
     const picks = comparePicks(statsA, statsB);
     const rescued = picks.find(group => group.key === 'rescued')!;
