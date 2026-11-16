@@ -1,41 +1,11 @@
 import type { Participant, Plan, Scenario } from '../schemas';
 import { compareIds, milliseconds, resourceUnits } from './input';
-import type { NodeMetrics, Outcome, PlaybackState, SimulationEvent, Statistics, VisitorMetrics } from './types';
+import type { NodeMetrics, Outcome, SimulationEvent, Statistics, VisitorMetrics } from './types';
+import { applyEvent, nodeTypesOf, playbackAt } from './playback';
+
+export { playbackAt } from './playback';
 
 const waitingTypes = new Set(['QUEUE_ENTER', 'QUEUE_BLOCKED', 'HOLD_ENTER']);
-const stateField = (type: string): 'queued' | 'blocked' | 'holding' | 'serving' | null => ({ QUEUE_ENTER: 'queued', QUEUE_BLOCKED: 'blocked', HOLD_ENTER: 'holding', SERVICE_START: 'serving' }[type] as 'queued' | 'blocked' | 'holding' | 'serving' | undefined) ?? null;
-
-const nodeTypesOf = (plan: Plan) => new Map(plan.graph.nodes.map(node => [node.id, node.type]));
-
-function applyEvent(view: PlaybackState, event: SimulationEvent, nodeTypes: ReadonlyMap<string, Plan['graph']['nodes'][number]['type']>) {
-  if (!event.participantId || event.type === 'RUN_WARNING') return;
-  const previous = view.visitors[event.participantId];
-  const previousField = previous && stateField(previous.type);
-  if (previousField && previous.nodeId && view.nodes[previous.nodeId]) {
-    view.nodes[previous.nodeId][previousField] = view.nodes[previous.nodeId][previousField].filter(id => id !== event.participantId);
-  }
-  const nextField = stateField(event.type);
-  if (nextField && event.nodeId) view.nodes[event.nodeId]?.[nextField].push(event.participantId);
-  if (event.nodeId) {
-    const type = nodeTypes.get(event.nodeId);
-    const passed = type === 'service' ? event.type === 'SERVICE_COMPLETE'
-      : type === 'waiting_area' ? event.type === 'HOLD_RELEASE'
-        : type === 'exit' ? event.type === 'VISITOR_COMPLETE' || event.type === 'VISITOR_LEAVE'
-          : event.type === 'ROUTE_TRANSITION';
-    if (passed) view.nodes[event.nodeId].completed++;
-  }
-  view.visitors[event.participantId] = event;
-}
-
-export function playbackAt(events: SimulationEvent[], plan: Plan, time: number): PlaybackState {
-  const view: PlaybackState = { visitors: {}, nodes: Object.fromEntries(plan.graph.nodes.map(node => [node.id, { queued: [], blocked: [], holding: [], serving: [], completed: 0 }])) };
-  const nodeTypes = nodeTypesOf(plan);
-  for (const event of events) {
-    if (event.time > time) break;
-    applyEvent(view, event, nodeTypes);
-  }
-  return view;
-}
 
 export function calculateStatistics(population: Participant[], events: SimulationEvent[], plan: Plan, scenario: Scenario, until: number): Statistics {
   const included = events.filter(event => event.time <= until);
