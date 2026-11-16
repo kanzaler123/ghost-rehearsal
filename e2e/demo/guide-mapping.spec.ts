@@ -36,3 +36,30 @@ test('guide explains B/C pane mapping without opening More', async ({ page }, in
   await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText('A 43 → B 41');
   expect(errors).toEqual([]);
 });
+
+
+test('mapping follows actual mode and sidebar comparison identities', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  const t = await openExample(page, info);
+  const guide = await compareExample(page, t);
+  for (const step of [0, 1, 2, 3]) await guide.getByRole('button', { name: t.guide.actions[step], exact: true }).click();
+  const mapping = guide.getByRole('note');
+  await expect(mapping).toHaveText(t.guide.mapping);
+  await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
+  await expect(mapping).toHaveCount(0);
+  await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+  await expect(mapping).toHaveText(t.guide.mapping);
+  if (!await page.locator('.plan-list').isVisible()) await page.getByRole('button', { name: t.navigator.plans, exact: true }).click();
+  const original = page.locator('.plan-card').filter({ has: page.locator('.plan-main') }).first();
+  const originalName = await original.locator('.plan-main').getAttribute('aria-label');
+  await original.locator('summary').click();
+  const choose = original.getByRole('button', { name: `${t.sidebar.setB}: ${originalName}`, exact: true });
+  await choose.focus();
+  await expect(choose).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.comparison-identities > span').nth(1)).toHaveText(`B · ${originalName}`);
+  await expect(mapping).toHaveCount(0);
+  await expect(guide.getByText(t.guide.mapping, { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

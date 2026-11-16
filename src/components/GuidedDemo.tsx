@@ -3,8 +3,8 @@ import { useI18n } from '../i18n';
 
 export interface DemoProgress { step: number; a: string; b: string; c?: string; visitor?: string; exported?: boolean }
 
-export function GuidedDemo({ progress, ready, busy, onNext, onReset, onRerun, onExit, onPacking, onResources, onExportProject }: {
-  progress: DemoProgress; ready: boolean; busy: boolean; onNext: () => void; onReset: () => void; onRerun: () => void; onExit: () => void;
+export function GuidedDemo({ progress, showPlanMapping, ready, busy, onNext, onReset, onRerun, onExit, onPacking, onResources, onExportProject }: {
+  progress: DemoProgress; showPlanMapping: boolean; ready: boolean; busy: boolean; onNext: () => void; onReset: () => void; onRerun: () => void; onExit: () => void;
   onPacking: () => void; onResources: () => void; onExportProject: () => void;
 }) {
   const { t } = useI18n();
@@ -24,7 +24,7 @@ export function GuidedDemo({ progress, ready, busy, onNext, onReset, onRerun, on
       </div></details>
       <button type="button" className="text-btn" disabled={busy} onClick={onExit}>{g.exit}</button>
     </div>
-    {progress.step >= 4 && <p className="guide-plan-mapping" role="note">{g.mapping}</p>}
+    {progress.step >= 4 && showPlanMapping && <p className="guide-plan-mapping" role="note">{g.mapping}</p>}
     {progress.step === 5 && <p id={exportHint}>{g.exportProjectHint}</p>}
     {progress.exported && <p role="status">{g.exported}</p>}
     {!ready && !busy && <p role="status">{g.needRun}</p>}
