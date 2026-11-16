@@ -8,6 +8,12 @@
 - 实际工具贡献：Codex 编写、审查、执行本地验证并读取 GitHub 历史日志；没有使用 Kiro，不计为 Kiro 工作。
 - **交付性质：发布阻塞机制和测试已实现；产品兼容性仍须通过全部检查。失败不通过跳过、重试、过滤错误或修改产品代码消除。真实 Safari 尚未验证。**
 
+| 交付项 | 状态 |
+| --- | --- |
+| 显式浏览器/构建依赖、异常跳过与取消阻塞、诊断产物 | 本分支工作流已接入；main 尚未合并本分支，生产发布工作流尚未改变 |
+| WebKit 核心、Firefox 冒烟、触摸契约 | 测试模块已完成并实际运行；最终改版 UI 的选择器适配和完整验收待统一集成 |
+| 导出菜单、ResizeObserver、键盘焦点等产品问题 | 仍未解决，提供复现与候选位置，失败保持阻塞 |
+
 ## 历史失败核对
 
 以下是指定草稿提交的证据，不代表当前 main 必现：
@@ -77,7 +83,7 @@ flowchart LR
 
 ## 实际执行命令与结果
 
-环境：Windows、Node 24.18.0，现有依赖离线安装成功。浏览器二进制为本机 Playwright 安装；Linux 结果必须单独记录，不能把 Windows 结果冒充 Linux。
+环境：Windows、Node 24.18.0，现有依赖离线安装成功。最终 runtime-evidence 报告 Chromium 159.0.8154.6、Firefox 159.0、WebKit 27.2，platform 均为 win32。浏览器二进制为本机 Playwright 安装；Linux 结果必须单独记录，不能把 Windows 结果冒充 Linux。
 
 ```powershell
 npm ci --offline
@@ -106,9 +112,17 @@ npx playwright test --config e2e/comparison/playwright.config.ts
 
 ### main 产品上的本地发现（未修改产品）
 
-1. **Windows WebKit 导出菜单未打开 dialog**：新建活动或欢迎页导入 example → 原生点击/触摸“更多” → “导出” → 等待 dialog，10 秒后仍无 dialog。桌面英文与触摸中文均出现，Firefox 创建/保存流程可通过。相关位置 `src/components/shell/ContextMenu.tsx:8`（blur 时关闭 details）、`:10`（点击后关闭并还焦点）；`src/app/App.tsx` 的 export dialog 入口。建议集成者结合 trace 核实 pointer/focus/blur/click 时序，避免在内部激活尚未完成时关闭菜单；这里只是待验证原因，未修改 UI、未强制 click 或用键盘替代失败路径。
+1. **Windows WebKit 导出菜单未打开 dialog**：新建活动或欢迎页导入 example → 原生点击/触摸“更多” → “导出” → 等待 dialog，10 秒后仍无 dialog。桌面英文与触摸中文均出现，Firefox 创建/保存流程可通过。相关位置 `src/components/shell/ContextMenu.tsx:8`（blur 时关闭 details）、`:10`（点击后关闭并还焦点）；`src/app/App.tsx:631` 的入口和 `:852` 的 dialog。建议集成者结合 trace 核实 pointer/focus/blur/click 时序，避免在内部激活尚未完成时关闭菜单；这里只是待验证原因，未修改 UI、未强制 click 或用键盘替代失败路径。
 2. **Windows 移动 WebKit 重试流程捕获 ResizeObserver pageerror**：选择示例 → 阻断 Worker 加载 → 出现失败 → 解除阻断并重试；业务按钮/时间轴流程完成，但 trace 有 `ResizeObserver loop completed with undelivered notifications.`，错误断言保持失败。这说明 f837 的这个环境/路径可复现该错误，不意味着 PR #19 的 7 个路径都已复现。相关候选区域是 Canvas/ReactFlow 容器尺寸、失败状态和回放布局切换；需定位真正 observer 回路后修复，不能忽略 window error。
-3. **PR #32 焦点问题**：本地键盘测试已执行到 Enter 搜索框聚焦、Escape 还焦点；不是全平台证明。候选相关位置 `src/components/Canvas.tsx:417` 的 `onMoveStart` 无条件 `setMenu(null)`，应由 UI 集成检查自动视口移动是否不应关闭用户菜单，以及卸载后的焦点去向。当前没有把历史 candidate 的失败标为 main 必现。
+3. **Windows Firefox 添加节点键盘焦点不稳定**：最终测试在欢迎页选择示例 → focus 添加节点按钮 → 原生 Enter → 搜索框未获得焦点，dialog 已消失；等待 10 秒仍找不到。开发轮曾通过，最终 28d4bea 轮失败，不能用前一轮的通过解除阻塞。这是 f837 产品代码的本机 Firefox 新证据，不能与 PR #32 Linux candidate 的失败频率混用。候选相关位置 `src/components/Canvas.tsx:417` 的 `onMoveStart` 无条件 `setMenu(null)`，以及 `:341–348` 自动视口定位；建议记录自动移动的空 event 与用户移动，检查是否只有用户发起的移动才应关闭菜单，并验证卸载后的焦点去向。根因尚未确认，未修改 Canvas。
+
+供集成者定位的单例命令（不替代完整门槛）：
+
+```sh
+npx playwright test --config e2e/release/playwright.config.ts --project=desktop-webkit-en --grep='create an event'
+npx playwright test --config e2e/release/playwright.config.ts --project=mobile-webkit-zh --grep='Worker loading failure'
+npx playwright test --config e2e/release/playwright.config.ts --project=desktop-firefox-en --grep='native keyboard'
+```
 
 ## 集成后的最终验收清单
 
@@ -122,4 +136,36 @@ npx playwright test --config e2e/comparison/playwright.config.ts
 
 ## 最终执行记录
 
-待本分支 GitHub Linux run 完成后补充 job 链接和结果。当前状态为验证中、发布阻塞；没有合并、部署或修改/关闭 PR #19、#32。
+代码提交：`28d4beacadd211a3a3ce1f312e7b3b99b6ce40ac`；[Draft PR #37](https://github.com/kanzaler123/ghost-rehearsal/pull/37)。
+
+本机最终关键流程命令于 2026-11-16 11:15:00 UTC 开始，188.4 秒，**10 通过 / 6 失败 / 0 跳过 / 0 重试，退出码 1**：
+
+| 项目 | 通过 / 失败 | 未通过流程 |
+| --- | --- | --- |
+| desktop-firefox-en | 3 / 1 | 添加节点键盘焦点 |
+| desktop-webkit-en | 2 / 2 | 新建参数编辑保存重开、打开运行比较导出重开，均在首次导出 dialog 处阻断；后续步骤不能算已验证 |
+| mobile-webkit-zh（触摸） | 1 / 3 | 上述两个导出流程；Worker 失败后重试流程捕获 ResizeObserver |
+| mobile-touch-en（Chromium 触摸） | 4 / 0 | 无；仅这 4 项，不替代完整 Chromium 套件 |
+
+本地证据保留于该独立工作树的 `test-results/release-results.json`、`test-results/release-report/index.html` 和 `test-results/release/*/trace.zip` / `error-context.md` / `test-failed-1.png`；未将大二进制提交到仓库。
+
+Linux [run 43856209079](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079)，同一代码提交，`pull_request` 事件，最终 **failure**：
+
+| job / 日志 | 结果 |
+| --- | --- |
+| [quality](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133260997253) | 成功：类型检查、463 单元、37 门槛、生产构建 |
+| [chromium (1)](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330787) | 148 通过、2 个原有可选截图跳过 |
+| [chromium (2)](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330707) | 148 通过、2 个原有可选截图跳过 |
+| [chromium-touch](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330590) | 12/12 通过 |
+| [webkit](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330539) | 64/64 通过，5.0 分钟 |
+| [firefox](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330759) | 6 通过、2 失败；中英文 `native keyboard opens the add-node menu and Escape returns focus` 均在搜索框焦点断言失败，dialog 不存在 |
+| [import-webkit](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330694) | 144/144 通过，保留 repeat-each=3，6.2 分钟 |
+| [comparison-webkit](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133261330614) | 24/24 通过 |
+| [build 聚合门槛](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133265217938) | 失败，实际错误 `Required job firefox: failure`，退出码 1 |
+| [deploy](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43856209079/job/133265288943) | skipped，没有发布 |
+
+8 份诊断 artifact 均实际上传、未过期，保留到 2026-11-30；失败 Firefox artifact 为 `firefox-43856209079-1`（ID `14219309870`，含日志、HTML/JSON、截图和 trace），可从上述 run 下载。其他 artifact 按稳定 job 名加 run/attempt/shard 命名。实际验证了失败会阻塞；取消/缺失/意外跳过由 37 项门槛测试及依赖条件覆盖，没有宣称进行过真实取消发布演练。
+
+与历史证据的区别：PR #19 的比较、robustness、smoke 对应范围在本轮 Linux 覆盖中通过，未重现那一轮的 7 个失败，不能宣称旧草稿的错误永远消失。PR #32 的历史 focus-control 中 main 6/6 通过仍是该次实验事实；本次独立的新 Firefox 键盘测试在 f837 产品代码上中英文都失败，必须作为当前阻塞。Windows WebKit 的导出/ResizeObserver 在本轮 Linux 关键流程中未复现，仍保留 Windows 风险和真实 Safari 待验收项。
+
+代码与门槛已完成可独立验证的交付；**Firefox 键盘核心流程仍未通过，整体验收与发布继续阻塞**。后续文档提交仅补证据，不改变上述已测试代码；文档提交可能自动触发新的 CI，不能把本记录冒充未完成的新 run 结果。没有合并、部署或修改/关闭 PR #19、#32。
