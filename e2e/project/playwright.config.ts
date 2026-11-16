@@ -5,7 +5,7 @@ const server = base.webServer;
 if (!server || Array.isArray(server)) throw new Error('Project import tests require the production preview server.');
 export default defineConfig({
   ...base,
-  testDir: '..', testMatch: ['**/smoke.spec.ts', '**/project/import.spec.ts', '**/ui/route-keyboard.spec.ts'],
+  testDir: '..', testMatch: ['**/smoke.spec.ts', '**/project/import.spec.ts', '**/ui/route-keyboard.spec.ts', '**/ui/welcome.spec.ts'],
   projects: base.projects!.map(project => ({
     ...project,
     name: project.name!.replace('-', '-webkit-'),

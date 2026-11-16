@@ -418,6 +418,8 @@ export function App() {
     launch([second, target], 'Compare', next);
   }
   function startGuide() {
+    projectRead.current += 1;
+    setProjectReadFailed(false);
     const next = addEvent(project, localizeDocument(initialDocument(), 'zh', lang));
     const [a, b] = next.plans.slice(-2);
     commit(next); setPlanId(a.id); setSecondId(b.id); setGuide({ step: 0, a: a.id, b: b.id });
@@ -856,6 +858,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {(dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
+    {(dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onGuide={dialog === 'welcome' ? startGuide : undefined} onImport={() => fileInput.current?.click()} />}
   </div>;
 }
