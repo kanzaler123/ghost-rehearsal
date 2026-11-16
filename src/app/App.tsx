@@ -226,6 +226,7 @@ export function App() {
   }
   async function importProject(file: File) {
     const request = ++projectRead.current;
+    const importDialog = dialog;
     setProjectReadFailed(false);
     setIssuePage(0);
     const client = projectImporter.current!;
@@ -248,7 +249,12 @@ export function App() {
       setPlanId(result.document.plans[0].id);
       setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id });
       setSecondId(result.document.plans[1]?.id ?? ''); setRuns(createRunResults()); setMode('Build');
-      setPlaying(false); setTime(0); setDialog(null); say(tr => tr.notices.imported);
+      setPlaying(false); setTime(0);
+      // Editors hold drafts of the replaced document, even when its IDs match.
+      // Keep only dialogs independent of that document; an owned entry still closes.
+      setDialog(current => current === 'export' || current === 'about'
+        || ((current === 'welcome' || current === 'new') && current !== importDialog) ? current : null);
+      say(tr => tr.notices.imported);
     }
   }
   function changePlan(next: Plan) { commit({ ...project, plans: project.plans.map(item => item.id === next.id ? next : item) }); }
