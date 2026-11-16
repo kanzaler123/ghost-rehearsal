@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore, useStoreApi } from '@xyflow/react';
 import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, ChevronsDownUp, Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
@@ -175,7 +175,13 @@ function StageFrame({ data }: NodeProps<FrameNode>) {
   </div>;
 }
 
-const nodeTypes = { workflow: FlowCard, stage: StageCard, frame: StageFrame };
+// NodeWrapper also changes measurement/position props that these cards do not
+// consume. Keep those updates from rendering the same card subtree again.
+const nodeTypes = {
+  workflow: memo(FlowCard, (a, b) => a.data === b.data && a.selected === b.selected),
+  stage: memo(StageCard, (a, b) => a.data === b.data && a.selected === b.selected),
+  frame: memo(StageFrame, (a, b) => a.data === b.data),
+};
 /** Frames get their own React Flow ID so a stage switching between frame and card never reuses stale handle data. */
 const frameId = (id: string) => `frame:${id}`;
 
@@ -214,6 +220,7 @@ function CanvasInner(props: Props) {
   const { plan, view, previous } = props;
   const { t } = useI18n();
   const api = useReactFlow<AnyNode>();
+  const store = useStoreApi<AnyNode>();
   const shell = useRef<HTMLDivElement>(null);
   const menuTrigger = useRef<HTMLElement | null>(null);
   const zoom = useStore(store => store.transform[2]);
@@ -280,6 +287,10 @@ function CanvasInner(props: Props) {
     });
     setNodeState({ source: mapped, planId: plan.id, selected: props.selected, nodes: flowNodes });
   }
+  // Publish the controlled nodes before resize observation. React Flow's prop
+  // bridge otherwise waits for a passive effect, retaining the old card sizes.
+  // The store action avoids the onNodesChange round-trip of instance.setNodes().
+  useLayoutEffect(() => { store.getState().setNodes(flowNodes); }, [store, flowNodes]);
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------
