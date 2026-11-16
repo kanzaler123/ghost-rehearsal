@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Connection } from '@xyflow/react';
 import {
@@ -359,7 +360,7 @@ export function App() {
     worker.current?.terminate();
     const active = new Worker(new URL('../simulation/worker.ts', import.meta.url), { type: 'module' });
     worker.current = active;
-    active.onmessage = (event: MessageEvent<{ runs?: SimulationRun[]; error?: string }>) => {
+    active.onmessage = (event: MessageEvent<{ runs?: SimulationRun[]; error?: string }>) => flushSync(() => {
       setBusy(false); active.terminate(); worker.current = null;
       if (event.data.error || !event.data.runs) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const error = event.data.error; say(tr => tr.notices.runFailed(error ? errorText(error, tr.lang) : tr.notices.noResult)); return; }
       const results = event.data.runs;
@@ -370,7 +371,7 @@ export function App() {
       if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
       const people = results[0].population.length; const total = results.reduce((sum, result) => sum + result.events.length, 0);
       say(results.some(result => result.status === 'aborted') ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
-    };
+    });
     active.onerror = () => { setBusy(false); setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); worker.current = null; say(tr => tr.notices.workerFailed); active.terminate(); };
     active.postMessage({ requests: targets.map(target => ({ ...requestFor(target, document), runMode: scope })) });
   }
