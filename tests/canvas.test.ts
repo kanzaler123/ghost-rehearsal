@@ -68,6 +68,7 @@ const hooks = vi.hoisted(() => {
 
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
+  useCallback: (callback: (...args: any[]) => unknown, deps: readonly unknown[]) => hooks.useMemo(() => callback, deps),
   useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect, useLayoutEffect: hooks.useEffect,
   useContext: () => hooks.context,
 }));
@@ -232,6 +233,21 @@ describe('read-only Full map', () => {
 
 
 describe('canvas data and interaction reconciliation', () => {
+  it('keeps ghost handlers stable while calling the latest committed visitor action', () => {
+    const first = vi.fn(), latest = vi.fn();
+    props = { ...props, chooseVisitor: first }; mount();
+    const handler = flow().nodes.find((node: any) => node.type === 'workflow').data.chooseVisitor;
+    handler('visitor-before');
+    expect(first).toHaveBeenCalledWith('visitor-before');
+    props = { ...props, chooseVisitor: latest }; render();
+    expect(flow().nodes.find((node: any) => node.type === 'workflow').data.chooseVisitor).toBe(handler);
+    handler('visitor-after');
+    expect(latest).toHaveBeenCalledWith('visitor-after');
+    expect(first).toHaveBeenCalledTimes(1);
+    flow().edges[0].data.chooseVisitor('visitor-on-route');
+    expect(latest).toHaveBeenCalledWith('visitor-on-route');
+  });
+
   it('updates node content while retaining an active drag, measured size and multi-selection', () => {
     mount();
     const ids = flow().nodes.filter((node: any) => node.type === 'workflow').slice(0, 2).map((node: any) => node.id);
