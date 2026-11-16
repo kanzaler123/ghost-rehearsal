@@ -426,7 +426,7 @@ function CanvasInner(props: Props) {
       selectionOnDrag={!panMode && props.editable} selectionKeyCode={panMode ? null : 'Shift'} multiSelectionKeyCode={['Control', 'Meta', 'Shift']}>
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} color="color-mix(in srgb, var(--line-2) 22%, transparent)" />
       <Controls showInteractive={false} showFitView={false} onZoomIn={userMove} onZoomOut={userMove} position={props.compact ? 'bottom-right' : 'bottom-left'} orientation={props.compact ? 'horizontal' : 'vertical'} />
-      {!props.compact && <MiniMap position="bottom-right" pannable zoomable nodeBorderRadius={6}
+      {!props.compact && plan.graph.nodes.length > 0 && <MiniMap position="bottom-right" pannable zoomable nodeBorderRadius={6}
         nodeColor={node => `color-mix(in srgb, ${node.type === 'frame' || node.type === 'stage' ? 'var(--tone-neutral)' : TYPE_COLORS[(node.data as CardData).node.type]} 25%, transparent)`}
         nodeStrokeColor={node => node.type === 'frame' || node.type === 'stage' ? 'var(--line-2)' : TYPE_COLORS[(node.data as CardData).node.type]} nodeStrokeWidth={2} maskColor="color-mix(in srgb, var(--surface-0) 72%, transparent)" />}
     </ReactFlow>

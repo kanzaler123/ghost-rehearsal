@@ -108,7 +108,7 @@ fieldset:disabled { opacity: 0.82; }
 .haunt { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
 .haunt-moon {
   position: absolute; top: var(--radius-xl); right: var(--haunt-moon-right); width: var(--haunt-moon-width); height: var(--haunt-moon-height); border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, var(--tone-wait), var(--brand) 72%, var(--brand));
+  background: radial-gradient(circle at 65% 28%, color-mix(in srgb, var(--line-2) 45%, transparent) 7%, transparent 8%), radial-gradient(circle at 35% 65%, color-mix(in srgb, var(--line-2) 40%, transparent) 12%, transparent 13%), radial-gradient(circle at 32% 30%, var(--text-secondary), var(--text-muted) 65%, var(--line-2));
   box-shadow: var(--elev-1);
   opacity: 0.32;
 }
@@ -117,10 +117,11 @@ fieldset:disabled { opacity: 0.82; }
   background: radial-gradient(circle, color-mix(in srgb, var(--tone-track) 4%, transparent), transparent 65%);
 }
 .is-running .haunt-moon { opacity: 0.18; }
-.haunt-bat { position: absolute; color: var(--surface-2); opacity: 0.95; animation: none; }
+.haunt-bat { position: absolute; color: var(--bg-0); opacity: 0.95; animation: none; }
 .haunt-bat path { transform-box: fill-box; transform-origin: center; animation: none; }
-.bat-1, .bat-3 { display: none; }
-.bat-2 { width: var(--bat-width); top: var(--control-lg); right: var(--bat-right); opacity: 0.5; animation-duration: var(--dur-loop); animation-delay: var(--dur-fast); }
+.bat-1 { width: var(--control-lg); top: var(--space-8); right: var(--space-11); transform: rotate(-12deg); }
+.bat-2 { width: var(--control-sm); top: var(--space-11); right: var(--space-9); transform: rotate(10deg); }
+.bat-3 { width: var(--space-5); top: var(--space-12); right: var(--space-12); transform: rotate(-8deg); }
 .bat-2 path { animation-duration: var(--dur-loop); }
 .is-running .haunt-bat { display: none; }
 .haunt-web { position: absolute; top: 0; left: 0; width: var(--haunt-web-width); height: var(--haunt-web-height); color: var(--text-muted); opacity: 0.09; }
@@ -155,9 +156,9 @@ fieldset:disabled { opacity: 0.82; }
   --xy-connectionline-stroke-width: 2;
   --xy-handle-background-color: var(--surface-0);
   --xy-handle-border-color: var(--tone-serve);
-  --xy-minimap-background-color: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  --xy-minimap-background-color: var(--surface-0);
   --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg-0) 62%, transparent);
-  --xy-minimap-mask-stroke-color: color-mix(in srgb, var(--tone-diff) 50%, transparent);
+  --xy-minimap-mask-stroke-color: var(--line-2);
   --xy-minimap-mask-stroke-width: 1;
   --xy-controls-button-background-color: var(--surface-2);
   --xy-controls-button-background-color-hover: var(--hover-bg);
@@ -187,7 +188,7 @@ fieldset:disabled { opacity: 0.82; }
 .canvas-node-choices button b { font-size: var(--fs-sm); }
 .canvas-node-choices button small { color: var(--text-3); font-size: var(--fs-xs); }
 .canvas-menu .canvas-menu-fit { border-top: var(--stroke) solid var(--line); margin-top: var(--space-2); border-radius: 0; font-size: var(--fs-sm); }
-.react-flow__minimap { border-radius: var(--radius-lg); overflow: hidden; border: var(--stroke) solid var(--line-2); box-shadow: none; }
+.react-flow__minimap { bottom: var(--space-6); border-radius: var(--radius-sm); overflow: hidden; border: var(--stroke) solid var(--line); box-shadow: none; }
 .react-flow__minimap svg { display: block; width: var(--react-flow-minimap-svg-width); height: var(--react-flow-minimap-svg-height); }
 .react-flow__attribution { font-size: var(--fs-xs); padding: var(--space-1) var(--space-2); }
 .react-flow__attribution a { color: var(--text-3) !important; }
@@ -694,8 +695,8 @@ fieldset:disabled { opacity: 0.82; }
 .haunt.is-quiet { opacity: var(--haunt-quiet); mask-image: radial-gradient(ellipse at center, transparent 15%, black 90%); }
 .entry-atmosphere { position: fixed; inset: 0; pointer-events: none; z-index: 99; }
 .entry-atmosphere .haunt-moon, .canvas-shell:has(.canvas-empty) .haunt-moon { opacity: 0.85; }
-.entry-atmosphere .haunt-bat, .entry-atmosphere .haunt-web { opacity: 0.55; }
-.entry-atmosphere .haunt-pumpkins, .haunt:not(.is-quiet) .haunt-pumpkins { display: flex; position: absolute; right: var(--space-7); bottom: var(--space-7); opacity: 0.8; color: var(--tone-wait); }
+.entry-atmosphere .haunt-web { opacity: 0.55; }
+.entry-atmosphere .haunt-pumpkins { display: flex; position: absolute; right: var(--space-7); bottom: var(--space-7); opacity: 0.8; color: var(--tone-wait); }
 .event-setup { display: flex; flex-direction: column; }
 .modal:has(.welcome-layout) { width: var(--welcome-width); }
 .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: var(--space-10); padding: var(--space-8); }

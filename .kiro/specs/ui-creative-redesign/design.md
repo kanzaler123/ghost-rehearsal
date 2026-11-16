@@ -45,7 +45,7 @@ Primary style is the filled `.primary` button; `.run` is primary only for idle B
 
 ## Visual system
 
-Near-black green stage surfaces, warm ivory text, amber brand, mint A and lilac B. Plan identities always include letters and names. Warm coral indicates adverse outcomes; yellow is observed waiting, blue service, rose blocked, pale blue completed, taupe early departure. Observed crowding means a recorded waiting count greater than 10, never a causal diagnosis.
+Neutral black and charcoal stage surfaces (`#0d0d0d`, `#151515`, `#202020`), neutral white/grey text, amber brand, mint A and lilac B. Plan identities always include letters and names. Warm coral indicates adverse outcomes; yellow is observed waiting, blue service, rose blocked, pale blue completed, taupe early departure. Observed crowding means a recorded waiting count greater than 10, never a causal diagnosis. The decorative moon is grey with three existing vector bat silhouettes; it is independent of simulation state.
 
 Inter is the control font, Fraunces the display face and JetBrains Mono the numeric face; all are already bundled. Type scale: 12, 13, 14, 16, 20, 24, 32, 40, 56 px. Spacing: 2, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80 px. Radius: 4, 8, 12, 20, 999 px. Five elevations including none; six durations at most (1, 120, 180, 300, 500, 1600 ms); standard and decelerating easing. Literal-value token names are replaced with semantic roles. Geometry dimensions remain explicit semantic tokens to preserve flow sizing. Lucide plus the existing Ghost glyph are the only icon families.
 

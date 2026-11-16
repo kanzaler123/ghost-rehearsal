@@ -77,6 +77,7 @@
   .mode-switch button { flex: 1; justify-content: center; }
   .command-group { margin-left: auto; }
   .file-group { border-left: 0; padding-left: 0; }
+  .event-picker .event-switcher { flex-basis: var(--touch-min); width: var(--touch-min); height: var(--touch-min); }
   .workspace { flex-direction: column; }
   .sidebar { width: 100%; border-right: 0; border-bottom: var(--stroke) solid var(--line); display: grid; grid-template-columns: 1fr 1fr; overflow: visible; }
   .side-section { border-right: var(--stroke) solid var(--line); }

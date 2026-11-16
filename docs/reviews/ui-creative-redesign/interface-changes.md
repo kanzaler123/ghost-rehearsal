@@ -22,6 +22,8 @@ No exported function was removed, renamed or moved. No App state, reducer, ref o
 | Canvas legend | Static text, hidden on narrow screens | Keyboard-operable disclosure in replay controls; completed and early departure are separate; existing legend name retained |
 | Welcome language | Header behind modal | Language controls additionally available inside welcome; same EN/中文 labels |
 | Create / demo / import | EventCreator setup form and its secondary buttons | Same controls, names and data effects; welcome groups the form beside an introduction |
+| Activity name | Name shown inside the native **Active event / 当前活动** select | The visible name is now a button opening existing **Event settings / 活动设置**. An adjacent native select retains the original accessible name, values and switching action. |
+| Current plan in Build | Clicking the selected plan repeated selection; rename available in its menu | Clicking the selected card now opens existing **Rename plan / 重命名方案**. Other cards still select plans; Rehearse/Compare selection is unchanged. |
 
 Existing roles are retained except the static legend becomes native `details`/`summary` with a note inside. No baseline test locator was removed. Theme tests update only the selected surface RGB values. `tests/ui-shell.test.ts` supplies the new display prop; `tests/canvas.test.ts` supplies the newly consumed population on its partial run fixture; no assertion is weakened. The six-result equivalence test is additional.
 
