@@ -110,14 +110,13 @@
   .ghost-stories { border-right: 0; padding-right: 0; }
   .ghost-card { flex-wrap: wrap; }
   /* Narrow comparisons have one primary reading surface at a time. */
-  .mode-compare { height: 100dvh; min-height: 0; overflow: hidden; }
+  .mode-compare { height: auto; min-height: 100dvh; overflow: visible; }
   .mobile-compare-nav { display: flex; gap: var(--space-2); padding: var(--space-3) var(--space-4); flex-shrink: 0; border-bottom: var(--stroke) solid var(--line); background: var(--bg-1); }
   .mobile-compare-nav button { flex: 1; min-height: var(--mobile-compare-nav-button-min-height); padding: var(--space-2) var(--space-3); border: var(--stroke) solid transparent; border-radius: var(--radius-md); background: transparent; color: var(--text-2); font-size: var(--fs-sm); }
   .mobile-compare-nav button[aria-pressed=true] { color: var(--text-0); background: var(--hover-bg); border-color: var(--line-2); }
-  .mode-compare .workspace { display: block; overflow-y: auto; min-height: 0; }
-  .mode-compare:has(.guided-demo) { height: auto; min-height: 100dvh; overflow: visible; }
-  .mode-compare:has(.guided-demo) .workspace { flex: none; overflow: visible; }
+  .mode-compare .workspace { display: block; flex: none; overflow: visible; min-height: 0; }
   .mode-compare .sidebar, .mode-compare.focus-person .sidebar.is-report { width: 100%; max-height: none; overflow: visible; }
+  .mode-compare .report-toolbar > .text-btn { white-space: normal; }
   .mode-compare .comparison-focus { display: none; }
   .mode-compare .stage { min-height: 0; }
   .mode-compare.mobile-report .stage, .mode-compare.mobile-report .inspector { display: none; }
