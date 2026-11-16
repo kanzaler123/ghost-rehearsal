@@ -86,7 +86,7 @@ vi.mock('../src/features/persistence', async importOriginal => ({
 }));
 
 import { App } from '../src/app/App';
-import { LiveStatusStrip, SummaryStrip, RunStateCard } from '../src/components/shell';
+import { LiveStatusStrip, SummaryStrip, RunStateCard, PlanNavigator } from '../src/components/shell';
 import { playbackAt } from '../src/simulation/metrics';
 import { liveSummary } from '../src/features/analysis';
 import { SHELL_COMPONENTS } from '../src/components/shell';
@@ -132,6 +132,19 @@ function click(label: string, startsWith = false) { button(label, startsWith).pr
 function selectPlan(id: string) {
   const row = tree.find(item => item.type === 'li' && item.key === id)!;
   flatten(row).find(item => item.type === 'button')!.props.onClick(); render();
+}
+function deferSimulation() {
+  let deliver!: () => void;
+  vi.stubGlobal('Worker', class {
+    onmessage?: (event: { data: { runs: SimulationRun[] } }) => void;
+    terminate() {}
+    postMessage(data: { requests: RunRequest[] }) {
+      lastRuns = data.requests.map(simulate);
+      const response = { runs: lastRuns };
+      deliver = () => this.onmessage?.({ data: response });
+    }
+  });
+  return () => { deliver(); render(); };
 }
 function compare() {
   click(t.modes.Compare);
@@ -188,6 +201,79 @@ async function useMedia(reduced: boolean) {
 function scrub(at: number) {
   tree.find(item => item.type === 'input' && item.props['aria-label'] === t.dock.timeline)!.props.onChange({ target: { value: String(at) } }); render();
 }
+describe('pending runs respect subsequent plan navigation', () => {
+  function expectBuild(id: string) {
+    expect(canvas().plan.id).toBe(id);
+    expect(tree.find(item => item.props.role === 'tab' && text(item) === t.modes.Build)!.props['aria-selected']).toBe(true);
+  }
+  it('keeps the chosen node and Build view after navigating away and back', () => {
+    const deliver = deferSimulation(); click(t.run.start);
+    selectPlan(planB.id); selectPlan(planA.id);
+    selectNode(planA.id, 'checkin');
+    deliver();
+    expectBuild(planA.id);
+    expect(component(Inspector).props.node.id).toBe('checkin');
+    expect(component(Inspector).props.collapsed).toBe(false);
+    expect(text(tree.find(item => item.props.className === 'status-notice'))).toContain(lastRuns[0].request.plan.name);
+    const results = lastRuns;
+    click(t.modes.Rehearse);
+    expect(canvas().run).toBe(results[0]); expect(lastRuns).toBe(results);
+  });
+  it.each(['cancel', 'failure'] as const)('keeps B and its selection on background %s', outcome => {
+    if (outcome === 'failure') {
+      const route = canvas().plan.graph.edges[0];
+      canvas().onDelete([], [route.id]); render();
+    }
+    const deliver = deferSimulation(); click(t.run.start);
+    expect(lastRuns[0].status).toBe(outcome === 'failure' ? 'failed' : 'succeeded');
+    selectPlan(planB.id); selectNode(planB.id, 'checkin-extra');
+    if (outcome === 'cancel') click(t.run.stop);
+    deliver();
+    expectBuild(planB.id);
+    expect(component(Inspector).props.plan.id).toBe(planB.id);
+    expect(component(Inspector).props.node.id).toBe('checkin-extra');
+    expect(tree.some(item => item.props.className === 'checks-drawer')).toBe(false);
+    expect(text(tree.find(item => item.props.className === 'status-notice'))).toContain(lastRuns[0].request.plan.name);
+    if (outcome === 'cancel') expect(text(tree.find(item => item.props.className === 'status-notice'))).toContain(t.notices.cancelled);
+  });
+  it('preserves B completion statistics and normalizes a cached cutoff-only A on explicit replay', () => {
+    selectPlan(planB.id);
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.run.scope)!.props.onChange({ target: { value: 'run_to_completion' } }); render();
+    click(t.modes.Rehearse);
+    const resultB = lastRuns[0];
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.review.basis)!.props.onChange({ target: { value: 'completion' } }); render();
+    click(t.modes.Build); selectPlan(planA.id);
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.run.scope)!.props.onChange({ target: { value: 'cutoff' } }); render();
+    const deliver = deferSimulation(); click(t.run.start);
+    const resultA = lastRuns[0];
+    selectPlan(planB.id); deliver();
+    expectBuild(planB.id);
+    expect(component(Inspector).props.basis).toBe('completion');
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.run.scope)!.props.onChange({ target: { value: 'run_to_completion' } }); render();
+    click(t.modes.Rehearse);
+    expect(canvas().run).toBe(resultB);
+    expect(tree.find(item => item.type === 'select' && item.props['aria-label'] === t.review.basis)!.props.value).toBe('completion');
+    click(t.modes.Build); selectPlan(planA.id);
+    tree.find(item => item.type === 'select' && item.props['aria-label'] === t.run.scope)!.props.onChange({ target: { value: 'cutoff' } }); render();
+    click(t.modes.Rehearse);
+    expect(canvas().run).toBe(resultA);
+    expect(tree.find(item => item.type === 'select' && item.props['aria-label'] === t.review.basis)!.props.value).toBe('cutoff');
+  });
+  it('does not present an obsolete comparison after changing the right-hand plan', () => {
+    component(PlanNavigator).props.onDuplicate(); render();
+    const copiedId = canvas().plan.id;
+    selectPlan(planA.id);
+    const deliver = deferSimulation(); click(t.modes.Compare);
+    expect(lastRuns.map(run => run.request.plan.id)).toEqual([planA.id, planB.id]);
+    component(PlanNavigator).props.onSetB(copiedId); render();
+    deliver();
+    expectBuild(planA.id);
+    expect(component(PlanNavigator).props.second.id).toBe(copiedId);
+    expect(component(CompareReport)).toBeUndefined();
+    expect(text(tree.find(item => item.props.className === 'status-notice'))).toContain(lastRuns.map(run => run.request.plan.name).join(' / '));
+  });
+});
+
 describe('studio presentation preserves simulation contracts', () => {
   it.each([false, true])('autoplay respects reduced motion=%s and manual play remains available', async reduced => {
     await useMedia(reduced); click(t.modes.Rehearse);
