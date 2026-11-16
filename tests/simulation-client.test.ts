@@ -23,6 +23,19 @@ function setup() {
 }
 
 describe('ordinary simulation client', () => {
+  it('releases the previous project on reset and rejects its late response', () => {
+    const { client, workers } = setup();
+    client.start(requests); workers[0].emit({ runs });
+    client.start(requests);
+    const late = workers[1].onmessage!;
+    client.reset();
+    late.call(workers[1] as unknown as Worker, { data: { runs } } as MessageEvent);
+    expect(client.getState()).toMatchObject({ status: 'idle', requests: [], runs: null, lastSuccessful: null });
+    client.start(requests); workers[2].emit({ runs });
+    expect(client.getState().status).toBe('succeeded');
+    client.dispose();
+    expect(client.getState()).toMatchObject({ status: 'disposed', requests: [], runs: null, lastSuccessful: null });
+  });
   it('keeps the existing protocol, snapshots requests and terminates a successful Worker', () => {
     const { client, workers } = setup();
     const input = structuredClone(requests);

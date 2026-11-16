@@ -12,7 +12,7 @@ import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario, Validatio
 import { Canvas } from '../components/Canvas';
 import type { ViewRequest, ViewTarget } from '../components/Canvas';
 import { CompareReport } from '../components/CompareReport';
-import { RobustnessPanel } from '../experiments/robustness/RobustnessPanel';
+import { LazyRobustnessPanel } from '../experiments/robustness/LazyRobustnessPanel';
 import { labels as robustnessLabels } from '../experiments/robustness/labels';
 import { ComparisonPlanPicker } from '../components/ComparisonPlanPicker';
 import { GuidedDemo } from '../components/GuidedDemo';
@@ -33,6 +33,7 @@ import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
 import { issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
 import type { Lang, Messages } from '../i18n';
+import { MESSAGES } from '../i18n/messages';
 import { inputKey, populationSize } from '../simulation/input';
 import { usePlayback } from './usePlayback';
 import { useProjectPersistence } from './useProjectPersistence';
@@ -125,7 +126,7 @@ export function App() {
   const [templateError, setTemplateError] = useState('');
   const [templateNotice, setTemplateNotice] = useState('');
   const [templateResources, setTemplateResources] = useState<'share' | 'copy'>('share');
-  const [notice, setNoticeState] = useState<Notice>(null);
+  const [notice, setNoticeState] = useState<Record<Lang, string> | null>(null);
   const [showIssues, setShowIssues] = useState(false);
   const [checksPlanId, setChecksPlanId] = useState<string>();
   const [documentIssues, setDocumentIssues] = useState<ValidationIssue[]>([]);
@@ -147,11 +148,11 @@ export function App() {
   const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<SimulationClient | null>(null);
   const launchContext = useRef<{ requestId: number; destination: Mode; scope: RunRequest['runMode']; planIds: string[] } | null>(null);
-  const say = (next: Notice) => setNoticeState(() => next);
+  const say = (next: Notice) => setNoticeState(next ? { en: next(MESSAGES.en), zh: next(MESSAGES.zh) } : null);
   const persistence = useProjectPersistence(project, dialog !== 'welcome', document => {
     if (!document) { setDialog('welcome'); return; }
     projectRead.current += 1; projectImporter.current?.cancel();
-    worker.current?.cancel(); setLastRun(null);
+    worker.current?.reset(); setBusy(false); setLastRun(null);
     setProject(document); setPast([]); setFuture([]); setRuns(createRunResults());
     setPlanId(document.plans[0].id); setSecondId(document.plans[1]?.id ?? '');
     setSelection({ id: '', kind: 'node', owner: document.plans[0].id });
@@ -187,11 +188,12 @@ export function App() {
     const checks = target === plan ? issues : [...validateScenario(scenario), ...validatePlan(target), ...validateGraph(scenario, target)];
     return t.redesign.planChecks(target.name, checks.filter(issue => issue.severity === 'error').length, checks.filter(issue => issue.severity !== 'error').length);
   }), [busy, project.plans, mode, second, plan, issues, scenario, t]);
-  const ownerIssues = owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(project.scenarios.find(item => item.id === owner.scenarioId)!, owner)];
+  const ownerIssues = useMemo(() => owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(ownerScenario, owner)], [owner, plan.id, issues, ownerScenario]);
   const errorCount = issues.filter(issue => issue.severity === 'error').length;
   const checksPlan = project.plans.find(item => item.id === checksPlanId) ?? plan;
   const checksScenario = project.scenarios.find(item => item.id === checksPlan.scenarioId)!;
-  const checksIssues = checksPlan.id === plan.id ? issues : [...validateScenario(checksScenario), ...validatePlan(checksPlan), ...validateGraph(checksScenario, checksPlan)];
+  const checksIssues = useMemo(() => checksPlan.id === plan.id ? issues : [...validateScenario(checksScenario), ...validatePlan(checksPlan), ...validateGraph(checksScenario, checksPlan)], [checksPlan, plan.id, issues, checksScenario]);
+  const secondIssues = useMemo(() => second ? validateGraph(project.scenarios.find(item => item.id === second.scenarioId)!, second) : [], [second, project.scenarios]);
   const { view, previous: previousView } = usePlayback(run, plan, scenario, runMode, time, mode !== 'Build');
   const { view: secondView, previous: secondPrevious } = usePlayback(mode === 'Compare' ? secondRun : undefined, second ?? plan, project.scenarios.find(item => item.id === second?.scenarioId) ?? scenario, runMode, time, mode === 'Compare');
   const reportChanges = useMemo(() => second ? planChanges(plan, second) : [], [plan, second]);
@@ -214,8 +216,9 @@ export function App() {
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
   const selectedStats = statisticsAt(run, basis), selectedSecondStats = statisticsAt(secondRun, basis);
   const featured = comparison.featured;
-  const picks = useMemo(() => !run ? [] : comparing ? comparison.picks()
-    : rehearsePicks(run, view, time, 3, selectedStats), [run, comparing, comparison, view, time, selectedStats]);
+  const needsPicks = mode !== 'Build' && (dockOpen ? bottomTab === 'now' || bottomTab === 'journey' : !comparing && bottomTab === 'journey');
+  const picks = useMemo(() => !run || !needsPicks ? [] : comparing ? comparison.picks()
+    : rehearsePicks(run, view, time, 3, selectedStats), [run, comparing, comparison, view, time, selectedStats, needsPicks]);
 
   function commit(next: ProjectDocument, previous = project) {
     if (JSON.stringify(next) === JSON.stringify(previous)) return;
@@ -238,7 +241,7 @@ export function App() {
     const result = { document: value.document };
     {
       // Reading can outlive an edit; Undo must restore the latest project.
-      worker.current?.cancel();
+      worker.current?.reset(); setBusy(false);
       setLastRun(null);
       persistence.replace();
       commit(result.document, currentProject.current);
@@ -598,7 +601,7 @@ export function App() {
 
   const stats = statisticsAt(run, basis);
   const planNodes = plan.graph.nodes.filter(node => `${node.name} ${t.nodeTypes[node.type]}`.toLowerCase().includes(search.toLowerCase()));
-  const activeEvents = (run?.events ?? []).filter(event => event.time <= time).slice(-80).reverse();
+  const activeEvents = useMemo(() => bottomTab === 'events' ? (run?.events ?? []).filter(event => event.time <= time).slice(-80).reverse() : [], [run, time, bottomTab]);
   const readOnly = mode !== 'Build';
   const staffCount = plan.staff.length;
   const deviceCount = plan.deviceTypes.reduce((sum, item) => sum + item.quantity, 0);
@@ -631,7 +634,7 @@ export function App() {
     if (selectedNode && !target.graph.nodes.some(node => node.id === selected) && selectedNode.type === 'service') selected = target.graph.nodes.find(node => node.type === 'service' && node.stageKey === selectedNode.stageKey)?.id ?? '';
     return { plan: target, selected, onSelect: (id: string, kind: 'node' | 'edge') => { setSelection({ id, kind, owner: target.id }); if (id) setInspectorOpen(true); },
       onMove: (positions: { id: string; x: number; y: number }[]) => { if (!readOnly) changePlan({ ...target, graph: { ...target.graph, nodes: target.graph.nodes.map(node => { const position = positions.find(item => item.id === node.id); return position ? { ...node, layout: { ...node.layout, x: position.x, y: position.y } } : node; }) } }); },
-      onConnect: connect, onDelete: (nodes: string[], edges: string[]) => deleteElements(nodes, edges, target.id), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : validateGraph(scenario, target), view: targetView,
+      onConnect: connect, onDelete: (nodes: string[], edges: string[]) => deleteElements(nodes, edges, target.id), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : secondIssues, view: targetView,
       previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, time, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
       chooseVisitor, visitorName: nameOf, changed: comparing ? changedIds : undefined,
       request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage, reducedMotion, onManual: () => setViewMark(null) };
@@ -776,10 +779,10 @@ export function App() {
       <Inspector plan={owner} scenario={ownerScenario} node={selectedNode} edge={selectedEdge} editable={!readOnly && owner.id === plan.id} issues={ownerIssues} run={ownerRun} basis={basis} stale={ownerStale} onRerun={() => launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Build' ? 'Rehearse' : mode)} onNode={node => changePlan({ ...owner, graph: { ...owner.graph, nodes: owner.graph.nodes.map(item => item.id === selection.id ? node : item) } })} onEdge={edge => changePlan({ ...owner, graph: { ...owner.graph, edges: owner.graph.edges.map(item => item.id === selection.id ? edge : item) } })} onAdvanced={() => setDialog(selectedNode ? 'node-json' : 'edge-json')} onDelete={() => deleteElements(selectedNode ? [selectedNode.id] : [], selectedEdge ? [selectedEdge.id] : [], owner.id)} onResources={() => enterBuild(owner.id, 'resources')} onSaveTemplate={() => prepareTemplate(selectedNode)} collapsed={!inspectorOpen} onToggle={() => setInspectorOpen(value => !value)} />
     </div>
 
-    <LiveAnnouncer message={busy ? t.runState.computing.description : stale ? t.runState.stale.description : notice?.(t)} error={runState.kind === 'failed' ? notice?.(t) ?? t.runState.failed.description : undefined} />
+    <LiveAnnouncer message={busy ? t.runState.computing.description : stale ? t.runState.stale.description : notice?.[lang]} error={runState.kind === 'failed' ? notice?.[lang] ?? t.runState.failed.description : undefined} />
     <footer className="status-bar">
       <span className="status-state"><i className={busy ? 'pending' : ''} />{busy ? t.status.computing : t.status.local}</span>
-      <span className="status-notice" role="status">{notice ? notice(t) : t.status.hint}</span>
+      <span className="status-notice" role="status">{notice ? notice[lang] : t.status.hint}</span>
       <span className="status-scope">{t.status.scope}<button type="button" onClick={() => setDialog('about')}>{t.status.scopeLink}</button></span>
     </footer>
 
@@ -811,7 +814,7 @@ export function App() {
         <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
       </div>)}{documentIssues.length > 50 && <><p>{t.imports.diagnostics(documentIssues.length, issuePage * 50 + 1, Math.min(documentIssues.length, issuePage * 50 + 50))}</p><button type="button" disabled={!issuePage} onClick={() => setIssuePage(page => page - 1)}>{t.imports.previous}</button><button type="button" disabled={(issuePage + 1) * 50 >= documentIssues.length} onClick={() => setIssuePage(page => page + 1)}>{t.imports.next}</button><button type="button" onClick={() => download('import-diagnostics.json', JSON.stringify(documentIssues, null, 2), 'application/json')}>{t.imports.download}</button></>}</div>
     </Modal>}
-    {dialog === 'robustness' && second && <Modal title={robustnessLabels[lang].title} onClose={() => setDialog(null)} wide><div className="modal-body robustness-body"><RobustnessPanel project={project} baselinePlanId={plan.id} candidatePlanId={second.id} lang={lang} embedded /></div></Modal>}
+    {dialog === 'robustness' && second && <Modal title={robustnessLabels[lang].title} onClose={() => setDialog(null)} wide><div className="modal-body robustness-body"><LazyRobustnessPanel project={project} baselinePlanId={plan.id} candidatePlanId={second.id} lang={lang} embedded /></div></Modal>}
     {dialog === 'resources' && <ResourcesEditor plan={plan} horizon={scenario.horizon} onApply={changePlan} onClose={() => setDialog(null)} />}
     {dialog === 'scenario' && <ScenarioEditor scenario={scenario} planNames={project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name)} onApply={next => commit({ ...project, scenarios: project.scenarios.map(item => item.id === next.id ? next : item), plans: project.plans.map(item => item.scenarioId !== next.id ? item : { ...item, graph: { ...item.graph, nodes: item.graph.nodes.map(node => node.type === 'entrance' ? { ...node, arrivalStreamIds: node.arrivalStreamIds.filter(id => next.arrivalStreams.some(stream => stream.id === id)) } : node) } }) })} onClose={() => setDialog(null)} />}
     {dialog?.endsWith('-json') && <JsonEditor key={`${dialog}-${selection.id}`} title={dialog === 'node-json' ? t.dialogs.nodeJson : dialog === 'edge-json' ? t.dialogs.edgeJson : dialog === 'scenario-json' ? t.dialogs.scenarioJson(project.plans.filter(item => item.scenarioId === scenario.id).map(item => item.name).join(lang === 'zh' ? '、' : ', ')) : t.dialogs.planJson} value={dialog === 'node-json' ? selectedNode : dialog === 'edge-json' ? selectedEdge : dialog === 'scenario-json' ? scenario : plan} readOnly={readOnly} onClose={() => setDialog(null)} onApply={value => {

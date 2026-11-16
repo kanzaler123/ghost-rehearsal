@@ -100,6 +100,12 @@ export class SimulationClient {
 
   dispose() {
     this.terminate();
-    this.state = { ...this.state, status: 'disposed', runs: null, failure: null };
+    this.state = { ...this.state, status: 'disposed', requests: [], runs: null, failure: null, lastSuccessful: null };
+  }
+
+  reset() {
+    if (this.state.status === 'disposed') return;
+    this.terminate();
+    this.publish({ requestId: this.state.requestId + 1, status: 'idle', requests: [], runs: null, failure: null, lastSuccessful: null });
   }
 }

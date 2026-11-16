@@ -14,6 +14,7 @@ const zhPersonTime = (seconds: number | null | undefined) =>
   seconds == null ? '—' : `${(seconds / 60).toFixed(1)} 人·分钟`;
 
 const en = {
+  analysisLoading: { loading: 'Loading analysis…', failed: 'Analysis could not be loaded. Please retry.', retry: 'Retry loading analysis' },
   imports: { failed: 'Import failed; nothing was applied.', busy: 'Reading and validating import…', diagnostics: (total: number, from: number, to: number) => `${total} diagnostics; showing ${from}–${to}`, previous: 'Previous page', next: 'Next page', download: 'Download all diagnostics', incomplete: 'Validation stopped early. Remaining content was not checked; nothing was applied.' },
   persistence: { loading: 'Opening saved projects…', failed: 'Saving is unavailable. Your changes remain in this page; export a copy before leaving.', conflict: 'Another tab saved changes. Both versions are preserved; choose a version to continue.', recover: 'Recover saved versions', retry: 'Retry storage', raw: 'Download original data', restore: 'Continue this version', resolve: 'Use this version to resolve conflict', recoveryHint: 'Choose a saved version. Original versions remain available for recovery.', libraryFailed: 'The template library could not be loaded safely. Export the originals or explicitly repair the library before editing.', resetLibrary: 'Initialize an empty library and keep originals' },
   redesign: {
@@ -501,6 +502,7 @@ const en = {
 export type Messages = typeof en;
 
 const zh: Messages = {
+  analysisLoading: { loading: '正在加载分析…', failed: '分析界面加载失败，请重试。', retry: '重新加载分析' },
   imports: { failed: '导入失败，没有应用数据。', busy: '正在读取并验证导入内容…', diagnostics: (total, from, to) => `共 ${total} 条诊断，显示 ${from}–${to} 条`, previous: '上一页', next: '下一页', download: '下载完整诊断', incomplete: '验证提前停止，未检查其余内容，没有应用数据。' },
   persistence: { loading: '正在打开已保存项目…', failed: '当前无法保存。修改仍在本页，离开前请导出副本。', conflict: '其他标签页保存了改动。两个版本均已保留，请选择要继续的版本。', recover: '恢复已保存版本', retry: '重试存储', raw: '下载原始数据', restore: '继续此版本', resolve: '使用此版本解决冲突', recoveryHint: '请选择已保存版本，原始版本会继续保留供恢复。', libraryFailed: '无法安全读取模板库。请导出原文或明确修复后再编辑。', resetLibrary: '初始化空模板库并保留原文' },
   redesign: {

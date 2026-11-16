@@ -301,12 +301,15 @@ function CanvasInner(props: Props) {
   useEffect(() => {
     const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
     selection.current = { planId: plan.id, id: props.selected };
-    setFlowNodes(previousNodes => mapped.map(node => {
-      // A stage ID can switch between frame and card; never carry a frame's size over to a card.
-      const found = previousNodes.find(item => item.id === node.id);
-      const current = found?.type === node.type ? found : undefined;
-      return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
-    }));
+    setFlowNodes(previousNodes => {
+      const byId = new Map(previousNodes.map(node => [node.id, node]));
+      return mapped.map(node => {
+        // A stage ID can switch between frame and card; never carry a frame's size over to a card.
+        const found = byId.get(node.id);
+        const current = found?.type === node.type ? found : undefined;
+        return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
+      });
+    });
   }, [mapped, plan.id, props.selected]);
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
@@ -360,6 +363,7 @@ function CanvasInner(props: Props) {
   // ---------- Edges ----------
   const edges = useMemo<FlowEdge[]>(() => {
     const grouped = new Map<string, { id: string; source: string; target: string; sourceHandle?: string; label?: string; ids: string[] }>();
+    const groupForEdge = new Map<string, string>();
     for (const edge of plan.graph.edges) {
       const source = display.visible(edge.source), target = display.visible(edge.target);
       if (source === target) continue;
@@ -367,11 +371,18 @@ function CanvasInner(props: Props) {
       const sourceHandle = source === edge.source ? edge.branchKey : undefined;
       const key = real ? edge.id : `agg:${source}:${sourceHandle ?? ''}>${target}`;
       const entry = grouped.get(key) ?? { id: key, source, target, sourceHandle, label: real ? edge.branchKey : undefined, ids: [] };
-      entry.ids.push(edge.id); grouped.set(key, entry);
+      entry.ids.push(edge.id); grouped.set(key, entry); groupForEdge.set(edge.id, key);
+    }
+    const travelersByGroup = new Map<string, { id: string; progress: number; selected: boolean }[]>();
+    if (running) for (const event of Object.values(view.visitors)) {
+      const key = groupForEdge.get(event.edgeId ?? '');
+      if (!key || event.type !== 'ROUTE_TRANSITION' || !(Number(event.details?.arrivalAt) > props.time)) continue;
+      const travelers = travelersByGroup.get(key) ?? [];
+      travelers.push({ id: event.participantId!, progress: (props.time - event.time) / (Number(event.details!.arrivalAt) - event.time), selected: event.participantId === props.tracked?.id });
+      travelersByGroup.set(key, travelers);
     }
     return [...grouped.values()].map(edge => {
-      const travelers = running ? Object.values(view.visitors).filter(event => event.type === 'ROUTE_TRANSITION' && edge.ids.includes(event.edgeId ?? '') && Number(event.details?.arrivalAt) > props.time)
-        .map(event => ({ id: event.participantId!, progress: (props.time - event.time) / (Number(event.details!.arrivalAt) - event.time), selected: event.participantId === props.tracked?.id })) : [];
+      const travelers = travelersByGroup.get(edge.id) ?? [];
       const active = travelers.length > 0;
       const isSelected = props.selected === edge.id || edge.source === props.selected || edge.target === props.selected;
       const changed = edge.ids.some(id => props.changed?.has(id));

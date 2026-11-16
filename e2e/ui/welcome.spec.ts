@@ -17,7 +17,7 @@ test('first launch exposes example, blank setup and import without changing save
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('button', { name: t.guide.start, exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: t.redesign.begin, exact: true })).toBeVisible();
   await expect(dialog.getByRole('button', { name: t.eventSetup.demo, exact: true })).toBeVisible();
   await expect(dialog.locator('input').first()).toBeVisible();
   await expect(dialog.getByRole('button', { name: t.eventSetup.import, exact: true })).toBeVisible();
@@ -40,10 +40,10 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   const dialog = page.getByRole('dialog');
-  const start = dialog.getByRole('button', { name: t.guide.start, exact: true });
+  const start = dialog.getByRole('button', { name: t.redesign.begin, exact: true });
   await expect(start).toBeFocused();
   await expect(start).toBeInViewport({ ratio: 1 });
-  await expect(start).toHaveAccessibleDescription(t.guide.welcomeHint);
+  await expect(start).toHaveAccessibleDescription(t.redesign.guideHint);
   await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toHaveValue('');
   await expect(dialog.getByRole('button', { name: t.eventSetup.create, exact: true })).toBeDisabled();
   // The existing dialog entrance scales its descendants for 220ms. Measure the
@@ -80,7 +80,7 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   if (await expand.isVisible()) await expand.click();
   await page.locator('.event-picker summary').click();
   await page.getByRole('button', { name: t.eventSetup.new, exact: true }).click();
-  await expect(page.getByRole('dialog').getByRole('button', { name: t.guide.start, exact: true })).toHaveCount(0);
+  await expect(page.getByRole('dialog').getByRole('button', { name: t.redesign.begin, exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog').getByLabel(t.dialogs.eventName, { exact: true })).toBeFocused();
 });
 
@@ -103,7 +103,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   const older = JSON.parse(readFileSync(new URL('../../examples/open-house.json', import.meta.url), 'utf8')) as ProjectDocument;
   older.plans.forEach(plan => { plan.name = 'Older imported plan'; });
   await page.locator('input[type=file]').first().setInputFiles({ name: 'older.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(older)) });
-  await page.getByRole('dialog').getByRole('button', { name: t.guide.start, exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: t.redesign.begin, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   await expect.poll(() => storedProject(page, 'draft')).not.toBeNull();
