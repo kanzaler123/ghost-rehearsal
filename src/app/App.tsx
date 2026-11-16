@@ -150,6 +150,7 @@ export function App() {
   const say = (next: Notice) => setNoticeState(() => next);
   const persistence = useProjectPersistence(project, dialog !== 'welcome', document => {
     if (!document) { setDialog('welcome'); return; }
+    projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.cancel(); setLastRun(null);
     setProject(document); setPast([]); setFuture([]); setRuns(createRunResults());
     setPlanId(document.plans[0].id); setSecondId(document.plans[1]?.id ?? '');

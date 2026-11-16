@@ -1,4 +1,11 @@
-# Unresolved WebKit resize investigation
+# WebKit resize investigation
+
+The integrated application patches React Flow's container size observer to
+publish dimensions on the next animation frame and cancel pending work on
+unmount (`scripts/patch-react-flow.mjs`). It does not replace browser observers
+or filter errors. [CI 43867096380](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43867096380)
+passed all 80 WebKit release checks and 32 additional import/run/reload repetitions.
+The earlier diagnostic failures below are retained.
 
 These diagnostic fixtures are outside the production entry and the normal e2e
 suite. They do not suppress browser errors or change application observers.
@@ -35,10 +42,8 @@ Evidence:
 - CI 43764559153: isolated Canvas, native WebKit, both languages repeated twice:
   4/4 passed. Local native Chromium: 2/2 passed. The smaller fixture therefore
   **has not reproduced** the complete application's error.
-- Full application errors remain unresolved. Neither application viewport-refit
+- At that revision, full application errors remained unresolved. Neither application viewport-refit
   deferral nor card-detail deferral fixed them; both changes were removed.
 
 The local environment lacks WebKit system libraries and root authentication;
 WebKit evidence comes from hosted CI. No environment permission bypass occurred.
-Next step: add the complete app's layout/state transitions back to the isolated
-fixture incrementally before choosing a production or dependency patch.

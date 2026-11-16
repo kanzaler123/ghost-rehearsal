@@ -260,7 +260,7 @@ fieldset:disabled { opacity: 0.82; }
 .ghost-line { display: flex; align-items: flex-end; gap: var(--stroke); height: var(--control-sm); margin-top: var(--space-3); }
 .visitor { position: relative; width: var(--size-17px); height: var(--size-22px); padding: 0; border: 0; background: none; color: var(--ink--cfc9ea); opacity: 0.6; transition: opacity var(--duration-0-15s), transform var(--duration-0-15s); --ghost-eye: var(--ink--110f1a); }
 .visitor:hover { opacity: 1; transform: translateY(var(--size--2px)); }
-.visitor.is-working { color: var(--st-serve); opacity: 1; filter: drop-shadow(0 0 var(--space-2) color-mix(in srgb, var(--spirit) 70%, transparent)); animation: ghost-bob var(--duration-1-8s) ease-in-out infinite; }
+.visitor.is-working { color: var(--st-serve); opacity: 1; filter: drop-shadow(0 0 var(--space-2) color-mix(in srgb, var(--spirit) 70%, transparent)); }
 .visitor.is-waiting { color: var(--st-wait); opacity: 0.7; }
 .visitor.is-blocked { color: var(--st-block); opacity: 0.95; }
 .visitor.is-tracked { width: var(--fs-2xl); height: var(--control-sm); margin-right: var(--space-2); color: var(--st-track); opacity: 1; filter: drop-shadow(0 0 var(--radius-sm) color-mix(in srgb, var(--candle) 95%, transparent)); --ghost-eye: var(--ink--3a2410); }

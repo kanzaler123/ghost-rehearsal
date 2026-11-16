@@ -31,10 +31,21 @@ test('two App tabs keep both edits, report conflict, and restore the selected ve
   await renameEvent(b, t, 'Tab B draft');
   await expect(b.getByRole('alert').filter({ hasText: t.persistence.conflict })).toBeVisible();
   await expect(page.getByRole('alert').filter({ hasText: t.persistence.conflict })).toBeVisible();
+  await b.evaluate(() => {
+    const read = File.prototype.text;
+    File.prototype.text = function () {
+      const file = this;
+      return new Promise<string>(resolve => {
+        (window as typeof window & { finishImport: () => Promise<void> }).finishImport = async () => resolve(await read.call(file));
+      });
+    };
+  });
+  await b.locator('input[type=file]').first().setInputFiles({ name: 'superseded.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(example)) });
   await b.getByRole('button', { name: t.persistence.recover, exact: true }).click();
   const recovery = b.getByRole('dialog', { name: t.persistence.recover });
   await expect(recovery).toContainText('Tab A draft'); await expect(recovery).toContainText('Tab B draft');
   await recovery.locator('.check-item').filter({ hasText: 'Tab A draft' }).getByRole('button', { name: t.persistence.resolve, exact: true }).click();
+  await b.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
   await expect(b.locator('.save-state')).toHaveText(t.review.draftSaved);
   await expect(b.getByLabel(t.eventSetup.active)).toContainText('Tab A draft');
   await b.getByTitle(t.header.saveTitle, { exact: true }).click();
