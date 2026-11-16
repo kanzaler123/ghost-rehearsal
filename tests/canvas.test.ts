@@ -23,7 +23,6 @@ const hooks = vi.hoisted(() => {
   return {
     dimensions: { width: 1050, height: 750, transform: [0, 0, 1] },
     context: {} as unknown,
-    store: { getState: () => ({ setNodes: (_nodes: unknown[]) => {} }) },
     api: {} as Record<string, unknown>,
     useState<T>(initial: T | (() => T)): [T, (next: T | ((previous: T) => T)) => void] {
       const index = cursor++;
@@ -75,7 +74,6 @@ vi.mock('react', async importOriginal => ({
 vi.mock('@xyflow/react', async importOriginal => ({
   ...await importOriginal<typeof import('@xyflow/react')>(),
   useReactFlow: () => hooks.api,
-  useStoreApi: () => hooks.store,
   useStore: (selector: (store: typeof hooks.dimensions) => unknown) => selector(hooks.dimensions),
 }));
 
