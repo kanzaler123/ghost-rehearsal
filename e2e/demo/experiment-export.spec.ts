@@ -62,6 +62,7 @@ test('guide exports only its reproducible A/B/C experiment and preserves existin
   await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
   await page.locator('input[type=file]').first().setInputFiles({ name: download.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(text) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   expect(await fullProject(page, t)).toBe(text);
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   await expect(pickerButton).toBeEnabled();

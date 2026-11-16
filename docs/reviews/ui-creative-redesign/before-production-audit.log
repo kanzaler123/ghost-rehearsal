@@ -1,0 +1,108 @@
+{
+  "phase": "before",
+  "time": "2026-11-16T14:40:25.638Z",
+  "commit": "f8371999e64d25c250699e5cd96f85eabb79bb32",
+  "browser": "159.0.8154.6",
+  "node": "v24.18.0",
+  "url": "http://127.0.0.1:4192/ghost-rehearsal/",
+  "cases": [
+    {
+      "recording": "docs/reviews/ui-creative-redesign/recordings/before-run.webm",
+      "bytes": 750188
+    },
+    {
+      "name": "drag-node-400px",
+      "frames": 169,
+      "p95": 16.700000000000273,
+      "largestFrame": 16.800000000000182
+    },
+    {
+      "name": "pan-400px",
+      "frames": 168,
+      "p95": 16.700000000000728,
+      "largestFrame": 16.80000000000109
+    },
+    {
+      "name": "zoom-in",
+      "frames": 209,
+      "p95": 16.700000000000728,
+      "largestFrame": 16.80000000000109
+    },
+    {
+      "name": "zoom-endpoints",
+      "start": "10%",
+      "end": "250%"
+    },
+    {
+      "recording": "docs/reviews/ui-creative-redesign/recordings/before-edit.webm",
+      "bytes": 2591642
+    },
+    {
+      "name": "rehearse",
+      "speed": 1,
+      "milliseconds": 10009.39999999851,
+      "frames": 601,
+      "p95": 16.799999999999272,
+      "largestFrame": 16.80000000000109,
+      "longestTask": 0
+    },
+    {
+      "recording": "docs/reviews/ui-creative-redesign/recordings/before-replay.webm",
+      "bytes": 2461655
+    },
+    {
+      "name": "rehearse",
+      "speed": 8,
+      "milliseconds": 10006.099999997765,
+      "frames": 601,
+      "p95": 16.700000000000728,
+      "largestFrame": 16.80000000000109,
+      "longestTask": 0
+    },
+    {
+      "name": "compare",
+      "speed": 1,
+      "milliseconds": 10002.60000000149,
+      "frames": 601,
+      "p95": 16.700000000000728,
+      "largestFrame": 16.80000000000109,
+      "longestTask": 0
+    },
+    {
+      "name": "compare",
+      "speed": 8,
+      "milliseconds": 10003.60000000149,
+      "frames": 601,
+      "p95": 16.700000000000728,
+      "largestFrame": 16.80000000000291,
+      "longestTask": 0
+    },
+    {
+      "recording": "docs/reviews/ui-creative-redesign/recordings/before-follow-and-diverge.webm",
+      "bytes": 935411
+    },
+    {
+      "name": "10000-guest-run",
+      "milliseconds": 361,
+      "measurement": "UI request-to-result wall time; includes Worker simulation and rendering. Probe, not certification.",
+      "notice": "Rehearsal complete · 10000 guests · 68,285 simulation events"
+    },
+    {
+      "name": "10000-guest-rehearse",
+      "speed": 1,
+      "milliseconds": 10009,
+      "frames": 601,
+      "p95": 16.799999999999272,
+      "largestFrame": 16.80000000000109,
+      "longestTask": 0
+    }
+  ],
+  "errors": [],
+  "bundle": {
+    "total": 2354151,
+    "javascriptGzip": 376323,
+    "cssGzip": 34935,
+    "binary": 883344,
+    "measurement": "Conservative total of every built chunk, not just first-load requests"
+  }
+}

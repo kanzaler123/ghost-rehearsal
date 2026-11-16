@@ -1,0 +1,24 @@
+{
+  "state": "arrival-import-error",
+  "file": "arrival-import-error-390x844-zh.png",
+  "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+  "phase": "after",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "lang": "zh",
+  "capturedAt": "2026-11-16T14:58:40.911Z",
+  "timezone": "Asia/Singapore",
+  "replayTime": null,
+  "statisticsBasis": null,
+  "waitingRule": null,
+  "followedGuest": null,
+  "projectDigest": "6f818a53915f5ed840767bad62d40f01b8208bae80c7b43a0a989143ca4f1740",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "matrix(1.05, 0, 0, 1.05, -1951.2, 100.5)"
+  ],
+  "workerURLs": [],
+  "errors": []
+}

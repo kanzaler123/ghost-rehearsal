@@ -1,0 +1,9 @@
+
+> ghost-rehearsal@0.1.0 check
+> npm run typecheck && npm test
+
+
+> ghost-rehearsal@0.1.0 typecheck
+> tsc --noEmit && tsc --noEmit -p tsconfig.schemas.json
+
+tests/ui-shell.test.ts(25,11): error TS2741: Property 'planChecks' is missing in type '{ mode: "Build"; busy: false; canUndo: false; canRedo: false; unsaved: true; draftSaved: true; activityName: string; planName: string; compareUnavailable: string; runMode: "cutoff"; lang: "en" | "zh"; ... 12 more ...; onLang: () => void; }' but required in type 'TopBarProps'.

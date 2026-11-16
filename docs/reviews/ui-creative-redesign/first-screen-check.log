@@ -1,0 +1,26 @@
+[WebServer] (node:30968) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] (node:4992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 4 tests using 2 workers
+
+(node:47732) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16428) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 2 [desktop-en] › e2e\robustness\theme.spec.ts:5:1 › lab theme keeps inputs, errors and results readable with keyboard focus at narrow widths (2.6s)
+  ok 1 [desktop-en] › e2e\ui\compare-first-screen.spec.ts:18:1 › comparison and guest evidence occupy the first screen (2.9s)
+(node:48172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44136) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 3 [mobile-zh] › e2e\robustness\theme.spec.ts:5:1 › lab theme keeps inputs, errors and results readable with keyboard focus at narrow widths (2.0s)
+  ok 4 [mobile-zh] › e2e\ui\compare-first-screen.spec.ts:18:1 › comparison and guest evidence occupy the first screen (1.9s)
+
+  4 passed (15.2s)

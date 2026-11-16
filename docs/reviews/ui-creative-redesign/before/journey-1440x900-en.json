@@ -1,0 +1,13 @@
+{
+  "state": "journey",
+  "file": "journey-1440x900-en.png",
+  "commit": "f8371999e64d25c250699e5cd96f85eabb79bb32",
+  "phase": "before",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "lang": "en",
+  "errors": [],
+  "followedGuest": "featured demo guest"
+}

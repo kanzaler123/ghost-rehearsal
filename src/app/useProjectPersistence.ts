@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectDocument } from '../schemas';
 import type { SavedTemplate } from '../features/project';
 import { newProjectId, openPersistence } from '../features/persistence';
@@ -24,7 +24,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const templateParents = useRef<string[]>([]);
   const templateWriting = useRef(false);
   const [templateBusy, setTemplateBusy] = useState(false);
-  const text = JSON.stringify(project);
+  const text = useMemo(() => JSON.stringify(project), [project]);
   const latest = useRef({ project, text, confirmedText }); latest.current = { project, text, confirmedText };
 
   function accept(revision: Revision<ProjectDocument>, parents = [revision.id]) {

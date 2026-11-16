@@ -67,7 +67,7 @@ const hooks = vi.hoisted(() => {
 
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
-  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect,
+  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect, useLayoutEffect: hooks.useEffect,
   useCallback: (callback: unknown, deps?: readonly unknown[]) => hooks.useMemo(() => callback, deps),
   useContext: () => hooks.context,
 }));

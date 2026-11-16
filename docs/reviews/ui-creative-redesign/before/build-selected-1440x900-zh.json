@@ -1,0 +1,12 @@
+{
+  "state": "build-selected",
+  "file": "build-selected-1440x900-zh.png",
+  "commit": "f8371999e64d25c250699e5cd96f85eabb79bb32",
+  "phase": "before",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "lang": "zh",
+  "errors": []
+}

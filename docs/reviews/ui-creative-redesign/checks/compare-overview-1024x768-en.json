@@ -1,0 +1,27 @@
+{
+  "state": "compare-overview",
+  "file": "compare-overview-1024x768-en.png",
+  "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+  "phase": "checks",
+  "viewport": {
+    "width": 1024,
+    "height": 768
+  },
+  "lang": "en",
+  "capturedAt": "2026-11-16T15:00:49.536Z",
+  "timezone": "Asia/Singapore",
+  "replayTime": 210,
+  "statisticsBasis": "cutoff",
+  "waitingRule": 60,
+  "followedGuest": null,
+  "projectDigest": "4d5670c10ae679d2792f93147d0e707399cfcd75897323f59168f6e543f96660",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "matrix(0.6, 0, 0, 0.6, 36, 106.8)",
+    "matrix(0.6, 0, 0, 0.6, 36, 106.8)"
+  ],
+  "workerURLs": [
+    "http://127.0.0.1:4193/ghost-rehearsal/assets/worker-Hj9-Aq7I.js"
+  ],
+  "errors": []
+}

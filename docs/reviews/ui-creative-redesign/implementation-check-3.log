@@ -1,0 +1,21 @@
+
+> ghost-rehearsal@0.1.0 check
+> npm run typecheck && npm test
+
+
+> ghost-rehearsal@0.1.0 typecheck
+> tsc --noEmit && tsc --noEmit -p tsconfig.schemas.json
+
+
+> ghost-rehearsal@0.1.0 test
+> vitest run tests --environment node
+
+
+ RUN  v5.1.0 C:/Users/kanzaler/Desktop/KIROWWEN
+
+
+ Test Files  33 passed (33)
+      Tests  464 passed (464)
+   Start at  22:15:14
+   Duration  2.92s (tests 40%, import 37%, transform 22%, worker 1%)
+

@@ -8,13 +8,13 @@ import { ModeNav } from './ModeNav';
 import type { Mode } from './ModeNav';
 
 export interface TopBarProps {
-  mode: Mode; busy: boolean; canUndo: boolean; canRedo: boolean; unsaved: boolean; draftSaved: boolean; activityName: string; planName: string; compareUnavailable?: string; runMode: RunRequest['runMode']; lang: Lang;
+  mode: Mode; busy: boolean; canUndo: boolean; canRedo: boolean; unsaved: boolean; draftSaved: boolean; activityName: string; planName: string; planChecks: string[]; compareUnavailable?: string; runMode: RunRequest['runMode']; lang: Lang;
   onMode: (mode: Mode) => void; onUndo: () => void; onRedo: () => void; onRun: () => void; onStop: () => void; onSave: () => void; onImport: () => void; onExport: () => void; onPlanJson: () => void; onScenarioJson: () => void; onAbout: () => void; onRunMode: (mode: RunRequest['runMode']) => void; onLang: (lang: Lang) => void;
 }
 export function TopBar(props: TopBarProps) {
   const { t } = useI18n();
   const context = t.topbar.context(props.activityName, props.planName);
-  return <header className="topbar">
+  return <><header className="topbar">
     <div className="brand"><div className="brand-mark"><Ghost size={22} /></div><div className="brand-text"><strong>{t.brand.name}</strong><small>{t.brand.tagline}</small></div></div>
     <span className="context-chip" tabIndex={0} title={context} aria-label={context}>{context}</span>
     <ModeNav mode={props.mode} busy={props.busy} compareUnavailable={props.compareUnavailable} onMode={props.onMode} />
@@ -33,10 +33,12 @@ export function TopBar(props: TopBarProps) {
         <button type="button" className="side-action" onClick={props.onExport}><Download size={15} aria-hidden="true" />{t.header.export}</button>
         <button type="button" className="side-action" onClick={props.onPlanJson}><Braces size={15} aria-hidden="true" />{t.sidebar.planJson}</button>
         <button type="button" className="side-action" onClick={props.onScenarioJson}><FileText size={15} aria-hidden="true" />{t.sidebar.scenarioJson}</button>
-        <label className="field"><span>{t.run.scope}</span><select aria-label={t.run.scope} value={props.runMode} disabled={props.busy} onChange={event => props.onRunMode(event.target.value as RunRequest['runMode'])}><option value="cutoff">{t.run.cutoff}</option><option value="run_to_completion">{t.run.completion}</option></select></label>
         <button type="button" className="side-action" onClick={props.onAbout}><CircleHelp size={15} aria-hidden="true" />{t.header.about}</button>
       </ContextMenu>
     </div>
     <div className="lang-switch" role="group" aria-label={t.language.label}>{(['en', 'zh'] as Lang[]).map(item => <button type="button" key={item} aria-pressed={props.lang === item} className={props.lang === item ? 'active' : ''} onClick={() => props.onLang(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}</div>
-  </header>;
+  </header><div className="run-context">
+    <label><span>{t.run.scope}</span><select aria-label={t.run.scope} value={props.runMode} disabled={props.busy} onChange={event => props.onRunMode(event.target.value as RunRequest['runMode'])}><option value="cutoff">{t.run.cutoff}</option><option value="run_to_completion">{t.run.completion}</option></select></label>
+    <div className="run-plan-checks">{props.planChecks.map((check, index) => <span key={index}>{check}</span>)}</div>
+  </div></>;
 }

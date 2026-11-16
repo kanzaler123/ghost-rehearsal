@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { useI18n } from '../i18n';
 
 export interface DemoProgress { step: number; a: string; b: string; c?: string; visitor?: string; exported?: boolean }
@@ -10,7 +10,9 @@ export function GuidedDemo({ progress, showPlanMapping, ready, busy, onNext, onR
   const { t } = useI18n();
   const g = t.guide;
   const exportHint = useId();
-  return <section className="guided-demo" aria-label={g.title}>
+  const region = useRef<HTMLElement>(null);
+  useEffect(() => { region.current?.focus(); }, []);
+  return <section ref={region} tabIndex={-1} className="guided-demo" aria-label={g.title}>
     <div className="guide-heading"><strong>{progress.step + 1}/{g.steps.length} · {g.steps[progress.step]}</strong><p>{g.brief[progress.step]}</p></div>
     <div className="guide-actions">
       <button type="button" className="btn accent small" disabled={busy || !ready} onClick={onNext}>{g.actions[progress.step]}</button>

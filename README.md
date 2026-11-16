@@ -25,7 +25,7 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 ## Quick start
 
-1. [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) or [run locally](#run-locally), then choose **Start the A/B/C guide** on the welcome screen or in the Build sidebar. The guide adds independent example plans and preserves existing events.
+1. Start this version locally ([instructions below](#run-locally)) and choose **Follow a guest through A/B** on the welcome screen or **Start the A/B/C guide** in the Build sidebar. The guide adds independent example plans and preserves existing events. The public deployment updates after a merge to main.
 2. Read the A/B results: completed, unfinished, early departures, average/P90 waiting and resource costs. The example is synthetic, and B changes several arrangements at once.
 3. Choose **Follow the same guest**, then **Jump to first difference**. Inspect the same ID's two recorded journeys, station table and events.
 4. Choose **Inspect posts and resources**, then **Inspect packing evidence**. Check staff eligibility, actual postings and availability; the backlog alone does not establish a unique cause.
@@ -42,7 +42,7 @@ The original two-plan example, blank flows, Haunted house and reusable templates
 
 ## Reading comparison results
 
-Use **More options → Run scope → Run to completion**, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
+Use **Run scope → Run to completion** in the strip below the top toolbar, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
 
 The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting.
 
@@ -121,7 +121,7 @@ Intended category: **Costume Contest**. Ghosts represent the same simulated gues
 
 The public repository includes the source, examples, setup instructions, an open-source license, and the root [`.kiro/`](.kiro/) directory. English product and testing instructions are above; the original internal planning documents remain in Chinese.
 
-**Submission is not complete.** The existing Kiro usage log has no verified development entries or exported sessions. The current implementation and repository preparation were completed with Codex; the presence of spec and hook files does not establish that Kiro executed them. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
+**Submission is not complete.** The usage log contains one manually recorded, evidence-backed entry for the UI redesign. The inspected Kiro session produced the requirements and initial screenshot preparation; Codex implemented and verified the interface. Raw session exports remain pending and execution of the Stop Hook remains unverified. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
 
 Before submitting, complete substantive work in Kiro and document its actual contribution, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
 
