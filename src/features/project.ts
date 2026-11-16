@@ -319,11 +319,14 @@ export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun 
   const costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups, bins = threshold ? t.evidence.bins : t.evidence.anyBins;
   return [`## ${t.evidence.comparison}`, '', `A: ${a.request.plan.name} (${a.request.plan.id})`, `B: ${b.request.plan.name} (${b.request.plan.id})`,
+    t.report.scenario(a.request.scenario.name ?? a.request.scenario.id, a.request.scenario.id),
+    t.report.seed(a.request.scenario.seed), t.report.window(a.request.scenario.observationCutoff, a.request.scenario.horizon),
     `${t.review.basis}: ${t.review[basis]}`, `${t.evidence.threshold}: ${threshold ? t.evidence.minute : t.evidence.any}`, t.evidence.rule,
     t.evidence.population, t.evidence.paired(people.total),
     ...[left, right].flatMap((stats, index) => {
       const completed = completedWaiting(stats), run = index ? b : a;
-      return [`${index ? 'B' : 'A'}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
+      return [`${index ? 'B' : 'A'} · ${t.run.scope}: ${run.request.runMode === 'cutoff' ? t.run.cutoff : t.run.completion}`,
+        `${index ? 'B' : 'A'}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
         t.report.model(run.modelVersion, run.request.scenario.id, t.review[basis]), `Input SHA-256: ${run.inputKey}`, `Scenario SHA-256: ${run.scenarioKey}`,
         t.report.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join('; ')),
         t.report.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)),
