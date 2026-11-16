@@ -13,79 +13,259 @@ concurrency:
   group: pages-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  # Keep one stable build check; any failed or cancelled shard blocks deployment.
-  build:
-    if: always()
-    needs: chromium
+  quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
-      - name: Require both Chromium shards
-        env:
-          CHROMIUM_RESULT: ${{ needs.chromium.result }}
-        run: test "$CHROMIUM_RESULT" = success
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Check types, units and release gates
+        run: |
+          npm run check 2>&1 | tee ci-logs/check.log
+          node --test e2e/release/gate-checks.mjs 2>&1 | tee ci-logs/release-gates.log
+      - name: Build production subpath
+        run: npm run build -- --base=/ghost-rehearsal/ 2>&1 | tee ci-logs/build.log
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: quality-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ci-logs/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          path: dist
 
   chromium:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2]
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run build -- --base=/ghost-rehearsal/
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser -- --shard=${{ matrix.shard }}/2
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps chromium 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npm run test:browser -- --shard=${{ matrix.shard }}/2 2>&1 | tee ci-logs/browser-run.log
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
-      - name: Upload browser failure diagnostics
-        if: failure()
+      - name: Upload browser diagnostics
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-failure-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
+          name: chromium-${{ github.run_id }}-${{ github.run_attempt }}-shard-${{ matrix.shard }}
           path: |
+            ci-logs/
             test-results/
             playwright-report/
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-pages-artifact@v5
-        if: matrix.shard == 1 && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        with:
-          path: dist
 
   webkit:
+    needs: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps webkit
-      - run: npm run test:browser:webkit
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps webkit 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npx playwright test --config e2e/release/playwright.config.ts --project='*webkit*' 2>&1 | tee ci-logs/browser-run.log
         env:
           PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
-      - name: Upload WebKit failure diagnostics
-        if: failure()
+      - name: Upload browser diagnostics
+        if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: browser-failure-webkit-${{ github.run_id }}-${{ github.run_attempt }}
+          name: webkit-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            ci-logs/
             test-results/
             playwright-report/
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 14
 
+  firefox:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps firefox 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npx playwright test --config e2e/release/playwright.config.ts --project='*firefox*' 2>&1 | tee ci-logs/browser-run.log
+        env:
+          PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: firefox-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-logs/
+            test-results/
+            playwright-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  chromium-touch:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps chromium 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npx playwright test --config e2e/release/playwright.config.ts --project='mobile-touch-*' 2>&1 | tee ci-logs/browser-run.log
+        env:
+          PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chromium-touch-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-logs/
+            test-results/
+            playwright-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  import-webkit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps webkit 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npx playwright test --config e2e/project/playwright.config.ts --repeat-each=3 2>&1 | tee ci-logs/browser-run.log
+        env:
+          PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: import-webkit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-logs/
+            test-results/
+            playwright-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  comparison-webkit:
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: |
+          mkdir -p ci-logs
+          npm ci 2>&1 | tee ci-logs/dependencies.log
+      - name: Install browser
+        run: npx playwright install --with-deps webkit 2>&1 | tee ci-logs/browser-install.log
+      - name: Run required browser checks
+        run: npx playwright test --config e2e/comparison/playwright.config.ts 2>&1 | tee ci-logs/browser-run.log
+        env:
+          PLAYWRIGHT_BASE_PATH: /ghost-rehearsal/
+      - name: Upload browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: comparison-webkit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ci-logs/
+            test-results/
+            playwright-report/
+          if-no-files-found: error
+          retention-days: 14
+
+  build:
+    if: always()
+    needs: [quality, chromium, chromium-touch, webkit, firefox, import-webkit, comparison-webkit]
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.gate.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Require every browser and build job
+        id: gate
+        env:
+          REQUIRED_JOB_RESULTS: ${{ toJSON(needs) }}
+        run: node e2e/release/gate.mjs
+
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: [build, webkit]
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && needs.build.outputs.deploy == 'true'
+          && github.ref == 'refs/heads/main'
+          && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
+    needs: [build, quality, chromium, chromium-touch, webkit, firefox, import-webkit, comparison-webkit]
     runs-on: ubuntu-latest
     permissions:
       pages: write
