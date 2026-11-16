@@ -1,4 +1,5 @@
 import { arrivalStreamSchema, idSchema, serviceDurationSchema, type Scenario, type ServiceNode } from '../../schemas';
+import { checkLimit } from '../imports/limits';
 
 export type TimeUnit = 'seconds' | 'minutes';
 export type Provenance = ServiceNode['duration']['provenance'];
@@ -21,12 +22,13 @@ export interface ServicePreview extends Preview {
 }
 interface Cell { value: string; row: number; column: number }
 interface Row { cells: Cell[]; errors: DataIssue[] }
+export interface TableLimits { rows: number; cells: number; syntaxIssues: number }
 
 function diagnostic(cell: Pick<Cell, 'row' | 'column'>, code: string, message: string, field?: string): DataIssue {
   return { row: cell.row, column: cell.column, code, message, ...(field === undefined ? {} : { field }) };
 }
 
-function readTable(input: string): Row[] {
+function readTable(input: string, limits?: TableLimits): Row[] {
   const text = input.replace(/^\uFEFF/, '');
   let delimiter = ',';
   let inQuote = false;
@@ -48,13 +50,19 @@ function readTable(input: string): Row[] {
   let quoted = false;
   let closed = false;
   let present = false;
+  let cellCount = 0;
+  let syntaxIssues = 0;
   const endCell = () => {
+    if (limits) checkLimit('table_cells', ++cellCount, limits.cells);
     cells.push({ value, row: cellLine, column: cells.length + 1 });
     value = ''; quoted = false; closed = false; cellLine = line;
   };
   const endRow = () => {
     endCell();
-    if (present || cells.length > 1 || cells[0].value.trim() !== '') rows.push({ cells, errors });
+    if (present || cells.length > 1 || cells[0].value.trim() !== '') {
+      rows.push({ cells, errors });
+      if (limits) checkLimit('table_rows', rows.length - 1, limits.rows);
+    }
     cells = []; errors = []; present = false;
   };
   for (let index = 0; index < text.length; index++) {
@@ -79,6 +87,7 @@ function readTable(input: string): Row[] {
       quoted = true; present = true;
     } else {
       if (char === '"' || (closed && char !== ' ' && char !== '\t')) {
+        if (limits) checkLimit('csv_syntax_issues', ++syntaxIssues, limits.syntaxIssues);
         errors.push(diagnostic({ row: line, column: cells.length + 1 }, 'csv_quote', 'Malformed quoted field / 引号字段格式错误'));
       }
       if (!closed) value += char;
@@ -90,8 +99,8 @@ function readTable(input: string): Row[] {
   return rows;
 }
 
-function inspectTable(text: string, fields: string[]) {
-  const rows = readTable(text);
+function inspectTable(text: string, fields: string[], limits?: TableLimits) {
+  const rows = readTable(text, limits);
   const header = rows.shift();
   const errors: DataIssue[] = header ? [...header.errors] : [diagnostic({ row: 1, column: 1 }, 'empty_file', 'No header or data / 文件中没有表头或数据')];
   const positions = new Map<string, number>();
@@ -126,8 +135,8 @@ function seconds(cell: Cell, unit: TimeUnit, errors: DataIssue[], field: string)
   return value;
 }
 
-export function parseArrivalData(text: string, unit: TimeUnit, attributes: Scenario['attributes'], observationCutoff: number, horizon: number): ArrivalPreview {
-  const { rows, positions, errors, headerValid } = inspectTable(text, ['id', 'arrival_time', ...attributes.map(attribute => `attr:${attribute.id}`)]);
+export function parseArrivalData(text: string, unit: TimeUnit, attributes: Scenario['attributes'], observationCutoff: number, horizon: number, limits?: TableLimits): ArrivalPreview {
+  const { rows, positions, errors, headerValid } = inspectTable(text, ['id', 'arrival_time', ...attributes.map(attribute => `attr:${attribute.id}`)], limits);
   const records: RecordsStream['records'] = [];
   const seen = new Set<string>();
   for (const row of rows) {
@@ -160,8 +169,8 @@ export function parseArrivalData(text: string, unit: TimeUnit, attributes: Scena
   return Object.freeze({ records, errors, totalRows: rows.length, validRows: records.length, unit, summary });
 }
 
-export function parseServiceData(text: string, unit: TimeUnit): ServicePreview {
-  const { rows, errors, headerValid } = inspectTable(text, ['duration']);
+export function parseServiceData(text: string, unit: TimeUnit, limits?: TableLimits): ServicePreview {
+  const { rows, errors, headerValid } = inspectTable(text, ['duration'], limits);
   const samples: number[] = [];
   const sampleCells: Cell[] = [];
   for (const row of rows) {
