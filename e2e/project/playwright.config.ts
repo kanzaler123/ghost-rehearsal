@@ -13,5 +13,5 @@ export default defineConfig({
   })),
   webServer: { ...server, cwd: '../..' },
   outputDir: '../../test-results/import-webkit',
-  reporter: [['list'], ['json', { outputFile: '../../test-results/import-webkit-results.json' }]],
+  reporter: [['../release/required-checks.ts'], ['list'], ['html', { outputFolder: '../../test-results/import-webkit-report', open: 'never' }], ['json', { outputFile: '../../test-results/import-webkit-results.json' }]],
 });
