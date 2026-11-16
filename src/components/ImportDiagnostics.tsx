@@ -10,6 +10,7 @@ export function ImportDiagnostics({ client, state, lang }: { client: ImportClien
   useEffect(() => setPage(0), [state?.requestId]);
   if (!state || !client || !['ready', 'invalid', 'failed'].includes(state.status)) return null;
   const t = MESSAGES[lang], issues = client.getIssues(page * 50);
+  if (state.validationComplete && !state.failure && !issues.total) return null;
   return <div className="ds-table-scroll" role={state.status === 'ready' ? 'status' : 'alert'} tabIndex={0}>
     {state.failure && <p>{t.imports.failed} {state.failure.message}</p>}
     {!state.validationComplete && <p>{t.imports.incomplete}</p>}

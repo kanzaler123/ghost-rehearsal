@@ -3,9 +3,9 @@ import base from '../../playwright.config';
 
 const server = base.webServer;
 if (!server || Array.isArray(server)) throw new Error('Release tests require the production preview server.');
-const critical = '**/release/critical.spec.ts';
-const webkit = [critical, '**/demo/comparison.spec.ts', '**/robustness/integration.spec.ts', '**/data-sources/integration.spec.ts', '**/ui/accessibility.spec.ts', '**/ui/run-states.spec.ts', '**/ui/mobile-navigation.spec.ts', '**/ui/timeline-touch.spec.ts'];
-const touch = [critical, '**/ui/mobile-navigation.spec.ts', '**/ui/timeline-touch.spec.ts'];
+const critical = ['**/release/critical.spec.ts', '**/persistence/app.spec.ts'];
+const webkit = [...critical, '**/demo/comparison.spec.ts', '**/robustness/integration.spec.ts', '**/data-sources/integration.spec.ts', '**/ui/accessibility.spec.ts', '**/ui/run-states.spec.ts', '**/ui/mobile-navigation.spec.ts', '**/ui/timeline-touch.spec.ts'];
+const touch = [...critical, '**/ui/mobile-navigation.spec.ts', '**/ui/timeline-touch.spec.ts'];
 
 export default defineConfig({
   ...base,

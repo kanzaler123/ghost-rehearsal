@@ -106,6 +106,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   await page.getByRole('dialog').getByRole('button', { name: t.guide.start, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
+  await expect.poll(() => storedProject(page, 'draft')).not.toBeNull();
   const before = await storedProject(page, 'draft');
   await page.evaluate(() => (window as typeof window & { finishOlder: () => Promise<void> }).finishOlder());
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
