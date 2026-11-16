@@ -6,7 +6,7 @@ import type { Persistence, PersistenceError, Revision, TemplateSnapshot } from '
 
 export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null) => void) {
   const store = useRef<Persistence | null>(null);
-  const editor = useRef({ id: newProjectId(), parents: [] as string[] });
+  const editor = useRef({ id: newProjectId(), parents: [] as string[], confirmed: '' });
   const queue = useRef(Promise.resolve());
   const mounted = useRef(false);
   const load = useRef(onLoad); load.current = onLoad;
@@ -29,7 +29,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
 
   function accept(revision: Revision<ProjectDocument>, parents = [revision.id]) {
     if (revision.status !== 'ready') return;
-    editor.current = { id: revision.projectId!, parents };
+    editor.current = { id: revision.projectId!, parents, confirmed: JSON.stringify(revision.value) };
     setSavedText(revision.kind === 'saved' ? JSON.stringify(revision.value) : '');
     setConfirmedText(JSON.stringify(revision.value)); setConflict(false); setChooseRecovery(false);
     load.current(revision.value);
@@ -85,8 +85,9 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     setPending(count => count + 1);
     let succeeded = false;
     const operation = queue.current.then(async () => {
+      if (kind === 'draft' && context.confirmed === captured) { succeeded = true; return; }
       const result = await instance.writeProject(context.id, document, { kind, parents: context.parents });
-      if (result.ok) context.parents = [result.value.revision.id];
+      if (result.ok) { context.parents = [result.value.revision.id]; context.confirmed = result.value.status === 'conflict' ? '' : captured; }
       if (!mounted.current || editor.current !== context) return;
       if (!result.ok) { setError(result.error); setConfirmedText(''); return; }
       setRecovery(previous => [...previous.filter(item => item.projectId !== context.id), ...result.value.snapshot.heads]);
@@ -100,13 +101,14 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   }
   function replace() {
     if (active && text !== confirmedText) void write('draft');
-    editor.current = { id: newProjectId(), parents: [] };
+    editor.current = { id: newProjectId(), parents: [], confirmed: '' };
     setSavedText(''); setConfirmedText(''); setConflict(false); setChooseRecovery(false);
   }
   async function recover(revision: Revision<ProjectDocument>, resolve = false) {
     if (revision.status !== 'ready') return;
     if (active && text !== confirmedText) await write('draft');
     accept(revision, resolve ? recovery.filter(item => item.projectId === revision.projectId).map(item => item.id) : [revision.id]);
+    editor.current.confirmed = '';
     setConfirmedText('');
     await write('draft', revision.value, true);
   }

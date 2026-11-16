@@ -179,10 +179,11 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   const errors: string[] = [], workers: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  page.on('worker', worker => workers.push(worker.url()));
   await page.addInitScript(value => localStorage.setItem('ghost-rehearsal.lang', value), t.lang);
   await page.goto('./');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'scope.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  page.on('worker', worker => workers.push(worker.url()));
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   const scope = page.locator('.is-report .statistics-scope');
   await expect(scope).toContainText(t.evidence.side('00:05', 2, 1, 0));
