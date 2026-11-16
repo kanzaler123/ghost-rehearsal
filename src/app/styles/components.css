@@ -696,6 +696,9 @@ fieldset:disabled { opacity: 0.82; }
 .entry-atmosphere .haunt-bat, .entry-atmosphere .haunt-web { opacity: 0.55; }
 .entry-atmosphere .haunt-pumpkins, .haunt:not(.is-quiet) .haunt-pumpkins { display: flex; position: absolute; right: var(--space-7); bottom: var(--space-7); opacity: 0.8; color: var(--tone-wait); }
 .event-setup { display: flex; flex-direction: column; }
+.welcome-guide { order: -2; margin-bottom: var(--space-4); }
+.welcome-guide .btn { width: 100%; min-height: var(--touch-min); white-space: normal; }
+.welcome-guide p { margin: var(--space-2) 0 0; color: var(--text-1); font-size: var(--fs-sm); line-height: 1.6; }
 .event-start-options { order: -1; margin-top: 0; margin-bottom: var(--space-4); }
 .event-start-options button { min-height: var(--control-lg); padding: var(--space-2) var(--space-3); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-md); background: var(--surface-1); }
 .tone-queue {

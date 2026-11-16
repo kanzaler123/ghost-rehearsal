@@ -70,6 +70,7 @@ const en = {
   },
   guide: {
     title: 'A/B/C decision guide', start: 'Start the A/B/C guide', exit: 'Exit guide', reset: 'Reset guide', rerun: 'Rerun this comparison',
+    welcomeHint: 'Explore a synthetic event: compare two plans, follow one guest, then try an extra packing worker. No setup needed; existing events are kept.',
     steps: ['Compare A/B', 'The same guest', 'First difference', 'Posts and resources', 'Compare B/C', 'Export the arrangement'],
     brief: ['Synthetic example: compare outcomes, waiting and costs.', 'Follow the same ID across both recorded plans.', 'Inspect the first visible change; it does not establish a cause.', 'Inspect staffing and availability before changing resources.', 'One extra packing worker: check gains, departures and cost.', 'Export C with the selected statistics basis and waiting rule.'],
     hints: [
@@ -545,6 +546,7 @@ const zh: Messages = {
   },
   guide: {
     title: 'A/B/C 决策引导', start: '开始 A/B/C 引导演示', exit: '退出引导', reset: '重置引导', rerun: '重跑当前比较',
+    welcomeHint: '从合成活动开始：比较两个方案、追踪同一位访客，再试验增配一位资料人员。无需填写设置，已有活动会保留。',
     steps: ['比较 A/B', '同一位访客', '首次差异', '岗位与资源', '比较 B/C', '导出安排'],
     brief: ['合成示例：一起比较结局、等待和成本。', '在两个方案的记录中追踪同一 ID。', '检查首次可见变化，不能据此断言原因。', '调整资源前先检查岗位和可用状态。', '增配一位资料人员：核对改善、提前离开和代价。', '按当前统计口径与等待规则导出 C。'],
     hints: [
