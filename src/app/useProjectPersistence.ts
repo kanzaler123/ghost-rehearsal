@@ -25,7 +25,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const templateWriting = useRef(false);
   const [templateBusy, setTemplateBusy] = useState(false);
   const text = JSON.stringify(project);
-  const latest = useRef({ text, confirmedText }); latest.current = { text, confirmedText };
+  const latest = useRef({ project, text, confirmedText }); latest.current = { project, text, confirmedText };
 
   function accept(revision: Revision<ProjectDocument>, parents = [revision.id]) {
     if (revision.status !== 'ready') return;
@@ -100,7 +100,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     return operation.then(() => succeeded);
   }
   function replace() {
-    if (active && text !== confirmedText) void write('draft');
+    if (active && latest.current.text !== editor.current.confirmed) void write('draft', latest.current.project);
     editor.current = { id: newProjectId(), parents: [], confirmed: '' };
     setSavedText(''); setConfirmedText(''); setConflict(false); setChooseRecovery(false);
   }
