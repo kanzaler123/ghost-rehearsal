@@ -67,7 +67,7 @@ const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]
 };
 /** Trend arrows compare the queue with one scenario minute earlier. */
 const TREND_WINDOW = 60;
-const LEGEND = ['serving', 'waiting', 'growing', 'blocked', 'done', 'tracked'] as const;
+const LEGEND = ['moving', 'serving', 'waiting', 'blocked', 'done', 'left', 'tracked'] as const;
 const other = (lang: Lang): Lang => lang === 'en' ? 'zh' : 'en';
 const cls = (...names: (string | false | undefined | null)[]) => names.filter(Boolean).join(' ');
 
@@ -180,6 +180,10 @@ export function App() {
   const comparison = useMemo(() => comparisonContext(run, secondRun, basis, threshold, !busy && !stale && !secondStale && !interrupted), [run, secondRun, basis, threshold, stale, secondStale, interrupted, busy]);
   const endTime = Math.max(run?.coveredUntil ?? scenario.observationCutoff, mode === 'Compare' ? secondRun?.coveredUntil ?? 0 : 0);
   const issues = useMemo(() => [...validateScenario(scenario), ...validatePlan(plan), ...validateGraph(scenario, plan)], [scenario, plan]);
+  const runPlanChecks = useMemo(() => (busy ? project.plans.filter(target => runningPlans.current.includes(target.id)) : mode === 'Compare' && second ? [plan, second] : [plan]).map(target => {
+    const checks = target === plan ? issues : [...validateScenario(scenario), ...validatePlan(target), ...validateGraph(scenario, target)];
+    return t.redesign.planChecks(target.name, checks.filter(issue => issue.severity === 'error').length, checks.filter(issue => issue.severity !== 'error').length);
+  }), [busy, project.plans, mode, second, plan, issues, scenario, t]);
   const ownerIssues = owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(project.scenarios.find(item => item.id === owner.scenarioId)!, owner)];
   const errorCount = issues.filter(issue => issue.severity === 'error').length;
   const checksPlan = project.plans.find(item => item.id === checksPlanId) ?? plan;
@@ -383,6 +387,7 @@ export function App() {
   function rerun() { launch(mode === 'Compare' && second ? [plan, second] : [plan], mode === 'Compare' ? 'Compare' : 'Rehearse'); }
   function switchMode(next: Mode) {
     setPlaying(false);
+    if ((next === 'Compare' ? comparisonReady : next === 'Rehearse' && run && !stale && run.status !== 'failed') && selection.owner === plan.id && selection.id && selection.kind === 'node') focusNodes([selection.id]);
     if (next === 'Build') { enterBuild(); return; }
     if (next === 'Compare') {
       if (!second) { say(tr => tr.notices.needSecond); return; }
@@ -418,6 +423,7 @@ export function App() {
     launch([second, target], 'Compare', next);
   }
   function startGuide() {
+    projectRead.current += 1; setProjectReadFailed(false); setDocumentIssues([]);
     const next = addEvent(project, localizeDocument(initialDocument(), 'zh', lang));
     const [a, b] = next.plans.slice(-2);
     commit(next); setPlanId(a.id); setSecondId(b.id); setGuide({ step: 0, a: a.id, b: b.id });
@@ -626,7 +632,7 @@ export function App() {
 
   return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
     {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><HauntedBackdrop /></div>}
-    <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
+    <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name} planChecks={runPlanChecks}
       compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
       onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
       onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} />
@@ -734,7 +740,7 @@ export function App() {
               {tab === 'journey' ? <Ghost size={14} /> : <Icon size={14} aria-hidden="true" />}{tab === 'journey' && comparing ? t.dock.tabs.futures : t.dock.tabs[tab]}
             </button>)}
             <span className="dock-spacer" />
-            {run && <div className="legend" role="note" aria-label={t.legend.label}>{LEGEND.map(key => <span key={key} className={`lg-${key}`}><i aria-hidden="true" />{t.legend[key]}</span>)}</div>}
+            {run && <details className="legend"><summary>{t.legend.label}</summary><div role="note">{LEGEND.map(key => <span key={key} className={`lg-${key}`}><i aria-hidden="true" />{t.legend[key]}</span>)}</div></details>}
             {(stale || (mode === 'Compare' && secondStale)) && <span role="status">{t.metrics.stale}{mode === 'Compare' ? ` · ${[stale && 'A', secondStale && 'B'].filter(Boolean).join(', ')}` : ''}</span>}
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => { if (comparing && compareFocus === 'person' && dockOpen) showOverview(); else setDockOpen(value => !value); }}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
@@ -856,6 +862,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {(dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
+    {(dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} onGuide={dialog === 'welcome' ? startGuide : undefined} onLang={switchLanguage} />}
   </div>;
 }

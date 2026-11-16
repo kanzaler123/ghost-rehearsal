@@ -107,7 +107,7 @@ function viewport() { return setViewport.mock.calls.at(-1)![0]; }
 function mount() { render(); flow().onInit(hooks.api); render(); }
 function rehearse(plan = planA) {
   props = { ...props, plan, view: playbackAt([], plan, 0), editable: false, stageView: true,
-    run: { request: { plan } } as SimulationRun, request: { token: props.request.token + 1, target: 'default' } };
+    run: { request: { plan }, population: [] } as unknown as SimulationRun, request: { token: props.request.token + 1, target: 'default' } };
   render();
 }
 

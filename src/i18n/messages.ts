@@ -14,6 +14,13 @@ const zhPersonTime = (seconds: number | null | undefined) =>
   seconds == null ? '—' : `${(seconds / 60).toFixed(1)} 人·分钟`;
 
 const en = {
+  redesign: {
+    eyebrow: 'A dress rehearsal for your event', headline: 'One guest.\nTwo possible futures.',
+    introduction: 'See where people wait, follow their journey, and try a better arrangement before the doors open.',
+    begin: 'Follow a guest through A/B', guideHint: '300 simulated guests · two plans · three steps to the first difference',
+    illustration: 'Illustration · results appear after running', create: 'Or build your own event',
+    planChecks: (name: string, errors: number, notices: number) => `${name} · ${errors} errors · ${notices} notices`,
+  },
   lang: 'en' as Lang,
   markers: { queue: 'Waiting', serve: 'Being served', blocked: 'Blocked', finished: 'Finished', left: 'Left early', selected: 'Editing', error: 'Needs attention', diff: 'Plan difference', running: 'Computing', stale: 'Result stale', tracked: 'Tracked guest', failed: 'Run failed' },
   delta: { gain: 'Gain', regression: 'Regression', cost: 'Cost', none: 'No change', belowPrecision: 'Differs below display precision', unavailable: 'No available value', relativeToA: 'B − A', sameGuests: 'The same guests', completedOnly: 'Completed guests only', noneCompleted: 'No guest completed' },
@@ -195,7 +202,7 @@ const en = {
     viewsHint: 'Stages fold each group into one card. Click a stage to open it.',
     checksTitle: 'Pre-run checks', noIssues: 'This plan has no structural or graph issues.', fix: 'Fix', notice: 'Notice', closeChecks: 'Close checks',
   },
-  legend: { label: 'How to read the canvas', serving: 'Being served', waiting: 'Waiting', growing: 'Queue growing', blocked: 'Blocked', done: 'Finished or left', tracked: 'Followed ghost' },
+  legend: { label: 'How to read the canvas', moving: 'Moving', serving: 'Being served', waiting: 'Waiting', growing: 'Queue growing', blocked: 'Blocked', done: 'Finished', left: 'Left unfinished', tracked: 'Followed ghost' },
   live: {
     title: 'Now', replay: 'Replay', clock: (time: string) => `Replay ${time}`,
     inFlow: 'In the flow', waiting: 'Waiting', serving: 'Being served', finished: 'Finished',
@@ -491,6 +498,13 @@ const en = {
 export type Messages = typeof en;
 
 const zh: Messages = {
+  redesign: {
+    eyebrow: '在活动开门之前，先彩排一次', headline: '同一位访客，\n两种可能的未来。',
+    introduction: '看见人们在哪里等待，跟随他们的旅程，在现场开始之前试出更合适的安排。',
+    begin: '跟随一位访客，比较 A / B', guideHint: '300 位模拟访客 · 两套方案 · 三步看见首次分歧',
+    illustration: '概念示意 · 运行后显示真实结果', create: '或者，创建自己的活动',
+    planChecks: (name: string, errors: number, notices: number) => `${name} · ${errors} 项错误 · ${notices} 项提示`,
+  },
   lang: 'zh',
   markers: { queue: '等待中', serve: '服务中', blocked: '受阻', finished: '已完成', left: '提前离开', selected: '正在编辑', error: '需要处理', diff: '方案差异', running: '计算中', stale: '结果已过期', tracked: '跟随访客', failed: '运行失败' },
   delta: { gain: '改善', regression: '变差', cost: '代价', none: '无变化', belowPrecision: '差异小于显示精度', unavailable: '暂无可用数值', relativeToA: 'B − A', sameGuests: '同一批访客', completedOnly: '仅已完成访客', noneCompleted: '尚无访客完成' },
@@ -667,7 +681,7 @@ const zh: Messages = {
     viewsHint: '分阶段视图把每个分组收成一张卡片，点击阶段即可展开。',
     checksTitle: '运行前检查', noIssues: '当前方案没有结构或图校验问题。', fix: '修正', notice: '提醒', closeChecks: '关闭检查',
   },
-  legend: { label: '画布图例', serving: '服务中', waiting: '排队等待', growing: '队列增长', blocked: '受阻', done: '完成离场', tracked: '被追踪的幽灵' },
+  legend: { label: '画布图例', moving: '移动中', serving: '服务中', waiting: '排队等待', growing: '队列增长', blocked: '受阻', done: '完成', left: '未完成离场', tracked: '被追踪的幽灵' },
   live: {
     title: '此刻', replay: '回放', clock: time => `回放 ${time}`,
     inFlow: '在场人数', waiting: '排队等待', serving: '服务中', finished: '已完成',

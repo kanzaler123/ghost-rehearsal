@@ -39,8 +39,8 @@ describe('workbench style contract', () => {
     expect(readFileSync(join(directory, '../main.tsx'), 'utf8')).not.toContain("import '@xyflow/react/dist/style.css'");
   });
 
-  it('keeps the baseline surface palette and exactly three elevation levels', () => {
-    expect([0, 1, 2].map(level => resolve(tokens.get(`--surface-${level}`)!))).toEqual(['#0e0c12', '#151219', '#201b25']);
+  it('keeps the Ghostlight surface palette and exactly three elevation levels', () => {
+    expect([0, 1, 2].map(level => resolve(tokens.get(`--surface-${level}`)!))).toEqual(['#0b1110', '#131e1a', '#1b2a24']);
     expect([...tokens.keys()].filter(name => /^--surface-\d+$/.test(name))).toHaveLength(3);
     expect(tokens.get('--elev-0')).toBe('none');
     expect(new Set([0, 1, 2].map(level => tokens.get(`--elev-${level}`))).size).toBe(3);

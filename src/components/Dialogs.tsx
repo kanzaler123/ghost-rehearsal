@@ -6,6 +6,7 @@ import { deviceUnitIds, validatePlan, validateScenario } from '../schemas';
 import type { Plan, ProjectDocument, Scenario } from '../schemas';
 import { emptyProject, halloweenProject, newId } from '../features/project';
 import { issueText, useI18n } from '../i18n';
+import type { Lang } from '../i18n';
 import { Field, MinuteInput, NumberInput } from './Inspector';
 import { NumericInput } from './forms/NumericInput';
 import { minutesToSeconds, secondsToMinutes } from './forms/numberDraft';
@@ -15,6 +16,7 @@ import { ArrivalDataEditor } from './data-sources/ArrivalDataEditor';
 import { ProvenanceFields } from './data-sources/ProvenanceFields';
 import { dataSourceText } from './data-sources/text';
 import './forms/forms.css';
+import { Ghost } from './Icons';
 
 export function Modal({ title, children, onClose, wide = false, icon }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; icon?: ReactNode }) {
   const { t } = useI18n();
@@ -51,7 +53,7 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void }) {
+export function EventCreator({ onCreate, onExample, onImport, onClose, importError, onGuide, onLang }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onClose: () => void; onGuide?: () => void; onLang: (lang: Lang) => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
@@ -71,7 +73,17 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, importErr
       if (errors.length) { setError(errors.map(issue => issueText(issue, lang)).join('\n')); return; }
       onCreate(document);
     }}>
-      <div className="modal-body event-setup">
+      <div className={onGuide ? 'modal-body welcome-layout' : 'modal-body'}>
+        {onGuide && <section className="welcome-story">
+          <span className="eyebrow">{t.redesign.eyebrow}</span>
+          <h1>{t.redesign.headline}</h1><p>{t.redesign.introduction}</p>
+          <button type="button" className={`btn ${name.trim() ? '' : 'primary'} welcome-start`} onClick={onGuide}>{t.redesign.begin}<span aria-hidden="true">↗</span></button>
+          <small>{t.redesign.guideHint}</small>
+          <figure className="welcome-illustration"><div aria-hidden="true"><span className="welcome-ghost"><Ghost size={60} /></span><span className="welcome-path path-a">A</span><span className="welcome-path path-b">B</span></div><figcaption>{t.redesign.illustration}</figcaption></figure>
+          <div className="lang-switch" role="group" aria-label={t.language.label}>{(['en', 'zh'] as const).map(item => <button type="button" key={item} aria-pressed={lang === item} className={lang === item ? 'active' : ''} onClick={() => onLang(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}</div>
+        </section>}
+        <div className="event-setup">
+        {onGuide && <h3>{t.redesign.create}</h3>}
         <span className="eyebrow">{t.eventSetup.steps}</span><p>{t.eventSetup.subtitle}</p>
         <Field label={t.dialogs.eventName}><input aria-label={t.dialogs.eventName} value={name} maxLength={100} required placeholder={t.eventSetup.namePlaceholder} onChange={event => setName(event.target.value)} /></Field>
         <div className="form-row">
@@ -85,8 +97,9 @@ export function EventCreator({ onCreate, onExample, onImport, onClose, importErr
         <p className="form-error" role="alert">{error}</p>
         <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" aria-describedby={importError ? importErrorId : undefined} onClick={onImport}>{t.eventSetup.import}</button></div>
         <p id={importErrorId} className="form-error" role="alert">{importError}</p>
+        </div>
       </div>
-      <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
+      <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className={`btn ${!onGuide || name.trim() ? 'primary' : ''}`} disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>
   </Modal>;
 }
