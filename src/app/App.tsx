@@ -366,6 +366,7 @@ export function App() {
       const results = event.data.runs;
       const failed = results.find(result => result.status === 'failed' || (destination === 'Compare' && result.status !== 'succeeded'));
       if (failed) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3); say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`); setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); return; }
+      if (scope === 'cutoff') setBasis('cutoff');
       setRuns(previous => ({ ...previous, ...Object.fromEntries(results.map(result => [result.request.plan.id, result])) }));
       setMode(destination); setTime(0); setSpeed(1); setPlaying(autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: targets[0].id });
       if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
@@ -395,7 +396,6 @@ export function App() {
     const right = project.plans.find(item => item.id === rightId && item.scenarioId === scenario.id);
     if (busy || !left || !right || left.id === right.id) return;
     setDialog(null); setGuide(null); setPlanId(left.id); setSecondId(right.id); setRunMode(scope);
-    if (scope === 'cutoff') setBasis('cutoff');
     setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
     launch([left, right], 'Compare', project, scope);
   }
