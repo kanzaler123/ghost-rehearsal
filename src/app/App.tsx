@@ -354,7 +354,6 @@ export function App() {
   function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
     if (dialog === 'robustness') return;
     if (targets.length === 2 && targets[0].scenarioId !== targets[1].scenarioId) { say(tr => tr.notices.sameScenario); return; }
-    if (scope === 'cutoff') setBasis('cutoff');
     runningPlans.current = targets.map(target => target.id); setLastRun(null);
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
     worker.current?.terminate();
@@ -366,6 +365,7 @@ export function App() {
       const results = event.data.runs;
       const failed = results.find(result => result.status === 'failed' || (destination === 'Compare' && result.status !== 'succeeded'));
       if (failed) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3); say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`); setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); return; }
+      if (scope === 'cutoff') setBasis('cutoff');
       setRuns(previous => ({ ...previous, ...Object.fromEntries(results.map(result => [result.request.plan.id, result])) }));
       setMode(destination); setTime(0); setSpeed(1); setPlaying(autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: targets[0].id });
       if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
