@@ -100,6 +100,7 @@
   background: var(--surface-1);
 }
 .side-section { padding: var(--space-5); border-bottom: var(--stroke) solid var(--line); }
+.event-card { min-width: 0; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .section-actions { display: flex; align-items: center; }
 .section-heading h2 { margin-top: var(--space-2); font-size: var(--fs-lg); font-weight: 680; color: var(--text-0); letter-spacing: var(--tracking-display); }

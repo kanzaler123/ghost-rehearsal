@@ -8,7 +8,7 @@ test('blank-plan spacing, direct name editing and minimap clearance', async ({ p
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
-  await page.getByRole('dialog').getByLabel(t.dialogs.eventName, { exact: true }).fill('Night event');
+  await page.getByRole('dialog').getByLabel(t.dialogs.eventName, { exact: true }).fill('Two-Entrance Open House');
   await page.getByRole('dialog').getByRole('button', { name: t.eventSetup.create, exact: true }).click();
   await expect(page.locator('.react-flow__minimap')).toHaveCount(0);
   await expect(page.locator('.canvas-shell .haunt-moon')).toBeVisible();
@@ -34,7 +34,7 @@ test('blank-plan spacing, direct name editing and minimap clearance', async ({ p
   await page.getByRole('dialog').getByRole('button', { name: t.dialogs.applyShared(1), exact: true }).click();
   await expect(page.locator('.event-title')).toHaveText('Midnight rehearsal');
   await page.getByRole('button', { name: t.header.undo, exact: true }).click();
-  await expect(page.locator('.event-title')).toHaveText('Night event');
+  await expect(page.locator('.event-title')).toHaveText('Two-Entrance Open House');
   await page.getByRole('button', { name: t.header.redo, exact: true }).click();
   await expect(page.locator('.event-title')).toHaveText('Midnight rehearsal');
 
