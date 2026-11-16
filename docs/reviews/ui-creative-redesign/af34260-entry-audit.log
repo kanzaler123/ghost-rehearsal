@@ -1,0 +1,182 @@
+[
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "lang": "en",
+    "cls": 0.0005124874413258744,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "lang": "zh",
+    "cls": 0.00003648716804912551,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "lang": "en",
+    "cls": 0.000649381488714766,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "lang": "zh",
+    "cls": 0.00007920608218541306,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "lang": "en",
+    "cls": 0,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "before",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "lang": "zh",
+    "cls": 0,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 291895,
+    "cssGzip": 34935,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "lang": "en",
+    "cls": 0.0007404829362782922,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "lang": "zh",
+    "cls": 0.00003659201623317472,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "lang": "en",
+    "cls": 0.0008683559774313854,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "lang": "zh",
+    "cls": 0.00007405559880956017,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "lang": "en",
+    "cls": 0.000025968021735205337,
+    "rootOverflow": false,
+    "documentLanguage": "en",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  },
+  {
+    "phase": "after",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "lang": "zh",
+    "cls": 0,
+    "rootOverflow": false,
+    "documentLanguage": "zh-CN",
+    "javascriptGzip": 292931,
+    "cssGzip": 34672,
+    "binary": 359396,
+    "errors": []
+  }
+]

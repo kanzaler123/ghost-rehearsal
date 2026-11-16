@@ -9,8 +9,8 @@ test('lab theme keeps inputs, errors and results readable with keyboard focus at
   const panel = page.getByTestId('robustness-panel');
   const seeds = panel.getByLabel(lab.seeds, { exact: true });
   const start = panel.getByRole('button', { name: lab.start, exact: true });
-  await expect(panel).toHaveCSS('background-color', 'rgb(14, 12, 18)');
-  await expect(panel.locator('.lab-section').first()).toHaveCSS('background-color', 'rgb(21, 18, 25)');
+  await expect(panel).toHaveCSS('background-color', 'rgb(13, 13, 13)');
+  await expect(panel.locator('.lab-section').first()).toHaveCSS('background-color', 'rgb(21, 21, 21)');
   await seeds.fill('1, 1');
   await expect(panel.getByRole('alert')).toBeVisible();
   await expect(start).toBeDisabled();

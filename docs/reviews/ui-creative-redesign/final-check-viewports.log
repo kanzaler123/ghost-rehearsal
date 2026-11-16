@@ -1,0 +1,45 @@
+
+Running 10 tests using 1 worker
+
+(node:29268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  1 [check-1920-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (15.7s)
+(node:33620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  2 [check-1920-zh] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (14.6s)
+(node:21280) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  3 [check-1280-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (13.7s)
+(node:24276) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  4 [check-1280-zh] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (16.9s)
+(node:37120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  5 [check-1024-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (14.5s)
+(node:41084) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  6 [check-1024-zh] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (14.4s)
+(node:35520) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  7 [check-768-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (16.1s)
+(node:13340) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  8 [check-768-zh] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (15.4s)
+(node:27588) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok  9 [check-320-en] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (14.8s)
+(node:44896) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+  ok 10 [check-320-zh] › docs\reviews\ui-creative-redesign\capture.spec.ts:17:1 › capture review states (13.9s)
+
+  10 passed (3.0m)

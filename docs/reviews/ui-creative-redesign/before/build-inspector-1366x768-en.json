@@ -1,0 +1,22 @@
+{
+  "state": "build-inspector",
+  "file": "build-inspector-1366x768-en.png",
+  "commit": "f8371999e64d25c250699e5cd96f85eabb79bb32",
+  "phase": "before",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "lang": "en",
+  "replayTime": null,
+  "statisticsBasis": null,
+  "waitingRule": null,
+  "followedGuest": null,
+  "projectDigest": "7166ace442057ed59e46a8cd9d936b3f687d9cfa2b6154d108b7069eca596008",
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "matrix(1.05, 0, 0, 1.05, -1743.2, 88.5)"
+  ],
+  "workerURLs": [],
+  "errors": []
+}

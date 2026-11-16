@@ -1,0 +1,24 @@
+{
+  "state": "welcome",
+  "file": "welcome-1366x768-en.png",
+  "commit": "cec4204bc40f378d680a4c30c8ef6581e9309e7a",
+  "phase": "after",
+  "viewport": {
+    "width": 1366,
+    "height": 768
+  },
+  "lang": "en",
+  "capturedAt": "2026-11-16T14:57:43.316Z",
+  "timezone": "Asia/Singapore",
+  "replayTime": null,
+  "statisticsBasis": null,
+  "waitingRule": null,
+  "followedGuest": null,
+  "projectDigest": null,
+  "nullReason": "No project or result in this state; otherwise the field is not applicable.",
+  "canvasZoom": [
+    "matrix(1, 0, 0, 1, 0, 0)"
+  ],
+  "workerURLs": [],
+  "errors": []
+}

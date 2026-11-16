@@ -1,0 +1,280 @@
+
+> ghost-rehearsal@0.1.0 test:browser
+> playwright test
+
+[WebServer] (node:31552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] [plugin builtin:vite-reporter] 
+[WebServer] (!) Some chunks are larger than 500 kB after minification. Consider:
+[WebServer] - Using dynamic import() to code-split the application
+[WebServer] - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+[WebServer] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[WebServer] (node:14104) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 284 tests using 2 workers
+
+(node:31092) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok   2 [desktop-en] › e2e\data-sources\read-safety.spec.ts:28:3 › arrival unreadable CSV preserves pasted draft, preview and source; same-file retry works (2.9s)
+  ok   3 [desktop-en] › e2e\data-sources\read-safety.spec.ts:68:3 › arrival delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.6s)
+  ok   4 [desktop-en] › e2e\data-sources\read-safety.spec.ts:28:3 › service unreadable CSV preserves pasted draft, preview and source; same-file retry works (1.3s)
+  ok   5 [desktop-en] › e2e\data-sources\read-safety.spec.ts:68:3 › service delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.4s)
+  ok   6 [desktop-en] › e2e\demo\comparison.spec.ts:23:1 › real Worker: guided A/B/C, scopes, bilingual evidence and project round trip (10.4s)
+  ok   7 [desktop-en] › e2e\demo\comparison.spec.ts:163:1 › real Worker: not-arrived guests, empty completed sample, stale and missing final results (3.2s)
+  ok   1 [desktop-en] › e2e\data-sources\integration.spec.ts:40:1 › arrival file import is staged, validates before outer Apply and round-trips the shared scenario (23.8s)
+  ok   8 [desktop-en] › e2e\demo\experiment-export.spec.ts:16:1 › guide exports only its reproducible A/B/C experiment and preserves existing events (6.2s)
+  ok   9 [desktop-en] › e2e\data-sources\integration.spec.ts:102:1 › service file import is one undoable change and manual edits retain source notes (4.8s)
+  ok  10 [desktop-en] › e2e\demo\guide-mapping.spec.ts:4:1 › guide explains B/C pane mapping without opening More (2.0s)
+  ok  12 [desktop-en] › e2e\demo\guide-mapping.spec.ts:41:1 › mapping follows actual mode and sidebar comparison identities (1.9s)
+  ok  11 [desktop-en] › e2e\demo\report-context.spec.ts:6:1 › downloaded comparison records actual run scope independently of view and next-run settings (3.2s)
+  ok  13 [desktop-en] › e2e\forms\keyboard.spec.ts:7:5 › 390x568 › import errors isolate workbench shortcuts and restore a visible fallback (1.4s)
+  ok  14 [desktop-en] › e2e\forms\reliability.spec.ts:18:5 › 390x568 › invalid import stacks visually and Escape closes one layer (829ms)
+  ok  15 [desktop-en] › e2e\forms\keyboard.spec.ts:7:5 › 390x844 › import errors isolate workbench shortcuts and restore a visible fallback (1.5s)
+  ok  16 [desktop-en] › e2e\forms\reliability.spec.ts:42:5 › 390x568 › new event accepts an empty numeric draft and keeps footer reachable (1.5s)
+  ok  17 [desktop-en] › e2e\forms\keyboard.spec.ts:7:5 › 1280x720 › import errors isolate workbench shortcuts and restore a visible fallback (1.7s)
+  ok  18 [desktop-en] › e2e\forms\reliability.spec.ts:79:5 › 390x568 › resource tabs support arrow keys and panel relationships (2.3s)
+  ok  19 [desktop-en] › e2e\project\import.spec.ts:16:1 › unreadable project preserves work and permits retrying the same file (1.1s)
+  ok  21 [desktop-en] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read success (1.1s)
+  ok  20 [desktop-en] › e2e\forms\reliability.spec.ts:131:5 › 390x568 › scenario minutes, cancel, removal focus and one successful Apply (2.1s)
+  ok  22 [desktop-en] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read failure (996ms)
+  ok  23 [desktop-en] › e2e\forms\reliability.spec.ts:169:5 › 390x568 › time slot drafts stay with their rows through removal, addition and edits (2.3s)
+  ok  24 [desktop-en] › e2e\project\import.spec.ts:71:1 › undoing a delayed import restores edits made while reading (2.2s)
+  ok  26 [desktop-en] › e2e\project\import.spec.ts:104:1 › choosing a new example supersedes an unfinished import (1.0s)
+  ok  25 [desktop-en] › e2e\forms\reliability.spec.ts:219:5 › 390x568 › JSON long errors, template save and rename keep actions reachable (2.5s)
+  ok  27 [desktop-en] › e2e\project\import.spec.ts:127:56 › welcome dialog announces read failures and preserves its draft for retry (1.4s)
+  ok  29 [desktop-en] › e2e\project\import.spec.ts:127:56 › new-event dialog announces read failures and preserves its draft for retry (2.1s)
+  ok  28 [desktop-en] › e2e\forms\reliability.spec.ts:260:5 › 390x568 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.2s)
+  ok  31 [desktop-en] › e2e\forms\reliability.spec.ts:18:5 › 390x844 › invalid import stacks visually and Escape closes one layer (1.1s)
+  ok  32 [desktop-en] › e2e\forms\reliability.spec.ts:42:5 › 390x844 › new event accepts an empty numeric draft and keeps footer reachable (1.8s)
+  ok  30 [desktop-en] › e2e\robustness\integration.spec.ts:13:1 › selected comparison plans run at cutoff and group export reproduces in the workbench (3.8s)
+  ok  33 [desktop-en] › e2e\forms\reliability.spec.ts:79:5 › 390x844 › resource tabs support arrow keys and panel relationships (2.4s)
+  ok  35 [desktop-en] › e2e\forms\reliability.spec.ts:131:5 › 390x844 › scenario minutes, cancel, removal focus and one successful Apply (2.2s)
+  ok  36 [desktop-en] › e2e\forms\reliability.spec.ts:169:5 › 390x844 › time slot drafts stay with their rows through removal, addition and edits (2.2s)
+  ok  37 [desktop-en] › e2e\forms\reliability.spec.ts:219:5 › 390x844 › JSON long errors, template save and rename keep actions reachable (2.4s)
+  ok  34 [desktop-en] › e2e\robustness\integration.spec.ts:84:1 › cancel, rerun and closing the lab release its Worker and restore normal rehearsal (10.9s)
+  ok  38 [desktop-en] › e2e\forms\reliability.spec.ts:260:5 › 390x844 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.8s)
+  ok  40 [desktop-en] › e2e\forms\reliability.spec.ts:18:5 › 1280x720 › invalid import stacks visually and Escape closes one layer (995ms)
+  ok  39 [desktop-en] › e2e\robustness\theme.spec.ts:5:1 › lab theme keeps inputs, errors and results readable with keyboard focus at narrow widths (3.3s)
+  ok  42 [desktop-en] › e2e\smoke.spec.ts:4:1 › production subpath loads the workbench and runs the actual Worker (3.0s)
+  ok  41 [desktop-en] › e2e\forms\reliability.spec.ts:42:5 › 1280x720 › new event accepts an empty numeric draft and keeps footer reachable (3.8s)
+  ok  44 [desktop-en] › e2e\forms\reliability.spec.ts:79:5 › 1280x720 › resource tabs support arrow keys and panel relationships (2.6s)
+  ok  43 [desktop-en] › e2e\ui\acceptance.spec.ts:4:1 › edit undo redo preserves selection and view; real replay and first divergence agree (4.8s)
+  ok  45 [desktop-en] › e2e\forms\reliability.spec.ts:131:5 › 1280x720 › scenario minutes, cancel, removal focus and one successful Apply (2.7s)
+  ok  46 [desktop-en] › e2e\ui\accessibility.spec.ts:4:1 › keyboard replay, menu dismissal, guest selection and divergence (2.4s)
+  ok  47 [desktop-en] › e2e\forms\reliability.spec.ts:169:5 › 1280x720 › time slot drafts stay with their rows through removal, addition and edits (3.0s)
+  ok  48 [desktop-en] › e2e\ui\arrangement.spec.ts:4:1 › arrangement preference survives reload and narrow screens force rows (1.9s)
+  ok  50 [desktop-en] › e2e\ui\canvas-playback.spec.ts:8:1 › canvas counters and guests update after seeking and rewinding real results (1.0s)
+  -   51 [desktop-en] › e2e\ui\capture.spec.ts:6:1 › capture matching UI review states
+  ok  52 [desktop-en] › e2e\ui\compare-first-screen.spec.ts:18:1 › comparison and guest evidence occupy the first screen (2.7s)
+  ok  49 [desktop-en] › e2e\forms\reliability.spec.ts:219:5 › 1280x720 › JSON long errors, template save and rename keep actions reachable (4.7s)
+  ok  54 [desktop-en] › e2e\forms\reliability.spec.ts:260:5 › 1280x720 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.6s)
+  ok  53 [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference (5.9s)
+  ok  55 [desktop-en] › e2e\ui\mobile-navigation.spec.ts:6:1 › mobile comparison navigation clears the sticky header after wrapping and view changes (5.2s)
+  ok  56 [desktop-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce (5.6s)
+  ok  58 [desktop-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from paused replay (1.5s)
+  ok  59 [desktop-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from playing replay (1.7s)
+  ok  57 [desktop-en] › e2e\ui\reduced-motion.spec.ts:4:1 › reduced motion starts paused while explicit playback and scrubbing work (5.2s)
+  ok  61 [desktop-en] › e2e\ui\run-states.spec.ts:4:1 › worker loading failure produces one retry action and no comparison claims (898ms)
+  ok  60 [desktop-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from paused replay (1.7s)
+  ok  62 [desktop-en] › e2e\ui\run-states.spec.ts:16:1 › retrying an existing comparison hides its evidence while computing and after cancellation (1.7s)
+  ok  63 [desktop-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from playing replay (2.0s)
+  ok  64 [desktop-en] › e2e\ui\run-states.spec.ts:31:1 › stopping an in-flight Worker records cancellation separately from failure (1.2s)
+  ok  65 [desktop-en] › e2e\ui\run-statistics-basis.spec.ts:4:1 › topbar cutoff execution selects available statistics without changing full-run preferences (2.4s)
+  ok  67 [desktop-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: cutoff (1.7s)
+  ok  66 [desktop-en] › e2e\ui\timeline-touch.spec.ts:6:1 › short timeline segments have separate touch targets in both plans and statistics scopes (4.1s)
+  ok  69 [desktop-en] › e2e\ui\touch-targets.spec.ts:4:1 › phone key actions have 44px hit areas and no horizontal page overflow (1.5s)
+  ok  68 [desktop-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: full (1.6s)
+  ok  70 [desktop-en] › e2e\ui\welcome.spec.ts:4:1 › first launch exposes example, blank setup and import without changing saved projects (1.1s)
+  ok  71 [desktop-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: cancel (1.7s)
+(node:45516) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  72 [mobile-en] › e2e\data-sources\read-safety.spec.ts:28:3 › arrival unreadable CSV preserves pasted draft, preview and source; same-file retry works (4.7s)
+  ok  73 [mobile-en] › e2e\data-sources\read-safety.spec.ts:68:3 › arrival delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.3s)
+  ok  74 [mobile-en] › e2e\data-sources\read-safety.spec.ts:28:3 › service unreadable CSV preserves pasted draft, preview and source; same-file retry works (931ms)
+  ok  75 [mobile-en] › e2e\data-sources\read-safety.spec.ts:68:3 › service delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.2s)
+  ok  76 [mobile-en] › e2e\demo\comparison.spec.ts:23:1 › real Worker: guided A/B/C, scopes, bilingual evidence and project round trip (14.8s)
+  ok  77 [mobile-en] › e2e\demo\comparison.spec.ts:163:1 › real Worker: not-arrived guests, empty completed sample, stale and missing final results (14.0s)
+(node:48664) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  78 [mobile-en] › e2e\demo\experiment-export.spec.ts:16:1 › guide exports only its reproducible A/B/C experiment and preserves existing events (5.5s)
+  ok  80 [mobile-en] › e2e\demo\guide-mapping.spec.ts:4:1 › guide explains B/C pane mapping without opening More (1.8s)
+  ok  79 [mobile-en] › e2e\data-sources\integration.spec.ts:40:1 › arrival file import is staged, validates before outer Apply and round-trips the shared scenario (6.6s)
+  ok  81 [mobile-en] › e2e\demo\guide-mapping.spec.ts:41:1 › mapping follows actual mode and sidebar comparison identities (1.7s)
+  ok  82 [mobile-en] › e2e\data-sources\integration.spec.ts:102:1 › service file import is one undoable change and manual edits retain source notes (4.2s)
+  ok  83 [mobile-en] › e2e\demo\report-context.spec.ts:6:1 › downloaded comparison records actual run scope independently of view and next-run settings (2.8s)
+  ok  85 [mobile-en] › e2e\forms\reliability.spec.ts:18:5 › 390x568 › invalid import stacks visually and Escape closes one layer (798ms)
+  ok  84 [mobile-en] › e2e\forms\keyboard.spec.ts:7:5 › 390x568 › import errors isolate workbench shortcuts and restore a visible fallback (1.4s)
+  ok  86 [mobile-en] › e2e\forms\reliability.spec.ts:42:5 › 390x568 › new event accepts an empty numeric draft and keeps footer reachable (1.3s)
+  ok  87 [mobile-en] › e2e\forms\keyboard.spec.ts:7:5 › 390x844 › import errors isolate workbench shortcuts and restore a visible fallback (1.4s)
+  ok  88 [mobile-en] › e2e\forms\reliability.spec.ts:79:5 › 390x568 › resource tabs support arrow keys and panel relationships (2.3s)
+  ok  89 [mobile-en] › e2e\forms\keyboard.spec.ts:7:5 › 1280x720 › import errors isolate workbench shortcuts and restore a visible fallback (1.9s)
+  ok  91 [mobile-en] › e2e\project\import.spec.ts:16:1 › unreadable project preserves work and permits retrying the same file (790ms)
+  ok  92 [mobile-en] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read success (789ms)
+  ok  93 [mobile-en] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read failure (894ms)
+  ok  94 [mobile-en] › e2e\project\import.spec.ts:71:1 › undoing a delayed import restores edits made while reading (1.7s)
+  ok  90 [mobile-en] › e2e\forms\reliability.spec.ts:131:5 › 390x568 › scenario minutes, cancel, removal focus and one successful Apply (4.7s)
+  ok  95 [mobile-en] › e2e\project\import.spec.ts:104:1 › choosing a new example supersedes an unfinished import (726ms)
+  ok  97 [mobile-en] › e2e\project\import.spec.ts:127:56 › welcome dialog announces read failures and preserves its draft for retry (1.1s)
+  ok  96 [mobile-en] › e2e\forms\reliability.spec.ts:169:5 › 390x568 › time slot drafts stay with their rows through removal, addition and edits (2.2s)
+  ok  98 [mobile-en] › e2e\project\import.spec.ts:127:56 › new-event dialog announces read failures and preserves its draft for retry (1.4s)
+  ok  99 [mobile-en] › e2e\forms\reliability.spec.ts:219:5 › 390x568 › JSON long errors, template save and rename keep actions reachable (2.3s)
+  ok 100 [mobile-en] › e2e\robustness\integration.spec.ts:13:1 › selected comparison plans run at cutoff and group export reproduces in the workbench (3.2s)
+  ok 101 [mobile-en] › e2e\forms\reliability.spec.ts:260:5 › 390x568 › Inspector decimal drafts, external undo, entity switch and checkbox groups (2.6s)
+  ok 103 [mobile-en] › e2e\forms\reliability.spec.ts:18:5 › 390x844 › invalid import stacks visually and Escape closes one layer (3.1s)
+  ok 104 [mobile-en] › e2e\forms\reliability.spec.ts:42:5 › 390x844 › new event accepts an empty numeric draft and keeps footer reachable (2.0s)
+  ok 105 [mobile-en] › e2e\forms\reliability.spec.ts:79:5 › 390x844 › resource tabs support arrow keys and panel relationships (2.1s)
+  ok 102 [mobile-en] › e2e\robustness\integration.spec.ts:84:1 › cancel, rerun and closing the lab release its Worker and restore normal rehearsal (13.1s)
+  ok 106 [mobile-en] › e2e\forms\reliability.spec.ts:131:5 › 390x844 › scenario minutes, cancel, removal focus and one successful Apply (16.5s)
+  ok 107 [mobile-en] › e2e\robustness\theme.spec.ts:5:1 › lab theme keeps inputs, errors and results readable with keyboard focus at narrow widths (12.4s)
+  ok 109 [mobile-en] › e2e\smoke.spec.ts:4:1 › production subpath loads the workbench and runs the actual Worker (1.0s)
+  ok 108 [mobile-en] › e2e\forms\reliability.spec.ts:169:5 › 390x844 › time slot drafts stay with their rows through removal, addition and edits (2.2s)
+  ok 111 [mobile-en] › e2e\forms\reliability.spec.ts:219:5 › 390x844 › JSON long errors, template save and rename keep actions reachable (2.2s)
+  ok 110 [mobile-en] › e2e\ui\acceptance.spec.ts:4:1 › edit undo redo preserves selection and view; real replay and first divergence agree (5.2s)
+  ok 112 [mobile-en] › e2e\forms\reliability.spec.ts:260:5 › 390x844 › Inspector decimal drafts, external undo, entity switch and checkbox groups (2.7s)
+  ok 114 [mobile-en] › e2e\forms\reliability.spec.ts:18:5 › 1280x720 › invalid import stacks visually and Escape closes one layer (1.0s)
+  ok 113 [mobile-en] › e2e\ui\accessibility.spec.ts:4:1 › keyboard replay, menu dismissal, guest selection and divergence (2.0s)
+  ok 115 [mobile-en] › e2e\forms\reliability.spec.ts:42:5 › 1280x720 › new event accepts an empty numeric draft and keeps footer reachable (1.8s)
+  ok 116 [mobile-en] › e2e\ui\arrangement.spec.ts:4:1 › arrangement preference survives reload and narrow screens force rows (1.9s)
+  ok 118 [mobile-en] › e2e\ui\canvas-playback.spec.ts:8:1 › canvas counters and guests update after seeking and rewinding real results (805ms)
+  -  119 [mobile-en] › e2e\ui\capture.spec.ts:6:1 › capture matching UI review states
+  ok 117 [mobile-en] › e2e\forms\reliability.spec.ts:79:5 › 1280x720 › resource tabs support arrow keys and panel relationships (2.6s)
+  ok 120 [mobile-en] › e2e\ui\compare-first-screen.spec.ts:18:1 › comparison and guest evidence occupy the first screen (3.0s)
+  ok 121 [mobile-en] › e2e\forms\reliability.spec.ts:131:5 › 1280x720 › scenario minutes, cancel, removal focus and one successful Apply (2.3s)
+  ok 123 [mobile-en] › e2e\forms\reliability.spec.ts:169:5 › 1280x720 › time slot drafts stay with their rows through removal, addition and edits (2.6s)
+  ok 124 [mobile-en] › e2e\forms\reliability.spec.ts:219:5 › 1280x720 › JSON long errors, template save and rename keep actions reachable (3.3s)
+  ok 122 [mobile-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference (7.4s)
+  ok 125 [mobile-en] › e2e\forms\reliability.spec.ts:260:5 › 1280x720 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.1s)
+  ok 126 [mobile-en] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce (3.8s)
+  ok 127 [mobile-en] › e2e\ui\mobile-navigation.spec.ts:6:1 › mobile comparison navigation clears the sticky header after wrapping and view changes (4.9s)
+  ok 129 [mobile-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from paused replay (1.5s)
+  ok 128 [mobile-en] › e2e\ui\reduced-motion.spec.ts:4:1 › reduced motion starts paused while explicit playback and scrubbing work (5.8s)
+  ok 130 [mobile-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from playing replay (1.6s)
+  ok 131 [mobile-en] › e2e\ui\run-states.spec.ts:4:1 › worker loading failure produces one retry action and no comparison claims (839ms)
+  ok 132 [mobile-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from paused replay (1.5s)
+  ok 133 [mobile-en] › e2e\ui\run-states.spec.ts:16:1 › retrying an existing comparison hides its evidence while computing and after cancellation (1.4s)
+  ok 135 [mobile-en] › e2e\ui\run-states.spec.ts:31:1 › stopping an in-flight Worker records cancellation separately from failure (1.1s)
+  ok 134 [mobile-en] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from playing replay (1.8s)
+  ok 136 [mobile-en] › e2e\ui\run-statistics-basis.spec.ts:4:1 › topbar cutoff execution selects available statistics without changing full-run preferences (2.1s)
+  ok 138 [mobile-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: cutoff (1.5s)
+  ok 137 [mobile-en] › e2e\ui\timeline-touch.spec.ts:6:1 › short timeline segments have separate touch targets in both plans and statistics scopes (4.0s)
+  ok 139 [mobile-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: full (1.4s)
+  ok 140 [mobile-en] › e2e\ui\touch-targets.spec.ts:4:1 › phone key actions have 44px hit areas and no horizontal page overflow (1.6s)
+  ok 141 [mobile-en] › e2e\ui\run-statistics-basis.spec.ts:55:3 › statistics changed while a real worker result is pending: cancel (1.5s)
+  ok 142 [mobile-en] › e2e\ui\welcome.spec.ts:4:1 › first launch exposes example, blank setup and import without changing saved projects (955ms)
+(node:15628) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 143 [desktop-zh] › e2e\data-sources\read-safety.spec.ts:28:3 › arrival unreadable CSV preserves pasted draft, preview and source; same-file retry works (1.7s)
+(node:36208) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 144 [desktop-zh] › e2e\data-sources\read-safety.spec.ts:68:3 › arrival delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.7s)
+  ok 146 [desktop-zh] › e2e\data-sources\read-safety.spec.ts:28:3 › service unreadable CSV preserves pasted draft, preview and source; same-file retry works (994ms)
+  ok 147 [desktop-zh] › e2e\data-sources\read-safety.spec.ts:68:3 › service delayed CSV cannot apply old preview or overwrite manual edits, cancellation or replacement (1.4s)
+  ok 148 [desktop-zh] › e2e\demo\comparison.spec.ts:23:1 › real Worker: guided A/B/C, scopes, bilingual evidence and project round trip (10.8s)
+  ok 149 [desktop-zh] › e2e\demo\comparison.spec.ts:163:1 › real Worker: not-arrived guests, empty completed sample, stale and missing final results (3.4s)
+  ok 150 [desktop-zh] › e2e\demo\experiment-export.spec.ts:16:1 › guide exports only its reproducible A/B/C experiment and preserves existing events (6.3s)
+  ok 151 [desktop-zh] › e2e\demo\guide-mapping.spec.ts:4:1 › guide explains B/C pane mapping without opening More (2.1s)
+  ok 152 [desktop-zh] › e2e\demo\guide-mapping.spec.ts:41:1 › mapping follows actual mode and sidebar comparison identities (2.1s)
+  ok 145 [desktop-zh] › e2e\data-sources\integration.spec.ts:40:1 › arrival file import is staged, validates before outer Apply and round-trips the shared scenario (29.2s)
+  ok 153 [desktop-zh] › e2e\demo\report-context.spec.ts:6:1 › downloaded comparison records actual run scope independently of view and next-run settings (20.0s)
+  ok 155 [desktop-zh] › e2e\forms\keyboard.spec.ts:7:5 › 390x568 › import errors isolate workbench shortcuts and restore a visible fallback (1.5s)
+  ok 154 [desktop-zh] › e2e\data-sources\integration.spec.ts:102:1 › service file import is one undoable change and manual edits retain source notes (21.0s)
+  ok 157 [desktop-zh] › e2e\forms\reliability.spec.ts:18:5 › 390x568 › invalid import stacks visually and Escape closes one layer (857ms)
+  ok 156 [desktop-zh] › e2e\forms\keyboard.spec.ts:7:5 › 390x844 › import errors isolate workbench shortcuts and restore a visible fallback (1.6s)
+  ok 158 [desktop-zh] › e2e\forms\reliability.spec.ts:42:5 › 390x568 › new event accepts an empty numeric draft and keeps footer reachable (1.8s)
+  ok 159 [desktop-zh] › e2e\forms\keyboard.spec.ts:7:5 › 1280x720 › import errors isolate workbench shortcuts and restore a visible fallback (1.9s)
+  ok 161 [desktop-zh] › e2e\project\import.spec.ts:16:1 › unreadable project preserves work and permits retrying the same file (1.5s)
+  ok 160 [desktop-zh] › e2e\forms\reliability.spec.ts:79:5 › 390x568 › resource tabs support arrow keys and panel relationships (3.9s)
+  ok 162 [desktop-zh] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read success (3.1s)
+  ok 164 [desktop-zh] › e2e\project\import.spec.ts:42:56 › latest project selection wins over an older read failure (1.1s)
+  ok 163 [desktop-zh] › e2e\forms\reliability.spec.ts:131:5 › 390x568 › scenario minutes, cancel, removal focus and one successful Apply (2.4s)
+  ok 165 [desktop-zh] › e2e\project\import.spec.ts:71:1 › undoing a delayed import restores edits made while reading (3.3s)
+  ok 166 [desktop-zh] › e2e\forms\reliability.spec.ts:169:5 › 390x568 › time slot drafts stay with their rows through removal, addition and edits (3.3s)
+  ok 167 [desktop-zh] › e2e\project\import.spec.ts:104:1 › choosing a new example supersedes an unfinished import (1.0s)
+  ok 169 [desktop-zh] › e2e\project\import.spec.ts:127:56 › welcome dialog announces read failures and preserves its draft for retry (1.5s)
+  ok 168 [desktop-zh] › e2e\forms\reliability.spec.ts:219:5 › 390x568 › JSON long errors, template save and rename keep actions reachable (2.5s)
+  ok 170 [desktop-zh] › e2e\project\import.spec.ts:127:56 › new-event dialog announces read failures and preserves its draft for retry (2.0s)
+  ok 171 [desktop-zh] › e2e\forms\reliability.spec.ts:260:5 › 390x568 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.5s)
+  ok 173 [desktop-zh] › e2e\forms\reliability.spec.ts:18:5 › 390x844 › invalid import stacks visually and Escape closes one layer (1.1s)
+  ok 174 [desktop-zh] › e2e\forms\reliability.spec.ts:42:5 › 390x844 › new event accepts an empty numeric draft and keeps footer reachable (1.7s)
+  ok 172 [desktop-zh] › e2e\robustness\integration.spec.ts:13:1 › selected comparison plans run at cutoff and group export reproduces in the workbench (4.4s)
+  ok 175 [desktop-zh] › e2e\forms\reliability.spec.ts:79:5 › 390x844 › resource tabs support arrow keys and panel relationships (2.5s)
+  ok 177 [desktop-zh] › e2e\forms\reliability.spec.ts:131:5 › 390x844 › scenario minutes, cancel, removal focus and one successful Apply (2.6s)
+  ok 178 [desktop-zh] › e2e\forms\reliability.spec.ts:169:5 › 390x844 › time slot drafts stay with their rows through removal, addition and edits (2.8s)
+  ok 179 [desktop-zh] › e2e\forms\reliability.spec.ts:219:5 › 390x844 › JSON long errors, template save and rename keep actions reachable (2.8s)
+  ok 176 [desktop-zh] › e2e\robustness\integration.spec.ts:84:1 › cancel, rerun and closing the lab release its Worker and restore normal rehearsal (11.1s)
+  ok 180 [desktop-zh] › e2e\forms\reliability.spec.ts:260:5 › 390x844 › Inspector decimal drafts, external undo, entity switch and checkbox groups (3.2s)
+  ok 181 [desktop-zh] › e2e\robustness\theme.spec.ts:5:1 › lab theme keeps inputs, errors and results readable with keyboard focus at narrow widths (3.5s)
+  ok 182 [desktop-zh] › e2e\forms\reliability.spec.ts:18:5 › 1280x720 › invalid import stacks visually and Escape closes one layer (2.1s)
+  ok 183 [desktop-zh] › e2e\smoke.spec.ts:4:1 › production subpath loads the workbench and runs the actual Worker (4.6s)
+  ok 185 [desktop-zh] › e2e\ui\acceptance.spec.ts:4:1 › edit undo redo preserves selection and view; real replay and first divergence agree (29.4s)
+  ok 186 [desktop-zh] › e2e\ui\accessibility.spec.ts:4:1 › keyboard replay, menu dismissal, guest selection and divergence (10.7s)
+  ok 187 [desktop-zh] › e2e\ui\arrangement.spec.ts:4:1 › arrangement preference survives reload and narrow screens force rows (5.0s)
+  ok 188 [desktop-zh] › e2e\ui\canvas-playback.spec.ts:8:1 › canvas counters and guests update after seeking and rewinding real results (2.8s)
+  -  189 [desktop-zh] › e2e\ui\capture.spec.ts:6:1 › capture matching UI review states
+  x  184 [desktop-zh] › e2e\forms\reliability.spec.ts:42:5 › 1280x720 › new event accepts an empty numeric draft and keeps footer reachable (40.1s)
+(node:6704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 190 [desktop-zh] › e2e\ui\compare-first-screen.spec.ts:18:1 › comparison and guest evidence occupy the first screen (9.3s)
+  ok 191 [desktop-zh] › e2e\forms\reliability.spec.ts:79:5 › 1280x720 › resource tabs support arrow keys and panel relationships (43.9s)
+  ok 193 [desktop-zh] › e2e\forms\reliability.spec.ts:131:5 › 1280x720 › scenario minutes, cancel, removal focus and one successful Apply (38.0s)
+  ok 192 [desktop-zh] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=no-preference (1.4m)
+  ok 194 [desktop-zh] › e2e\forms\reliability.spec.ts:169:5 › 1280x720 › time slot drafts stay with their rows through removal, addition and edits (11.1s)
+  ok 195 [desktop-zh] › e2e\ui\layout.spec.ts:6:3 › layout and genuine evidence across modes with motion=reduce (19.5s)
+  ok 196 [desktop-zh] › e2e\forms\reliability.spec.ts:219:5 › 1280x720 › JSON long errors, template save and rename keep actions reachable (11.5s)
+  ok 197 [desktop-zh] › e2e\ui\mobile-navigation.spec.ts:6:1 › mobile comparison navigation clears the sticky header after wrapping and view changes (12.6s)
+  ok 198 [desktop-zh] › e2e\forms\reliability.spec.ts:260:5 › 1280x720 › Inspector decimal drafts, external undo, entity switch and checkbox groups (18.3s)
+  ok 199 [desktop-zh] › e2e\ui\reduced-motion.spec.ts:4:1 › reduced motion starts paused while explicit playback and scrubbing work (8.2s)
+  ok 201 [desktop-zh] › e2e\ui\run-states.spec.ts:4:1 › worker loading failure produces one retry action and no comparison claims (3.4s)
+  ok 200 [desktop-zh] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from paused replay (4.8s)
+  ok 202 [desktop-zh] › e2e\ui\run-states.spec.ts:16:1 › retrying an existing comparison hides its evidence while computing and after cancellation (4.8s)
+  ok 203 [desktop-zh] › e2e\ui\route-keyboard.spec.ts:9:3 › Space selects a route guest from playing replay (7.3s)
+  ok 204 [desktop-zh] › e2e\ui\run-states.spec.ts:31:1 › stopping an in-flight Worker records cancellation separately from failure (3.3s)
+  ok 205 [desktop-zh] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from paused replay (4.5s)
+  ok 207 [desktop-zh] › e2e\ui\route-keyboard.spec.ts:9:3 › Enter selects a route guest from playing replay (9.1s)
+  ok 206 [desktop-zh] › e2e\ui\run-statistics-basis.spec.ts:4:1 › topbar cutoff execution selects available statistics without changing full-run preferences (14.7s)
+Timed out waiting 600s for the test suite to run
+Timed out waiting 600s for the teardown for test suite to run
+
+
+  1) [desktop-zh] › e2e\forms\reliability.spec.ts:42:5 › 1280x720 › new event accepts an empty numeric draft and keeps footer reachable 
+
+    TimeoutError: locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '创建活动', exact: true })
+        - locator resolved to <button type="submit" class="btn primary">创建活动</button>
+      - attempting click action
+        - waiting for element to be visible, enabled and stable
+
+
+      71 |       await number.fill('12');
+      72 |       await number.press('Tab');
+    > 73 |       await create.click();
+         |                    ^
+      74 |       await expect(page.getByRole('dialog')).toHaveCount(0);
+      75 |       if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();
+      76 |       await expect(page.getByLabel(t.eventSetup.active)).toContainText('Forms rehearsal');
+        at C:\Users\kanzaler\Desktop\KIROWWEN\e2e\forms\reliability.spec.ts:73:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\forms-reliability-1280x720-163d2--and-keeps-footer-reachable-desktop-zh\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\forms-reliability-1280x720-163d2--and-keeps-footer-reachable-desktop-zh\error-context.md
+
+    attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\forms-reliability-1280x720-163d2--and-keeps-footer-reachable-desktop-zh\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\forms-reliability-1280x720-163d2--and-keeps-footer-reachable-desktop-zh\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  1 failed
+    [desktop-zh] › e2e\forms\reliability.spec.ts:42:5 › 1280x720 › new event accepts an empty numeric draft and keeps footer reachable 
+  3 skipped
+  77 did not run
+  203 passed (10.0m)
+  2 errors were not a part of any test, see above for details

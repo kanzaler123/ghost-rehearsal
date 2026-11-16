@@ -1,0 +1,37 @@
+
+Running 24 tests using 1 worker
+
+(node:35868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (18.1s)
+  ok  2 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (6.2s)
+  ok  3 [desktop-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (6.2s)
+  ok  4 [desktop-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (7.1s)
+  ok  5 [desktop-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (7.0s)
+  ok  6 [desktop-en] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (7.3s)
+(node:31752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  7 [mobile-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (7.7s)
+  ok  8 [mobile-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (6.0s)
+  ok  9 [mobile-en] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (6.0s)
+  ok 10 [mobile-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (6.5s)
+  ok 11 [mobile-en] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (6.3s)
+  ok 12 [mobile-en] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (6.9s)
+(node:3540) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 13 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (7.9s)
+  ok 14 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (6.3s)
+  ok 15 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (6.1s)
+  ok 16 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (6.9s)
+  ok 17 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (6.8s)
+  ok 18 [desktop-zh] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (6.8s)
+(node:31752) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 19 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with pointer and reaches the real first difference (7.8s)
+  ok 20 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Enter and reaches the real first difference (6.0s)
+  ok 21 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:5:66 › welcome starts one guide with Space and reaches the real first difference (5.9s)
+  ok 22 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import success (6.3s)
+  ok 23 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:34:56 › starting the welcome guide discards a pending import failure (6.4s)
+  ok 24 [mobile-zh] › e2e\ui\creative-redesign.spec.ts:63:1 › visible run checks and queue lengths share the actual population scale (6.9s)
+
+  24 passed (2.9m)
