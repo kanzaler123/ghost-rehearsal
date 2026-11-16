@@ -150,6 +150,8 @@ describe('studio viewport controls', () => {
     vi.advanceTimersByTime(1000); render();
     expect(setViewport).not.toHaveBeenCalled();
     expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(true);
+    flow().onMoveStart(null); render();
+    expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(true);
     tree.find(item => item.type === Controls)!.props.onZoomIn();
     flow().onMoveStart(null); render();
     expect(tree.some(item => item.props.className === 'canvas-menu nodrag nopan')).toBe(false);

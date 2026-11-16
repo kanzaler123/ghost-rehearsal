@@ -1,7 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ServiceNode } from '../../schemas';
-import { buildServiceDuration, createServiceTemplate, parseServiceData, updateProvenance } from '../../features/data-sources';
+import { buildServiceDuration, createServiceTemplate, updateProvenance } from '../../features/data-sources';
 import type { TimeUnit } from '../../features/data-sources';
+import { ImportClient } from '../../features/imports/client';
+import type { ImportState } from '../../features/imports/client';
+import { ImportDiagnostics } from '../ImportDiagnostics';
 import { DataInput } from './DataInput';
 import { ProvenanceFields } from './ProvenanceFields';
 import { dataSourceText, type DataSourceLang } from './text';
@@ -24,13 +27,17 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
   const [reading, setReading] = useState(false);
   const [unit, setUnit] = useState<TimeUnit | ''>('');
   const [provenance, setProvenance] = useState(duration.provenance);
-  const [preview, setPreview] = useState<ReturnType<typeof parseServiceData> | null>(null);
+  const client = useRef<ImportClient | null>(null);
+  const [importState, setImportState] = useState<ImportState | null>(null);
+  useEffect(() => { const current = new ImportClient(setImportState); client.current = current; return () => current.dispose(); }, []);
+  const preview = importState?.value?.kind === 'services' ? importState.value.preview : null;
+  const parsing = importState?.status === 'parsing';
   const [notice, setNotice] = useState<'applied' | 'cancelled' | 'chooseUnitError' | 'invalidModel' | null>(null);
   const [inputKey, setInputKey] = useState(0);
   const applied = useRef(false);
   const candidate = preview ? buildServiceDuration(preview, provenance) : null;
   const invalidate = () => {
-    setPreview(null);
+    client.current?.cancel();
     setNotice(null);
     setProvenance(current => updateProvenance(current, { valueChanged: true }));
     applied.current = false;
@@ -38,7 +45,7 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
   const reset = () => {
     setText('');
     setUnit('');
-    setPreview(null);
+    client.current?.cancel();
     setProvenance(duration.provenance);
     setInputKey(current => current + 1);
   };
@@ -51,10 +58,10 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
       onTextChange={value => { setText(value); invalidate(); }}
       onUnitChange={value => { setUnit(value); invalidate(); }} />
     <p className="ds-hint">{t.estimateHint}</p>
-    <button type="button" disabled={reading} onClick={() => {
-      if (reading) return;
+    <button type="button" disabled={reading || parsing} onClick={() => {
+      if (reading || parsing) return;
       if (!unit) { setNotice('chooseUnitError'); return; }
-      setPreview(parseServiceData(text, unit));
+      void client.current?.startTexts([{ name: t.text, text }], { kind: 'services', unit });
       setNotice(null);
       applied.current = false;
     }}>{t.preview}</button>
@@ -69,24 +76,23 @@ function ServiceDraft({ duration, targetName, lang, onChange }: ServiceDataEdito
         <div><dt>{t.max}</dt><dd>{preview.summary.max ?? '—'}</dd></div>
         <div><dt>{t.mean}</dt><dd>{preview.summary.mean ?? '—'}</dd></div>
       </dl>
-      {preview.errors.length > 0 && <div className="ds-table-scroll" role="alert" tabIndex={0}><table className="ds-errors">
-        <caption>{t.errors}</caption><thead><tr><th>{t.row}</th><th>{t.column}</th><th>{t.errors}</th></tr></thead>
-        <tbody>{preview.errors.map((error, index) => <tr key={index}><td>{error.row}</td><td>{error.column}{error.field ? ` (${error.field})` : ''}</td><td>{error.message}</td></tr>)}</tbody>
-      </table><p className="ds-error">{t.atomicHint}</p></div>}
       {preview.samples.length > 0 && <div className="ds-table-scroll" tabIndex={0} aria-label={t.converted}><table>
         <caption>{t.converted}</caption><thead><tr><th>duration</th></tr></thead>
         <tbody>{preview.samples.slice(0, 20).map((sample, index) => <tr key={index}><td>{sample}</td></tr>)}</tbody>
       </table>{preview.samples.length > 20 && <p className="ds-hint">{t.samplePreview}</p>}</div>}
     </div>}
+    <ImportDiagnostics client={client.current} state={importState} lang={lang} />
     <ProvenanceFields value={provenance} lang={lang} onChange={setProvenance} kindDisabled={!preview || preview.errors.length > 0} />
     <div className="ds-actions">
-      <button type="button" disabled={reading || !candidate} onClick={() => {
-        if (reading || applied.current) return;
-        if (!candidate) { setNotice('invalidModel'); return; }
+      <button type="button" disabled={reading || parsing || !candidate} onClick={() => {
+        if (reading || parsing || applied.current) return;
+        const value = client.current?.getValue(importState?.requestId ?? -1);
+        const current = value?.kind === 'services' ? buildServiceDuration(value.preview, provenance) : null;
+        if (!current) { setNotice('invalidModel'); return; }
         applied.current = true;
         reset();
         setNotice('applied');
-        onChange(candidate);
+        onChange(current);
       }}>{t.apply}</button>
       <button type="button" onClick={() => { reset(); setNotice('cancelled'); }}>{t.cancel}</button>
     </div>

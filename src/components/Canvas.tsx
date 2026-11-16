@@ -345,7 +345,7 @@ function CanvasInner(props: Props) {
   latestApply.current = apply;
   const reducedRef = useRef(props.reducedMotion); reducedRef.current = props.reducedMotion;
   const placement = useMemo(() => createViewportPlacement<ViewTarget>((target, duration) => latestApply.current(target, duration), { reduced: () => !!reducedRef.current }), []);
-  function userMove() { placement.userMove(); props.onManual?.(); }
+  function userMove() { setMenu(null); placement.userMove(); props.onManual?.(); }
   useEffect(() => {
     placement.request(props.request.target);
     return placement.cancelPending;
@@ -420,7 +420,7 @@ function CanvasInner(props: Props) {
       onPaneClick={() => { setMenu(null); props.onSelect('', 'node'); }} onConnect={props.onConnect} connectionLineType={ConnectionLineType.Bezier}
       onPaneContextMenu={event => { event.preventDefault(); if (props.editable) openMenu(event.clientX, event.clientY); }}
       onNodeContextMenu={(event, node) => { event.preventDefault(); if (node.type === 'workflow') openMenu(event.clientX, event.clientY, node.id); }}
-      onMoveStart={event => { setMenu(null); if (event) userMove(); }}
+      onMoveStart={event => { if (event) userMove(); }}
       onNodeDragStart={userMove}
       onDelete={({ nodes, edges: removed }) => props.onDelete(nodes.filter(node => node.type === 'workflow').map(node => node.id), removed.filter(edge => !edge.id.startsWith('agg:')).map(edge => edge.id))}
       nodesDraggable={draggable} nodesConnectable={props.editable && !panMode} elementsSelectable={!panMode} edgesReconnectable={false} deleteKeyCode={props.editable && !panMode ? ['Backspace', 'Delete'] : null}

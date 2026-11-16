@@ -1,3 +1,4 @@
+import { storedProject } from '../persistence/browser';
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
 import { readFileSync } from 'node:fs';
@@ -22,10 +23,12 @@ test('first launch exposes example, blank setup and import without changing save
   await expect(dialog.getByRole('button', { name: t.eventSetup.import, exact: true })).toBeVisible();
   await dialog.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   await page.getByTitle(t.header.saveTitle, { exact: true }).click();
-  const saved = await page.evaluate(() => Object.entries(localStorage).filter(([key]) => key !== 'ghost-rehearsal.lang'));
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  const saved = await storedProject(page, 'saved');
+  expect(saved).not.toBeNull();
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(await page.evaluate(() => Object.entries(localStorage).filter(([key]) => key !== 'ghost-rehearsal.lang'))).toEqual(saved);
+  expect(await storedProject(page, 'saved')).toEqual(saved);
 });
 
 test('welcome starts a real A/B guide by keyboard or touch without filling setup', async ({ page }, info) => {
@@ -58,7 +61,8 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
   expect(workers.some(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
-  const project = await page.evaluate(() => JSON.parse(localStorage.getItem('ghost-rehearsal.draft.v1')!) as ProjectDocument);
+  await expect.poll(() => storedProject(page, 'draft')).not.toBeNull();
+  const project = JSON.parse((await storedProject(page, 'draft'))!) as ProjectDocument;
   expect(project.plans).toHaveLength(3);
   expect(project.scenarios).toHaveLength(2);
   expect(project.plans.find(plan => plan.id === 'plan-1')).toMatchObject({ name: t.defaults.plan, scenarioId: 'scenario-1', graph: { nodes: [], edges: [] } });
@@ -66,10 +70,12 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
   await expect(page.locator('.ghost-id code')).toHaveText('side-stream:10');
   await page.getByTitle(t.header.saveTitle, { exact: true }).click();
-  const saved = await page.evaluate(() => localStorage.getItem('ghost-rehearsal.project.v1'));
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  const saved = await storedProject(page, 'saved');
+  expect(saved).not.toBeNull();
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  expect(await page.evaluate(() => localStorage.getItem('ghost-rehearsal.project.v1'))).toBe(saved);
+  expect(await storedProject(page, 'saved')).toBe(saved);
   const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
   if (await expand.isVisible()) await expand.click();
   await page.locator('.event-picker summary').click();
@@ -100,13 +106,13 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   await page.getByRole('dialog').getByRole('button', { name: t.guide.start, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
-  const before = await page.evaluate(() => localStorage.getItem('ghost-rehearsal.draft.v1'));
+  const before = await storedProject(page, 'draft');
   await page.evaluate(() => (window as typeof window & { finishOlder: () => Promise<void> }).finishOlder());
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await expect(page.getByRole('tab', { name: t.modes.Compare, exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
-  expect(await page.evaluate(() => localStorage.getItem('ghost-rehearsal.draft.v1'))).toBe(before);
+  expect(await storedProject(page, 'draft')).toBe(before);
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.fileReadFailed);
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.imported);
 });

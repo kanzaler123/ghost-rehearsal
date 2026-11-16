@@ -14,6 +14,8 @@ const zhPersonTime = (seconds: number | null | undefined) =>
   seconds == null ? '—' : `${(seconds / 60).toFixed(1)} 人·分钟`;
 
 const en = {
+  imports: { failed: 'Import failed; nothing was applied.', busy: 'Reading and validating import…', diagnostics: (total: number, from: number, to: number) => `${total} diagnostics; showing ${from}–${to}`, previous: 'Previous page', next: 'Next page', download: 'Download all diagnostics', incomplete: 'Validation stopped early. Remaining content was not checked; nothing was applied.' },
+  persistence: { loading: 'Opening saved projects…', failed: 'Saving is unavailable. Your changes remain in this page; export a copy before leaving.', conflict: 'Another tab saved changes. Both versions are preserved; choose a version to continue.', recover: 'Recover saved versions', retry: 'Retry storage', raw: 'Download original data', restore: 'Continue this version', resolve: 'Use this version to resolve conflict', recoveryHint: 'Choose a saved version. Original versions remain available for recovery.', libraryFailed: 'The template library could not be loaded safely. Export the originals or explicitly repair the library before editing.', resetLibrary: 'Initialize an empty library and keep originals' },
   lang: 'en' as Lang,
   markers: { queue: 'Waiting', serve: 'Being served', blocked: 'Blocked', finished: 'Finished', left: 'Left early', selected: 'Editing', error: 'Needs attention', diff: 'Plan difference', running: 'Computing', stale: 'Result stale', tracked: 'Tracked guest', failed: 'Run failed' },
   delta: { gain: 'Gain', regression: 'Regression', cost: 'Cost', none: 'No change', belowPrecision: 'Differs below display precision', unavailable: 'No available value', relativeToA: 'B − A', sameGuests: 'The same guests', completedOnly: 'Completed guests only', noneCompleted: 'No guest completed' },
@@ -266,7 +268,7 @@ const en = {
     hint: 'The same ghost is the same guest in every future. Choose someone from the guest list or stories.',
     stories: 'Start from a story', featured: 'Featured',
     picks: {
-      queuedNow: 'Queuing right now', longest: 'Waited longest', unfinished: 'Not finished at cutoff', left: 'Left early or turned away',
+      queuedNow: 'Queuing right now', longest: 'Waited longest', unfinished: 'Not finished by statistics end', left: 'Left early or turned away',
       rescued: 'Finished only in B', lost: 'Finished only in A', less: 'Waited less in B', more: 'Waited more in B',
     } as Record<string, string>,
     count: (n: number) => `${n}`,
@@ -492,6 +494,8 @@ const en = {
 export type Messages = typeof en;
 
 const zh: Messages = {
+  imports: { failed: '导入失败，没有应用数据。', busy: '正在读取并验证导入内容…', diagnostics: (total, from, to) => `共 ${total} 条诊断，显示 ${from}–${to} 条`, previous: '上一页', next: '下一页', download: '下载完整诊断', incomplete: '验证提前停止，未检查其余内容，没有应用数据。' },
+  persistence: { loading: '正在打开已保存项目…', failed: '当前无法保存。修改仍在本页，离开前请导出副本。', conflict: '其他标签页保存了改动。两个版本均已保留，请选择要继续的版本。', recover: '恢复已保存版本', retry: '重试存储', raw: '下载原始数据', restore: '继续此版本', resolve: '使用此版本解决冲突', recoveryHint: '请选择已保存版本，原始版本会继续保留供恢复。', libraryFailed: '无法安全读取模板库。请导出原文或明确修复后再编辑。', resetLibrary: '初始化空模板库并保留原文' },
   lang: 'zh',
   markers: { queue: '等待中', serve: '服务中', blocked: '受阻', finished: '已完成', left: '提前离开', selected: '正在编辑', error: '需要处理', diff: '方案差异', running: '计算中', stale: '结果已过期', tracked: '跟随访客', failed: '运行失败' },
   delta: { gain: '改善', regression: '变差', cost: '代价', none: '无变化', belowPrecision: '差异小于显示精度', unavailable: '暂无可用数值', relativeToA: 'B − A', sameGuests: '同一批访客', completedOnly: '仅已完成访客', noneCompleted: '尚无访客完成' },
@@ -733,7 +737,7 @@ const zh: Messages = {
     hint: '同一个幽灵在每个未来里都是同一位参与者。从名单或故事中选择一位参与者。',
     stories: '从故事开始', featured: '推荐',
     picks: {
-      queuedNow: '此刻正在排队', longest: '等待最久', unfinished: '截止时尚未完成', left: '中途离开或被拒',
+      queuedNow: '此刻正在排队', longest: '等待最久', unfinished: '统计结束时尚未完成', left: '中途离开或被拒',
       rescued: '只在 B 中完成', lost: '只在 A 中完成', less: '在 B 中等待减少最多', more: '在 B 中等待增加最多',
     },
     count: n => `${n} 人`,
