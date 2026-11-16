@@ -67,7 +67,8 @@ const hooks = vi.hoisted(() => {
 
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
-  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect,
+  useCallback: (callback: (...args: any[]) => unknown, deps: readonly unknown[]) => hooks.useMemo(() => callback, deps),
+  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect, useLayoutEffect: hooks.useEffect,
   useContext: () => hooks.context,
 }));
 vi.mock('@xyflow/react', async importOriginal => ({
@@ -225,5 +226,54 @@ describe('read-only Full map', () => {
     expect(flow().nodesDraggable).toBe(true);
     flow().onNodesChange([{ type: 'position', id: 'checkin', position: { x: 900, y: 400 }, dragging: false }]);
     expect(props.onMove).toHaveBeenCalledWith([{ id: 'checkin', x: 900, y: 400 }]);
+  });
+});
+
+
+describe('canvas data and interaction reconciliation', () => {
+  it('keeps ghost handlers stable while calling the latest committed visitor action', () => {
+    const first = vi.fn(), latest = vi.fn();
+    props = { ...props, chooseVisitor: first }; mount();
+    const handler = flow().nodes.find((node: any) => node.type === 'workflow').data.chooseVisitor;
+    handler('visitor-before');
+    expect(first).toHaveBeenCalledWith('visitor-before');
+    props = { ...props, chooseVisitor: latest }; render();
+    expect(flow().nodes.find((node: any) => node.type === 'workflow').data.chooseVisitor).toBe(handler);
+    handler('visitor-after');
+    expect(latest).toHaveBeenCalledWith('visitor-after');
+    expect(first).toHaveBeenCalledTimes(1);
+    flow().edges[0].data.chooseVisitor('visitor-on-route');
+    expect(latest).toHaveBeenCalledWith('visitor-on-route');
+  });
+
+  it('updates node content while retaining an active drag, measured size and multi-selection', () => {
+    mount();
+    const ids = flow().nodes.filter((node: any) => node.type === 'workflow').slice(0, 2).map((node: any) => node.id);
+    flow().onNodesChange([
+      { type: 'select', id: ids[0], selected: true }, { type: 'select', id: ids[1], selected: true },
+      { type: 'position', id: ids[0], position: { x: 777, y: 333 }, dragging: true },
+      { type: 'dimensions', id: ids[0], dimensions: { width: 210, height: 140 } },
+    ]);
+    render();
+    const renamed = { ...planA, graph: { ...planA.graph, nodes: planA.graph.nodes.map(node => node.id === ids[0] ? { ...node, name: 'Renamed during drag' } : node) } };
+    props = { ...props, plan: renamed }; render();
+    const updated = flow().nodes.find((node: any) => node.id === ids[0]);
+    expect(updated.data.node.name).toBe('Renamed during drag');
+    expect(updated.position).toEqual({ x: 777, y: 333 });
+    expect(updated.measured).toEqual({ width: 210, height: 140 });
+    expect(ids.every((id: string) => flow().nodes.find((node: any) => node.id === id).selected)).toBe(true);
+    expect(props.onMove).not.toHaveBeenCalled();
+    flow().onNodesChange([{ type: 'position', id: ids[0], position: { x: 780, y: 340 }, dragging: false }]);
+    expect(props.onMove).toHaveBeenCalledWith([{ id: ids[0], x: 780, y: 340 }]);
+  });
+
+  it('lets an external selection replace local multi-selection without stale node data', () => {
+    mount();
+    const ids = flow().nodes.filter((node: any) => node.type === 'workflow').slice(0, 2).map((node: any) => node.id);
+    flow().onNodesChange(ids.map((id: string) => ({ type: 'select', id, selected: true }))); render();
+    props = { ...props, selected: ids[1] }; render();
+    expect(flow().nodes.filter((node: any) => node.selected).map((node: any) => node.id)).toEqual([ids[1]]);
+    rehearse();
+    expect(flow().nodes.filter((node: any) => node.type !== 'frame').every((node: any) => node.data.running)).toBe(true);
   });
 });

@@ -67,7 +67,8 @@ const hooks = vi.hoisted(() => {
 
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
-  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect,
+  useCallback: (callback: (...args: any[]) => unknown, deps: readonly unknown[]) => hooks.useMemo(() => callback, deps),
+  useState: hooks.useState, useRef: hooks.useRef, useMemo: hooks.useMemo, useEffect: hooks.useEffect, useLayoutEffect: hooks.useEffect,
   useContext: () => hooks.context,
 }));
 vi.mock('@xyflow/react', async importOriginal => ({
