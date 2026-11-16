@@ -1,0 +1,477 @@
+{
+  "phase": "baseline-repeat",
+  "source": "f075c9cb513b7e7a3cf81095611cb25027b0ccb8:diagnostics/natural-state/original-fixture.json",
+  "fixtureSha256": "ba158984f24973c9338d0dad668aebff4b6484076f3f82d648794fa8ee94181b",
+  "projectBytes": 51905,
+  "at": "2026-11-16T16:10:42.336Z",
+  "head": "299d288552d68afcdf219e2c99bdb54131a8aa25",
+  "host": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) i7-14650HX",
+    "logicalCpus": 24,
+    "ramBytes": 33953857536,
+    "node": "v24.18.0"
+  },
+  "cases": [
+    {
+      "engine": "chromium",
+      "version": "159.0.8154.6",
+      "repeat": 0,
+      "errors": [],
+      "heap": {
+        "welcome": {
+          "usedSize": 5675904,
+          "totalSize": 6623232,
+          "embedderHeapUsedSize": 3033064,
+          "backingStorageSize": 968447
+        },
+        "result": {
+          "usedSize": 52170812,
+          "totalSize": 57548800,
+          "embedderHeapUsedSize": 32040864,
+          "backingStorageSize": 976532
+        },
+        "end": {
+          "usedSize": 54325196,
+          "totalSize": 57622528,
+          "embedderHeapUsedSize": 32541928,
+          "backingStorageSize": 1063409
+        },
+        "replaced": {
+          "usedSize": 41559688,
+          "totalSize": 44630016,
+          "embedderHeapUsedSize": 4238880,
+          "backingStorageSize": 976509
+        }
+      },
+      "frames": {
+        "count": 170,
+        "p95": 50.100000000000364,
+        "max": 99.89999999999964
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 227.51590000000033,
+      "resultStillReachable": true
+    },
+    {
+      "engine": "chromium",
+      "version": "159.0.8154.6",
+      "repeat": 1,
+      "errors": [],
+      "heap": {
+        "welcome": {
+          "usedSize": 5679032,
+          "totalSize": 6623232,
+          "embedderHeapUsedSize": 3026080,
+          "backingStorageSize": 968447
+        },
+        "result": {
+          "usedSize": 52170888,
+          "totalSize": 58073088,
+          "embedderHeapUsedSize": 31948728,
+          "backingStorageSize": 976539
+        },
+        "end": {
+          "usedSize": 54323344,
+          "totalSize": 59195392,
+          "embedderHeapUsedSize": 32515648,
+          "backingStorageSize": 1063416
+        },
+        "replaced": {
+          "usedSize": 41556980,
+          "totalSize": 44630016,
+          "embedderHeapUsedSize": 4251112,
+          "backingStorageSize": 976516
+        }
+      },
+      "frames": {
+        "count": 156,
+        "p95": 66.69999999999982,
+        "max": 100
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 226.43089999999938,
+      "resultStillReachable": true
+    },
+    {
+      "engine": "chromium",
+      "version": "159.0.8154.6",
+      "repeat": 2,
+      "errors": [],
+      "heap": {
+        "welcome": {
+          "usedSize": 5679040,
+          "totalSize": 6623232,
+          "embedderHeapUsedSize": 3022360,
+          "backingStorageSize": 968443
+        },
+        "result": {
+          "usedSize": 52163792,
+          "totalSize": 57810944,
+          "embedderHeapUsedSize": 31947496,
+          "backingStorageSize": 976535
+        },
+        "end": {
+          "usedSize": 54320348,
+          "totalSize": 57884672,
+          "embedderHeapUsedSize": 32759112,
+          "backingStorageSize": 1063412
+        },
+        "replaced": {
+          "usedSize": 41552368,
+          "totalSize": 45416448,
+          "embedderHeapUsedSize": 4243112,
+          "backingStorageSize": 976512
+        }
+      },
+      "frames": {
+        "count": 162,
+        "p95": 66.69999999999982,
+        "max": 100
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 396.43259999999646,
+      "resultStillReachable": true
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "repeat": 0,
+      "errors": [],
+      "heap": {},
+      "frames": {
+        "count": 46,
+        "p95": 204,
+        "max": 208
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 505.0659000000014,
+      "resultStillReachable": true
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "repeat": 1,
+      "errors": [],
+      "heap": {},
+      "frames": {
+        "count": 48,
+        "p95": 170,
+        "max": 212
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 450.48970000000554,
+      "resultStillReachable": true
+    },
+    {
+      "engine": "webkit",
+      "version": "27.2",
+      "repeat": 2,
+      "errors": [],
+      "heap": {},
+      "frames": {
+        "count": 48,
+        "p95": 204,
+        "max": 209
+      },
+      "welcomeNetwork": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CYVVmA9t.css",
+          "transferSize": 35138,
+          "encodedBodySize": 34838,
+          "decodedBodySize": 193646
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "transferSize": 302113,
+          "encodedBodySize": 301813,
+          "decodedBodySize": 981882
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
+          "transferSize": 48556,
+          "encodedBodySize": 48256,
+          "decodedBodySize": 48256
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-italic-D2JnYqd-.woff2",
+          "transferSize": 150020,
+          "encodedBodySize": 149720,
+          "decodedBodySize": 149720
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/jetbrains-mono-latin-wght-normal-B9CIFXIH.woff2",
+          "transferSize": 40704,
+          "encodedBodySize": 40404,
+          "decodedBodySize": 40404
+        },
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/fraunces-latin-full-normal-CFFu7zhK.woff2",
+          "transferSize": 121316,
+          "encodedBodySize": 121016,
+          "decodedBodySize": 121016
+        }
+      ],
+      "loadedJavaScriptGzipBytes": 301813,
+      "bundles": [
+        {
+          "name": "http://127.0.0.1:4197/ghost-rehearsal/assets/index-CPoX58MO.js",
+          "bytes": 981882,
+          "sha256": "47d3062051a59de313abe8e50dc54a3d08e0195aeaa332967cce0405b6900bca"
+        }
+      ],
+      "result": {
+        "bytes": 29997377,
+        "events": 238500
+      },
+      "pauseToTwoFramesMs": 482.3484999999928,
+      "resultStillReachable": true
+    }
+  ]
+}

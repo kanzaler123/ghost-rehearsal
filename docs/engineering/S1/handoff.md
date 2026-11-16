@@ -49,6 +49,55 @@ The UI merge commit `51a7ad30e4b75bed4af308f9454387bc3574fba6` is the pre-S1-per
 
 Source search found no remaining App plan-ID object lookups, direct ordinary Worker construction, direct file.text calls or synchronous CSV parser calls. Remaining synchronous readProject calls validate existing documents at manual save/export; they do not read uploaded files. The original independent lab entry points are not substitutes for these App paths.
 
-## Verification and remaining work
+The standalone development robustness lab still has its own legacy import control. That control is excluded by `embedded` in the real App and the standalone HTML is not a production build entry. The production robustness dialog receives the already validated App project. This distinction was checked in source rather than treating the presence of a helper module as proof of wiring.
 
-In progress: final wiring audit, browser validation, measurements and independent S2 handoff. Historical input-branch checks are not final integrated evidence. Physical Safari/iOS/Android devices have not been verified here.
+## Final review corrections
+
+- `299d288552d68afcdf219e2c99bdb54131a8aa25` contains the primary S1 lifecycle/performance changes, separately reviewable from the UI checkpoint.
+- `445c981361bbae4eb6c09830803844016b4d6e78` adds two final App corrections: stop the hidden comparison event panel's event scan while retaining the visible single-plan summary, and focus the robustness trigger before opening its dialog. Windows WebKit did not focus a pointer-activated button automatically, so the modal previously restored focus elsewhere. The original focus-return assertion remains unchanged.
+- The same commit strengthens the CSV reload test's precondition: wait until the stored draft equals the just-imported project, not merely until any older draft exists. Both remote Chromium shards exposed that race on the first integration run. The 400 ms autosave debounce and pending-edit unload protection remain intact; all post-reload, provenance, shared-scenario and unchanged-plan assertions remain intact.
+- The next full run exposed the equivalent asynchronous-import assumption in the mobile-English demo export test. It opened the export dialog immediately after file selection, before the import Worker completed and replaced the project. The test now waits for the App's import-success notice; its exact exported-file equality and existing-event preservation checks remain unchanged.
+- The first remote integration run, [43904386510](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43904386510), was **not green**: each Chromium shard had 209 passes, one premature-reload failure and two allowlisted screenshot skips. WebKit 92, import-WebKit 216, Firefox 22, touch 26 and comparison-WebKit 24 passed. The local Windows cross-browser run had 42 passes and two focus-return failures. These failures prompted the corrections above; no retry count, timeout, skip or error filter was loosened.
+
+## Verification
+
+Product changes are frozen at `445c981361bbae4eb6c09830803844016b4d6e78`. Subsequent S1 changes only update verification and delivery evidence. The final delivery SHA, its CI run and outcomes are pinned in [PR #40](https://github.com/kanzaler123/ghost-rehearsal/pull/40); S2 should use that exact SHA, not a moving branch name. Historical A–E checks are not substituted for integrated checks.
+
+| Check | Observed result |
+| --- | --- |
+| Both TypeScript configurations, unit suite, production subpath build | Passed on the frozen product; 568/568 tests in 40 files. Existing large-chunk advisory remains. |
+| Release-gate unit checks | 37/37; required behavior cases cannot be skipped silently, while the four existing screenshot-only cases remain allowlisted. |
+| Initial integrated affected App flows on `299d288` | 26/26, desktop English and 390px Chinese: persistence, constructor IDs, Worker recovery, CSV integration, welcome/guide race handling, replay and both new S1 cases. |
+| Final affected browser rerun on `445c981` | 24/24 in 2.1 minutes, with each case repeated twice. Windows desktop WebKit English and mobile WebKit Chinese cover S1 + arrival/service data integration; Firefox English and Chromium touch English cover S1. No assertion was weakened. An earlier interrupted attempt had only three completed records and is not counted as a pass. |
+| Final demo import/export synchronization | 6/6 in 42.5 seconds, mobile English and Chinese, three repetitions each. Full A/B/C export/import, unchanged existing events and all numerical outcome assertions retained. |
+| Constructor project after reload | Additional production-browser check passed on `445c981`: import, explicit save, reload, then a new real Worker run completes with no page errors. |
+| Development React StrictMode smoke on `299d288` | Passed with no page or console errors: constructor project, A/B, forward/backward seeks, mode changes, rerun, project replacement and reload. The reader implementation has not changed since this smoke. Production tests alone are not used to claim StrictMode effect replay. |
+| Production performance / retention | Three contexts per browser and per recorded build; exact hashes, all samples, separate serialization/heap/network measures in [performance.md](./performance.md). |
+| Full remote matrix | Chromium two shards; E's WebKit, Firefox and touch sets; dedicated import-WebKit (three repeats) and comparison-WebKit. The final exact-SHA run is linked from PR #40, including the aggregate gate and skipped PR deployment. |
+
+Commands for the final local checks:
+
+```text
+npm run check
+npm run build -- --base=/ghost-rehearsal/
+node --test e2e/release/gate-checks.mjs
+npx playwright test e2e/release/s1.spec.ts e2e/persistence/app.spec.ts e2e/ui/canvas-playback.spec.ts e2e/data-sources/integration.spec.ts e2e/ui/welcome.spec.ts --project=desktop-en --project=mobile-zh
+npx playwright test --config e2e/release/playwright.config.ts e2e/release/s1.spec.ts e2e/data-sources/integration.spec.ts --project=desktop-webkit-en --project=mobile-webkit-zh --project=desktop-firefox-en --project=mobile-touch-en --repeat-each=2
+npx playwright test e2e/demo/experiment-export.spec.ts --project=mobile-en --project=mobile-zh --repeat-each=3
+```
+
+The first affected-flow command was run before the final corrections; the second was run after them. `PLAYWRIGHT_PORT=4196` isolated these runs from other local sessions. Full remote commands and required dependencies are in `.github/workflows/pages.yml`; none were removed or relaxed. Local diagnostic logs are in `.s1-evidence/` and are not packaged into the repository.
+
+## A–E completion and remaining limits
+
+- **A: wired.** Real App conflict/recovery and corrupt-template preservation, constructor IDs, save/reload and result access verified. Standalone persistence transaction cases also remain in the full Chromium suite.
+- **B: wired.** Single-plan cutoff/final stories and live queues are tested on real Worker data in both languages; sampling/statistics unit tests remain intact.
+- **C: wired.** App owns separate A/B readers and trend lanes with disposal; real seek/mode/rerun and freshness behavior verified, with a development StrictMode smoke in addition to production coverage.
+- **D: wired.** Ordinary Worker and all production project/template/CSV import routes use the new clients. Real cancellation, old-result/retry behavior, invalid imports, same-file retry and diagnostic paging remain covered by the integrated suites.
+- **E: wired.** Browser matrix, strict result reporter, diagnostics upload and aggregate release dependencies retained; S1 cases added. No merge, deployment, auto-merge or branch-protection change was performed.
+
+No known application wiring blocker remains. Independent **S2 acceptance is still required**. Dense WebKit playback remains slow (see measurements); no claim of smooth playback or universal speedup is made. Initial JS still exceeds Vite's advisory. Very many large retained plan results have no new arbitrary eviction policy; maximum-plan/low-memory stress needs further measurement rather than dropping current/comparison/recovery results.
+
+Physical Safari/macOS, iPhone/iPad, Android browsers, assistive technology and low-memory hardware have not been tested. Playwright WebKit and viewport/touch emulation are not physical-device acceptance. GitHub inspection found no main branch protection or rulesets; the workflow gates exist, but repository enforcement is an outstanding administrative setting, not something S1 enabled.
+
+For S2: inspect the input/conflict and wiring tables, compare product changes to `51a7ad3`, use the PR-pinned final SHA, and independently exercise constructor save/reload, two-tab conflict restore, cutoff/final versus live queue stories, A/B seek and input changes, Worker cancellation/failure recovery, bounded import cancellation/paging, lazy-load retry and Canvas drag/selection/folding/keyboard navigation. Review the reported performance limitations explicitly. Leave main and deployment untouched until a separately authorized release.
