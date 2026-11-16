@@ -711,7 +711,7 @@ export function App() {
             <b>{issue.severity === 'error' ? t.stage.fix : t.stage.notice}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.')}</small>
           </button>)}
         </div>}
-          <div className="canvas-pane"><Canvas key={mode} {...canvasProps(plan, run, view, previousView, stale)} label={comparing ? { badge: 'A', name: plan.name, status: tracked && trackedStatus[0] ? `${tracked.name} · ${trackedStatus[0]}` : undefined } : undefined} compact={comparing} /></div>
+          <div className="canvas-pane"><Canvas {...canvasProps(plan, run, view, previousView, stale)} label={comparing ? { badge: 'A', name: plan.name, status: tracked && trackedStatus[0] ? `${tracked.name} · ${trackedStatus[0]}` : undefined } : undefined} compact={comparing} /></div>
           {comparing && second && <div className="canvas-pane"><Canvas {...canvasProps(second, secondRun, secondView, secondPrevious, secondStale)} label={{ badge: 'B', name: second.name, note: t.canvas.changes(reportChanges.length), status: tracked && trackedStatus[1] ? `${tracked.name} · ${trackedStatus[1]}` : undefined }} compact /></div>}
         </div>
         {mode !== 'Build' && <section className={cls('dock', dockOpen && 'open', `tab-${bottomTab}`)}>
