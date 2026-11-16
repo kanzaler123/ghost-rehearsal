@@ -250,9 +250,10 @@ export function App() {
       setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id });
       setSecondId(result.document.plans[1]?.id ?? ''); setRuns(createRunResults()); setMode('Build');
       setPlaying(false); setTime(0);
-      // Only the entry dialog that started this import owns its completion.
-      // Closing/reopening an entry already invalidates the request above.
-      if (importDialog === 'welcome' || importDialog === 'new') setDialog(current => current === importDialog ? null : current);
+      // Editors hold drafts of the replaced document, even when its IDs match.
+      // Keep only dialogs independent of that document; an owned entry still closes.
+      setDialog(current => current === 'export' || current === 'about'
+        || ((current === 'welcome' || current === 'new') && current !== importDialog) ? current : null);
       say(tr => tr.notices.imported);
     }
   }
