@@ -28,7 +28,7 @@ try {
     { name: 'services-near-4MiB', text: 'duration\n' + Array(10000).fill(' '.repeat(417) + '1').join('\n'), options: services, expected: 'services' },
     { name: 'arrivals-10000', text: 'id,arrival_time\n' + Array.from({ length: 10000 }, (_, index) => `guest-${index},${index / 10}`).join('\n'), options: arrivals, expected: 'arrivals' },
     { name: 'arrivals-17999-errors', text: 'id,arrival_time\n' + Array(6000).fill('Bad-ID,-1').join('\n'), options: arrivals, expected: 'errors_limit' },
-    { name: 'project-10000-records-60000-samples', text: JSON.stringify(project), options: { kind: 'project' }, expected: 'project' },
+    { name: `project-10000-records-${project.plans.flatMap(plan => plan.graph.nodes).filter(node => node.type === 'service').length * 10000}-samples`, text: JSON.stringify(project), options: { kind: 'project' }, expected: 'project' },
     { name: 'templates-20-files-40-templates-near-16MiB', files: Array.from({ length: 20 }, (_, index) => ({ name: `${index}.json`, text: templateText.padEnd(800 * 1024) })), options: { kind: 'templates' }, expected: 'templates' },
     { name: 'services-10001-rejected', text: 'duration\n' + Array(10001).fill('1').join('\n'), options: services, expected: 'table_rows_limit' },
     { name: 'json-depth-65-rejected', text: '['.repeat(65) + '0' + ']'.repeat(65), options: { kind: 'project' }, expected: 'depth_limit' },

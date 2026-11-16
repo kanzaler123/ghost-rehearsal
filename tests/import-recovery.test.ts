@@ -119,6 +119,9 @@ describe('import parsing without applying', () => {
     const value = { [resource]: Array(IMPORT_LIMITS[resource] + 1).fill(null) };
     expect(() => checkStructures([value])).toThrow(expect.objectContaining({ failure: expect.objectContaining({ code: `${resource}_limit` }) }));
     expect(() => checkStructures([{ [resource]: Array(IMPORT_LIMITS[resource]).fill(null) }])).not.toThrow();
+    const half = Math.floor(IMPORT_LIMITS[resource] / 2);
+    expect(() => checkStructures([{ [resource]: Array(half).fill(null) }, { [resource]: Array(IMPORT_LIMITS[resource] - half + 1).fill(null) }]))
+      .toThrow(expect.objectContaining({ failure: expect.objectContaining({ code: `${resource}_limit` }) }));
   });
 
   it('bounds JSON depth and total values before schema validation', () => {

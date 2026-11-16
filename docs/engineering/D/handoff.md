@@ -112,7 +112,7 @@ client.startTexts([{ name: fileNameOrPasteLabel, text }], { kind: 'services', un
 
 | 预算 | 上限及单位 | 依据与边界 |
 | --- | --- | --- |
-| fileBytes / batchBytes / files | 4 MiB/文件，16 MiB/批，20 文件/批 | 支持约 1.15 MB 的 10,000 访客+60,000 服务样本项目；批量保留 20 文件余量；避免读入任意大文件。项目/CSV 另限 1 文件 |
+| fileBytes / batchBytes / files | 4 MiB/文件，16 MiB/批，20 文件/批 | 支持约 1.15 MB 的 10,000 访客+90,000 服务样本项目；批量保留 20 文件余量；避免读入任意大文件。项目/CSV 另限 1 文件 |
 | tableRows / tableCells | 10,000 数据行，不含表头；200,000 单元格，含表头/空白行产生的格 | 与现有每分布 10,000 样本、引擎每运行 10,000 人对齐；格数另防超宽 CSV |
 | nodes / edges | 2,000 节点 / 8,000 连线，批量累计 | 为多方案/模板提供余量，限制图结构及后续校验工作量；不是引擎性能承诺 |
 | plans / scenarios / templates | 各 50 个；模板应用后当前库也不超过 50 | 可覆盖当前多方案、模板库功能；小文件不能靠极多小对象绕过字节预算 |
@@ -129,7 +129,7 @@ client.startTexts([{ name: fileNameOrPasteLabel, text }], { kind: 'services', un
 | 近 4 MiB、10,000 服务样本 | 4,190,008 | 135.92 | 完整接受 |
 | 10,000 到达记录 | 165,805 | 9.75 | 完整接受 |
 | 6,000 错误行产生 17,999 错误 | 60,015 | 16.62 | 拒绝，明细全保留 |
-| 项目：10,000 记录+60,000 样本 | 1,153,590 | 270.28 | 完整接受 |
+| 项目：10,000 记录+90,000 样本（9 个服务节点各 10,000） | 1,153,590 | 270.28 | 完整接受 |
 | 20 文件、40 模板，近 16 MiB | 16,393,880 | 456.32 | 完整接受 |
 | 10,001 服务行 | 20,010 | 6.99 | 拒绝，不返回半份数据 |
 | 深度 65 | 131 | 0.33 | 进入 schema 前拒绝 |
@@ -170,10 +170,11 @@ client.startTexts([{ name: fileNameOrPasteLabel, text }], { kind: 'services', un
 ## 验证与交接门槛
 
 - 基线 `npm run check`：32 文件、463 测试通过。
-- 本分支 `npm run check`：双 TypeScript 检查通过；35 文件、518 测试通过。新增 55 项，覆盖普通 Worker 五类异常、引擎 failed/aborted、取消/重启/迟到、不可克隆输入，以及文件规模预检、解析预算、17,999 错误、原子模板、单位/来源一致、读取/Worker 失败与重试。
+- 本分支 `npm run check`：初次双 TypeScript 检查及 35 文件、518 测试通过；19:26 补充跨文件累计预算与销毁后迟到回调断言后，双类型检查及 **519 测试全部通过**。新增共 56 项，覆盖普通 Worker 五类异常、引擎 failed/aborted、取消/重启/迟到、不可克隆输入，以及文件规模预检、解析预算、17,999 错误、原子模板、单位/来源一致、读取/Worker 失败与重试。
 - `npm run build -- --base=/ghost-rehearsal/`：通过；既有大 chunk 提示仍在，未为本任务做无关拆包。
 - `node docs/engineering/D/verify-runtime.mjs`：15 项真实 Chromium 检查通过，命令退出 0；两个不同 production Worker 资源、12 次 Worker 实例；pageerror=0、console error=0。记录见 [runtime-validation.json](./runtime-validation.json)。脚本不隐藏或过滤浏览器错误，不重试。
 - 验证脚本调试记录：初次夹具误把换行写为字面反斜杠，触发合法小文件断言失败；修正夹具后保留同一断言通过。Windows 浏览器清理有明显延迟；最终等待正常清理完成，未把未退出的运行算通过。未改生产逻辑来规避断言。
-- 原有完整 `npm run test:browser` 已启动，最终结果及远端 CI 在交付更新中追加；不能用独立模块 15 项取代现有整页验收。
+- 本地完整 `npm run test:browser`（19:19–19:29）：**退出 1，未通过**。284 项中 181 passed、1 failed、2 原有 skipped、100 did not run；未增加重试、未缩小范围。唯一失败为 desktop-en 的 `e2e/data-sources/integration.spec.ts:80`，“Apply data”点击等待 visible/enabled/stable 超过原有 15,000 ms；截图中按钮可见，具体原因未确认。另有原配置 600 秒整套运行及 teardown 超时。保留 `test-results/d-full-browser.log`、`test-results/browser-results.json` 及 `test-results/data-sources-integration-a-723da-d-trips-the-shared-scenario-desktop-en/` 的截图/trace（本地未提交产物）。不能把该次运行算通过，也不能仅凭远端通过认定本地失败无关。
+- 实现提交 `9776e8f` 的远端完整回归通过：[Chromium + build](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43857434303)，两个原有分片各 140 passed、2 skipped，共 **280 passed、4 原有截图用例 skipped**；[WebKit](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/43857434293) 导入/键盘 144 passed、比较 24 passed。远端双类型检查、518 项当时单测及构建也通过；deploy 按 PR 条件未执行。该结果不抹去上面的本地失败。
 - 接入后仍需在双语言桌面/390px 真正的 App、上传、预览窗口执行上述交互验收。当前页面未接线、中英文状态尚未应用，是明确剩余工作。
-- 提交/Draft PR/完整浏览器结果在最终交付记录追加。不会合并 main、部署、自动合并或关闭其他 Draft PR。
+- 实现提交：`9776e8fcc67ad13fffff1494a64dc869e98c4f33`；[Draft PR #38](https://github.com/kanzaler123/ghost-rehearsal/pull/38)，base=main。补充断言、纠正测量工作量标签及本记录使用后续提交；生产源码与上述已通过远端回归的实现提交一致。最终 push 会触发新的 CI，以 PR checks 为准，不将上一提交的检查冒充新 head 的检查。未合并 main、部署、自动合并或关闭其他 Draft PR。

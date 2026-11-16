@@ -137,4 +137,17 @@ describe('ordinary simulation client', () => {
     expect(client.getState().status).toBe('disposed');
     expect(changed).toHaveBeenCalledTimes(calls);
   });
+
+  it('disposes an active Worker and ignores its queued callbacks', () => {
+    const { client, workers, onState } = setup();
+    client.start(requests);
+    const worker = workers[0], message = worker.onmessage!, error = worker.onerror!, unreadable = worker.onmessageerror!;
+    const calls = onState.mock.calls.length;
+    client.dispose();
+    message.call(worker as unknown as Worker, { data: { runs } } as MessageEvent);
+    error.call(worker as unknown as Worker, { message: 'late', preventDefault: vi.fn() } as unknown as ErrorEvent);
+    unreadable.call(worker as unknown as Worker, {} as MessageEvent);
+    expect(client.getState().status).toBe('disposed');
+    expect(worker.terminate).toHaveBeenCalledOnce(); expect(onState).toHaveBeenCalledTimes(calls);
+  });
 });

@@ -95,7 +95,7 @@
       "medianMs": 16.615800000000036
     },
     {
-      "name": "project-10000-records-60000-samples",
+      "name": "project-10000-records-90000-samples",
       "files": 1,
       "bytes": 1153590,
       "result": "project",
