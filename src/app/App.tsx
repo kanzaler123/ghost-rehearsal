@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Connection } from '@xyflow/react';
 import {
@@ -359,18 +360,19 @@ export function App() {
     worker.current?.terminate();
     const active = new Worker(new URL('../simulation/worker.ts', import.meta.url), { type: 'module' });
     worker.current = active;
-    active.onmessage = (event: MessageEvent<{ runs?: SimulationRun[]; error?: string }>) => {
+    active.onmessage = (event: MessageEvent<{ runs?: SimulationRun[]; error?: string }>) => flushSync(() => {
       setBusy(false); active.terminate(); worker.current = null;
       if (event.data.error || !event.data.runs) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const error = event.data.error; say(tr => tr.notices.runFailed(error ? errorText(error, tr.lang) : tr.notices.noResult)); return; }
       const results = event.data.runs;
       const failed = results.find(result => result.status === 'failed' || (destination === 'Compare' && result.status !== 'succeeded'));
       if (failed) { setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3); say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`); setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); return; }
+      if (scope === 'cutoff') setBasis('cutoff');
       setRuns(previous => ({ ...previous, ...Object.fromEntries(results.map(result => [result.request.plan.id, result])) }));
       setMode(destination); setTime(0); setSpeed(1); setPlaying(autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: targets[0].id });
       if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
       const people = results[0].population.length; const total = results.reduce((sum, result) => sum + result.events.length, 0);
       say(results.some(result => result.status === 'aborted') ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
-    };
+    });
     active.onerror = () => { setBusy(false); setLastRun({ kind: 'failed', planIds: targets.map(target => target.id) }); worker.current = null; say(tr => tr.notices.workerFailed); active.terminate(); };
     active.postMessage({ requests: targets.map(target => ({ ...requestFor(target, document), runMode: scope })) });
   }
@@ -394,7 +396,6 @@ export function App() {
     const right = project.plans.find(item => item.id === rightId && item.scenarioId === scenario.id);
     if (busy || !left || !right || left.id === right.id) return;
     setDialog(null); setGuide(null); setPlanId(left.id); setSecondId(right.id); setRunMode(scope);
-    if (scope === 'cutoff') setBasis('cutoff');
     setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
     launch([left, right], 'Compare', project, scope);
   }

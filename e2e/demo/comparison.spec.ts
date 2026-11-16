@@ -236,10 +236,10 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await page.locator('.workspace-menu > summary').click();
   await page.getByRole('button', { name: t.run.start, exact: true }).click();
   await expect(page.getByRole('button', { name: t.run.start, exact: true })).toBeVisible();
-  await expect(page.getByLabel(t.review.basis, { exact: true })).toHaveValue('completion');
-  await expect(page.locator('.is-report')).toContainText(t.evidence.missing);
-  await expect(page.locator('.people-stats')).toHaveCount(0);
-  await selectComparisonOption(page, t.review.basis, 'cutoff');
+  await expect(page.getByLabel(t.review.basis, { exact: true })).toHaveValue('cutoff');
+  await expect(page.getByLabel(t.review.basis, { exact: true }).locator('option[value=completion]')).toBeDisabled();
+  await expect(page.locator('.report-stale')).toHaveCount(0);
+  await expect(page.locator('.people-stats b')).toHaveText(['0', '0', '2']);
   await expect(scope).toContainText(t.evidence.side('00:05', 2, 1, 0));
   expect(workers).toHaveLength(3);
   expect(workers.every(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
