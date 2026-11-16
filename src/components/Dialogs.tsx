@@ -51,7 +51,7 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onGuide, onImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onGuide?: () => void; onImport: () => void; onClose: () => void }) {
+export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onGuide?: () => void; onImport: () => void; onCancelImport?: () => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
@@ -90,6 +90,7 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onClose, 
         <p className="form-error" role="alert">{error}</p>
         <div className="event-start-options"><button type="button" className="text-btn" onClick={onExample}>{t.eventSetup.demo}</button><button type="button" className="text-btn" aria-describedby={importError ? importErrorId : undefined} onClick={onImport}>{t.eventSetup.import}</button></div>
         <p id={importErrorId} className="form-error" role="alert">{importError}</p>
+        {onCancelImport && <p role="status">{t.imports.busy}<button type="button" onClick={onCancelImport}>{t.common.cancel}</button></p>}
       </div>
       <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>

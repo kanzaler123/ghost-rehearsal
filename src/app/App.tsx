@@ -159,6 +159,7 @@ export function App() {
   });
   const { templates, unsaved, draftSaved } = persistence;
   const currentTemplates = useRef(templates); currentTemplates.current = templates;
+  const projectImportBusy = projectImportState?.status === 'reading' || projectImportState?.status === 'parsing';
   const plan = project.plans.find(item => item.id === planId) ?? project.plans[0];
   const scenario = project.scenarios.find(item => item.id === plan.scenarioId)!;
   const second = project.plans.find(item => item.id === secondId && item.id !== plan.id);
@@ -792,7 +793,7 @@ export function App() {
         </div>)}
       </div>
     </Modal>}
-    {(projectImportState?.status === 'reading' || projectImportState?.status === 'parsing') && <div role="status">{t.imports.busy}<button type="button" onClick={() => { projectRead.current += 1; projectImporter.current?.cancel(); }}>{t.common.cancel}</button></div>}
+    {projectImportBusy && dialog !== 'welcome' && dialog !== 'new' && <div role="status">{t.imports.busy}<button type="button" onClick={() => { projectRead.current += 1; projectImporter.current?.cancel(); }}>{t.common.cancel}</button></div>}
     <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={event => {
       const file = event.target.files?.[0];
       // Clear before awaiting so a failed read can retry the same file.
@@ -898,6 +899,6 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {!persistence.chooseRecovery && (dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? t.notices.fileReadFailed : undefined} onClose={() => setDialog(null)} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onGuide={dialog === 'welcome' ? startGuide : undefined} onImport={() => fileInput.current?.click()} />}
+    {!persistence.chooseRecovery && (dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? `${t.notices.fileReadFailed}${projectImportState?.failure?.code.endsWith('_limit') ? ` ${projectImportState.failure.message}` : ''}` : undefined} onCancelImport={projectImportBusy ? () => { projectRead.current += 1; projectImporter.current?.cancel(); } : undefined} onClose={() => { projectRead.current += 1; projectImporter.current?.cancel(); setDialog(null); }} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onGuide={dialog === 'welcome' ? startGuide : undefined} onImport={() => fileInput.current?.click()} />}
   </div>;
 }

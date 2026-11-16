@@ -13,6 +13,33 @@ function projectFile(name: string, planName: string) {
   return { name, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(document)) };
 }
 
+for (const action of ['cancel', 'close'] as const) test(`welcome ${action} cancels a pending project import`, async ({ page }, info) => {
+  const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
+  await page.goto('./');
+  await page.evaluate(() => {
+    const read = File.prototype.text;
+    File.prototype.text = function () {
+      const file = this;
+      return new Promise<string>(resolve => {
+        (window as typeof window & { finishImport: () => Promise<void> }).finishImport = async () => resolve(await read.call(file));
+      });
+    };
+  });
+  await page.locator('input[type=file]').first().setInputFiles(projectFile('canceled.json', 'Canceled project'));
+  const dialog = page.getByRole('dialog');
+  if (action === 'cancel') {
+    await dialog.getByRole('status').getByRole('button', { name: t.common.cancel, exact: true }).click();
+    await expect(dialog.getByRole('status')).toHaveCount(0);
+  } else await dialog.getByRole('button', { name: t.common.closeDialog, exact: true }).click();
+  await page.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await expect(dialog).toHaveCount(action === 'cancel' ? 1 : 0);
+  await expect(page.locator('.status-notice')).not.toHaveText(t.notices.imported);
+  expect(errors).toEqual([]);
+});
+
 test('unreadable project preserves work and permits retrying the same file', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
