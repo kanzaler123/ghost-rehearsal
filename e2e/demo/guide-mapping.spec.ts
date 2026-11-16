@@ -1,0 +1,65 @@
+import { expect, test } from '@playwright/test';
+import { compareExample, openExample } from '../ui/studio';
+
+test('guide explains B/C pane mapping without opening More', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  const t = await openExample(page, info);
+  if (info.project.name.startsWith('mobile')) await page.setViewportSize({ width: 320, height: 720 });
+  const guide = await compareExample(page, t);
+  const mapping = guide.getByRole('note');
+  await expect(mapping).toHaveCount(0);
+  for (const step of [0, 1, 2, 3]) await guide.getByRole('button', { name: t.guide.actions[step], exact: true }).click();
+  await expect(mapping).toHaveText(t.guide.mapping);
+  await expect(mapping).toBeVisible();
+  await expect(guide.locator('.guide-options')).not.toHaveAttribute('open');
+  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText('A 41 → B 72');
+  const names = await page.locator('.report-plans b').allTextContents();
+  await expect(page.locator('.comparison-identities > span')).toHaveText([`A · ${names[0]}`, `B · ${names[1]}`]);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await mapping.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('visible-bc-mapping.png'), fullPage: false });
+  const more = guide.locator('.guide-options > summary');
+  await more.focus();
+  await page.keyboard.press('Enter');
+  await expect(guide.locator('.guide-options')).toHaveAttribute('open');
+  await expect(guide.getByText(t.guide.mapping, { exact: true })).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(more).toBeFocused();
+  await guide.getByRole('button', { name: t.guide.actions[4], exact: true }).click();
+  await expect(mapping).toBeVisible();
+  await expect(guide.getByRole('button', { name: t.guide.exportProject, exact: true })).toBeEnabled();
+  await page.screenshot({ path: info.outputPath('export-bc-mapping.png'), fullPage: false });
+  await more.click();
+  await guide.getByRole('button', { name: t.guide.reset, exact: true }).click();
+  await expect(mapping).toHaveCount(0);
+  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText('A 43 → B 41');
+  expect(errors).toEqual([]);
+});
+
+
+test('mapping follows actual mode and sidebar comparison identities', async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  const t = await openExample(page, info);
+  const guide = await compareExample(page, t);
+  for (const step of [0, 1, 2, 3]) await guide.getByRole('button', { name: t.guide.actions[step], exact: true }).click();
+  const mapping = guide.getByRole('note');
+  await expect(mapping).toHaveText(t.guide.mapping);
+  await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
+  await expect(mapping).toHaveCount(0);
+  await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+  await expect(mapping).toHaveText(t.guide.mapping);
+  if (!await page.locator('.plan-list').isVisible()) await page.getByRole('button', { name: t.navigator.plans, exact: true }).click();
+  const original = page.locator('.plan-card').filter({ has: page.locator('.plan-main') }).first();
+  const originalName = await original.locator('.plan-main').getAttribute('aria-label');
+  await original.locator('summary').click();
+  const choose = original.getByRole('button', { name: `${t.sidebar.setB}: ${originalName}`, exact: true });
+  await choose.focus();
+  await expect(choose).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.comparison-identities > span').nth(1)).toHaveText(`B · ${originalName}`);
+  await expect(mapping).toHaveCount(0);
+  await expect(guide.getByText(t.guide.mapping, { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
