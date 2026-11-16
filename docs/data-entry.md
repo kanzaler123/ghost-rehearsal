@@ -43,7 +43,9 @@ These are synthetic example values. Duration runs from service start to service 
 
 ## Errors, cancellation and sources
 
-The preview lists total and valid data rows, one-based physical line and field-column errors, converted seconds and the target. Fix all errors before Apply data. Valid rows in an invalid file are only a diagnostic preview; no partial import is allowed. Changing text, uploading another file or changing units requires a new preview. Cancel import leaves the parent model unchanged.
+The preview lists total and valid data rows, one-based physical line and field-column errors, converted seconds and the target. Fix all errors before Apply data. Valid rows in an invalid file are only a diagnostic preview; no partial import is allowed. Changing text, successfully reading another file or changing units requires a new preview. Cancel import leaves the parent model unchanged.
+
+While a file is being read, the current text, units, source metadata and preview stay visible, but Preview and Apply data are disabled. If reading fails, an alert appears and the existing draft remains available to edit or apply. Selecting the same file again retries it. A successful read replaces the text and requires a new preview. Editing the text, cancelling the import or selecting a newer file prevents an older read from overwriting the current draft.
 
 New input defaults to **User estimate**, even when the existing values were labelled Measured or Historical. Uploading a file does not establish its origin. Source and Notes survive the replacement so you can review and correct the explanation. After a successful preview, explicitly choose the appropriate label:
 

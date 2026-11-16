@@ -25,6 +25,7 @@ export function ArrivalDataEditor(props: ArrivalDataEditorProps) {
 function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, onChange, requireApply = false }: ArrivalDataEditorProps) {
   const t = dataSourceText(lang);
   const [text, setText] = useState('');
+  const [reading, setReading] = useState(false);
   const [unit, setUnit] = useState<TimeUnit | ''>('');
   const [provenance, setProvenance] = useState(stream.provenance);
   const [preview, setPreview] = useState<ReturnType<typeof parseArrivalData> | null>(null);
@@ -51,10 +52,12 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
     <p className="ds-hint">{t.arrivalHint}</p>
     <DataInput key={inputKey} text={text} unit={unit} lang={lang} template={createArrivalTemplate(attributes)}
       submitError={requireApply ? text || unit || JSON.stringify(provenance) !== JSON.stringify(stream.provenance) ? t.pendingImport : '' : undefined}
+      onReadingChange={setReading}
       onTextChange={value => { setText(value); invalidate(); }}
       onUnitChange={value => { setUnit(value); invalidate(); }} />
     <p className="ds-hint">{t.estimateHint}</p>
-    <button type="button" onClick={() => {
+    <button type="button" disabled={reading} onClick={() => {
+      if (reading) return;
       if (!unit) { setNotice('chooseUnitError'); return; }
       setPreview(parseArrivalData(text, unit, attributes, observationCutoff, horizon));
       setNotice(null);
@@ -86,8 +89,8 @@ function ArrivalDraft({ stream, attributes, observationCutoff, horizon, lang, on
     <ProvenanceFields value={provenance} lang={lang} onChange={setProvenance} kindDisabled={!preview || preview.errors.length > 0} />
     <p className="ds-hint">{t.sharedHint}</p>
     <div className="ds-actions">
-      <button type="button" disabled={!candidate} onClick={() => {
-        if (applied.current) return;
+      <button type="button" disabled={reading || !candidate} onClick={() => {
+        if (reading || applied.current) return;
         if (!candidate) { setNotice('invalidModel'); return; }
         applied.current = true;
         reset();
