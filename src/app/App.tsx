@@ -147,7 +147,7 @@ export function App() {
   const comparisonSettingsRef = useRef<HTMLDivElement>(null);
   const templateInput = useRef<HTMLInputElement>(null);
   const worker = useRef<SimulationClient | null>(null);
-  const launchContext = useRef<{ requestId: number; destination: Mode; scope: RunRequest['runMode']; planIds: string[] } | null>(null);
+  const launchContext = useRef<{ requestId: number; destination: Mode; scope: RunRequest['runMode']; planIds: string[]; presentResult: boolean } | null>(null);
   const say = (next: Notice) => setNoticeState(next ? { en: next(MESSAGES.en), zh: next(MESSAGES.zh) } : null);
   const persistence = useProjectPersistence(project, dialog !== 'welcome', document => {
     if (!document) { setDialog('welcome'); return; }
@@ -255,6 +255,8 @@ export function App() {
   function undo() { if (!past.length) return; setProject(past.at(-1)!); setPast(past.slice(0, -1)); setFuture([project, ...future]); setPlaying(false); }
   function redo() { if (!future.length) return; setProject(future[0]); setFuture(future.slice(1)); setPast([...past, project]); setPlaying(false); }
   function selectPlan(id: string, plans = project.plans) {
+    // Keep the computation and its per-plan cache, but navigation owns the view now.
+    if (id !== plan.id && launchContext.current) launchContext.current.presentResult = false;
     const target = plans.find(item => item.id === id);
     if (!plans.some(item => item.id === secondId && item.id !== id && item.scenarioId === target?.scenarioId)) setSecondId(plans.find(item => item.id !== id && item.scenarioId === target?.scenarioId)?.id ?? '');
     setPlanId(id); setSelection({ id: '', kind: 'node', owner: id }); setSearch(''); setInspectorOpen(false); setPlaying(false); setTime(0); setShowIssues(false); setChecksPlanId(undefined); if (mode === 'Compare') setMode('Build');
@@ -366,7 +368,7 @@ export function App() {
     runningPlans.current = targets.map(target => target.id); setLastRun(null);
     setBusy(true); setPlaying(false); say(tr => tr.notices.computing);
     const client = worker.current!;
-    launchContext.current = { requestId: client.getState().requestId + 1, destination, scope, planIds: runningPlans.current };
+    launchContext.current = { requestId: client.getState().requestId + 1, destination, scope, planIds: runningPlans.current, presentResult: true };
     client.start(targets.map(target => ({ ...requestFor(target, document), runMode: scope })));
   }
   function stopRun() { worker.current?.cancel(); }
@@ -380,7 +382,7 @@ export function App() {
       if (!comparisonReady) launch([plan, second], next);
       else { setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
     } else if (!run || stale || run.status === 'failed') launch([plan], next);
-    else { setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
+    else { if (!run.completion) setBasis('cutoff'); setMode(next); setTime(0); setPlaying(autoplayAfterRun(reducedRef.current)); }
   }
   function comparePlans(leftId: string, rightId: string, scope: RunRequest['runMode']) {
     const left = project.plans.find(item => item.id === leftId && item.scenarioId === scenario.id);
@@ -550,30 +552,35 @@ export function App() {
     const client = new SimulationClient(state => flushSync(() => {
       const context = launchContext.current;
       if (!context || state.requestId !== context.requestId) return;
-      const { destination, scope, planIds } = context;
+      const { destination, scope, planIds, presentResult } = context;
+      const notify = (message: (tr: Messages) => string) => say(tr => presentResult ? message(tr)
+        : `${state.requests.map(request => request.plan.name).join(' / ')}: ${message(tr)}`);
       setBusy(state.status === 'running');
       if (state.status === 'running') return;
-      if (state.status === 'canceled') { setPlaying(false); setLastRun({ kind: 'stopped', planIds }); say(tr => tr.notices.cancelled); return; }
+      if (state.status === 'canceled') { if (presentResult) setPlaying(false); setLastRun({ kind: 'stopped', planIds }); notify(tr => tr.notices.cancelled); return; }
       const results = state.runs;
       const partial = state.failure?.code === 'simulation_aborted' && destination !== 'Compare';
       if (state.status === 'failed' && !partial) {
-        setPlaying(false); setLastRun({ kind: 'failed', planIds });
+        if (presentResult) setPlaying(false);
+        setLastRun({ kind: 'failed', planIds });
         const failed = results?.find(result => result.status !== 'succeeded');
         if (failed) {
           const failures = failed.issues.filter(issue => issue.severity === 'error').slice(0, 3);
           say(tr => `${failed.request.plan.name}: ${failures.map(issue => issueText(issue, tr.lang)).join(tr.lang === 'zh' ? '；' : '; ')}`);
-          setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas');
-        } else say(tr => tr.notices.workerFailed);
+          if (presentResult) { setChecksPlanId(failed.request.plan.id); setShowIssues(true); setMobilePanel('canvas'); }
+        } else notify(tr => tr.notices.workerFailed);
         return;
       }
       if (!results) return;
       if (partial) setLastRun({ kind: 'failed', planIds });
-      if (scope === 'cutoff') setBasis('cutoff');
       setRuns(previous => updateRunResults(previous, results));
-      setMode(destination); setTime(0); setSpeed(1); setPlaying(!partial && autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: planIds[0] });
-      if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
+      if (presentResult) {
+        if (scope === 'cutoff') setBasis('cutoff');
+        setMode(destination); setTime(0); setSpeed(1); setPlaying(!partial && autoplayAfterRun(reducedRef.current)); setDockOpen(destination !== 'Compare'); setShowIssues(false); setChecksPlanId(undefined); setSelection({ id: '', kind: 'node', owner: planIds[0] });
+        if (destination === 'Compare') { setCompareFocus('overview'); setMobilePanel('report'); setPeopleGroup(undefined); }
+      }
       const people = results[0].population.length; const total = results.reduce((sum, result) => sum + result.events.length, 0);
-      say(partial ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
+      notify(partial ? tr => tr.notices.aborted : tr => tr.notices.done(people, total.toLocaleString(tr.lang === 'zh' ? 'zh-CN' : 'en-US')));
     }));
     worker.current = client;
     return () => { client.dispose(); projectRead.current += 1; };
@@ -691,7 +698,7 @@ export function App() {
       </aside>}
       {fullSidebar && <PlanNavigator project={project} scenario={scenario} plan={plan} second={second} busy={busy} editing={!readOnly} collapsed={mode === 'Build' && navigatorCollapsed} selection={selection} search={search}
         onCollapse={() => mode === 'Build' ? setNavigatorCollapsed(value => !value) : setRailExpanded(false)}
-        onScenario={id => { const target = project.plans.find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { setSecondId(id); setPlaying(false); }}
+        onScenario={id => { const target = project.plans.find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { if (id !== secondId && launchContext.current?.destination === 'Compare') launchContext.current.presentResult = false; setSecondId(id); setPlaying(false); }}
         onNew={() => setDialog('new')} onSettings={() => enterBuild(plan.id, 'scenario')} onGuests={() => enterBuild(plan.id, 'scenario')} onResources={() => enterBuild(plan.id, 'resources')}
         onRename={() => { setPlanName(plan.name); setDialog('rename-plan'); }} onDuplicate={copyPlan} onDelete={() => { const remaining = project.plans.filter(item => item.id !== plan.id); setRuns(previous => removeRunResults(previous, [plan.id])); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}
         onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
