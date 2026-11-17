@@ -19,6 +19,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const [confirmedText, setConfirmedText] = useState('');
   const [pending, setPending] = useState(0);
   const [recovery, setRecovery] = useState<Revision<ProjectDocument>[]>([]);
+  const [recoveryOptions, setRecoveryOptions] = useState<Revision<ProjectDocument>[]>([]);
   const [chooseRecovery, setChooseRecovery] = useState(false);
   const [templates, setTemplates] = useState<SavedTemplate[]>([]);
   const [templateState, setTemplateState] = useState<TemplateSnapshot>({ status: 'empty', heads: [], history: [] });
@@ -61,7 +62,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
       if (retry && active) { /* Keep the editor and its original parents when reconnecting. */ }
       else if (saved?.status === 'ready' && (!drafts.length || drafts.every(item => item.projectId === saved.projectId))) accept(saved.current);
       else if (!saved && heads.length === 1 && heads[0].status === 'ready') accept(heads[0]);
-      else { setChooseRecovery(heads.length > 0); load.current(null); }
+      else { setRecoveryOptions(heads); setChooseRecovery(heads.length > 0); load.current(null); }
       setReady(true);
       unsubscribe = instance.subscribe(reason => {
         if (reason === 'local') return;
@@ -111,7 +112,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     const context = editor.current;
     if (active && text !== confirmedText && !await write('draft', project, true)) return;
     if (request !== recoveryRequest.current || editor.current !== context || latest.current.text !== text) return;
-    const parents = recovery.filter(item => item.projectId === revision.projectId).map(item => item.id);
+    const parents = recoveryOptions.filter(item => item.projectId === revision.projectId).map(item => item.id);
     if (context.id === revision.projectId) parents.push(...context.parents);
     accept(revision, resolve ? [...new Set(parents)] : [revision.id]);
     editor.current.confirmed = '';
@@ -132,6 +133,9 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     } finally { templateWriting.current = false; if (mounted.current) setTemplateBusy(false); }
   }
   useEffect(() => {
+    if (chooseRecovery) setRecoveryOptions(previous => [...previous, ...recovery.filter(item => !previous.some(option => option.id === item.id))]);
+  }, [chooseRecovery, recovery]);
+  useEffect(() => {
     if (!ready || !active || chooseRecovery || text === confirmedText) return;
     const timer = setTimeout(() => { if (latest.current.text === text && latest.current.confirmedText !== text) void write('draft'); }, 400);
     return () => clearTimeout(timer);
@@ -143,7 +147,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
   }, [protectedEdit]);
-  return { ready, error, conflict, pending, savedText, confirmedText, recovery, chooseRecovery, setChooseRecovery: (choose: boolean) => { recoveryRequest.current += 1; setChooseRecovery(choose); },
+  return { ready, error, conflict, pending, savedText, confirmedText, recovery: chooseRecovery ? recoveryOptions : recovery, recoveryHeads: recovery, chooseRecovery, setChooseRecovery: (choose: boolean) => { recoveryRequest.current += 1; if (choose) setRecoveryOptions(recovery); setChooseRecovery(choose); },
     templates, templateState, templateBusy, write, replace, recover, saveTemplates, retry: () => setRetry(value => value + 1),
     unsaved: text !== savedText || conflict, draftSaved: text === confirmedText && !conflict && !pending,
   };

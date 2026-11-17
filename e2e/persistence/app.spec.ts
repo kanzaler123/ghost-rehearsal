@@ -100,6 +100,20 @@ test('a failed draft write prevents recovery from replacing unsaved edits', asyn
   await expect(recovery).toBeVisible();
   await expect(page.locator('.event-title')).toContainText('Unsaved recovery original');
   await expect(page.getByTitle(t.header.undo, { exact: false })).toBeEnabled();
+  await page.evaluate(() => {
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...args: Parameters<IDBDatabase['transaction']>) {
+      const tx = transaction.apply(this, args);
+      if (args[1] === 'readwrite') {
+        IDBDatabase.prototype.transaction = transaction;
+        tx.addEventListener('complete', event => {
+          event.stopImmediatePropagation();
+          (window as typeof window & { finishDraft: () => void }).finishDraft = () => tx.dispatchEvent(new Event('complete'));
+        }, { once: true });
+      }
+      return tx;
+    };
+  });
   await page.keyboard.press('Escape');
   await expect(recovery).toHaveCount(0);
   const notice = page.getByRole('alert').filter({ hasText: t.persistence.failed });
@@ -108,8 +122,14 @@ test('a failed draft write prevents recovery from replacing unsaved edits', asyn
   const recovered = JSON.parse(Buffer.concat(chunks).toString());
   expect(recovered.project.scenarios[0].name).toBe('Unsaved recovery original');
   expect(recovered.recovery.some((item: { raw: string }) => item.raw.includes('Unsaved recovery original'))).toBe(true);
+  await page.waitForFunction(() => typeof (window as typeof window & { finishDraft?: unknown }).finishDraft === 'function');
   await notice.getByRole('button', { name: t.persistence.recover, exact: true }).click();
-  await page.evaluate(() => (window as typeof window & { restoreWrites: () => void }).restoreWrites());
+  await page.evaluate(() => {
+    (window as typeof window & { restoreWrites: () => void }).restoreWrites();
+    (window as typeof window & { finishDraft: () => void }).finishDraft();
+  });
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  await expect(recovery.getByRole('button', { name: t.persistence.resolve, exact: true })).toHaveCount(0);
   await recovery.getByRole('button', { name: t.persistence.restore, exact: true }).first().click();
   await expect(recovery).toHaveCount(0);
   await expect(page.locator('.event-title')).toHaveText(original!);
