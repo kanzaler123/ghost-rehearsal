@@ -44,10 +44,10 @@ test('single-plan stories follow statistics while current queues follow replay',
   expect(errors).toEqual([]);
 });
 
-test('analysis loads only on demand and a failed load can be retried', async ({ page }, info) => {
+for (const asset of ['js', 'css']) test(`analysis loads only on demand and a failed ${asset} load can be retried`, async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   let requested = 0, blocked = true;
-  await page.route('**/assets/RobustnessPanel-*.js', route => { requested++; return blocked ? route.abort() : route.continue(); });
+  await page.route(new RegExp(`/assets/(?:RobustnessPanel|styles)-[^/]+\\.${asset}$`), route => { requested++; return blocked ? route.abort() : route.continue(); });
   const t = await openExample(page, info), lab = labels[t.lang];
   expect(requested).toBe(0);
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
@@ -57,6 +57,7 @@ test('analysis loads only on demand and a failed load can be retried', async ({ 
   blocked = false;
   await dialog.getByRole('button', { name: t.analysisLoading.retry, exact: true }).click();
   await expect(dialog.getByLabel(lab.seeds, { exact: true })).toBeVisible();
+  await expect(dialog.locator('.lab-config-grid')).toHaveCSS('display', 'grid');
   expect(requested).toBeGreaterThanOrEqual(2);
   await dialog.getByRole('button', { name: t.common.closeDialog, exact: true }).click();
   await expect(page.getByRole('button', { name: lab.title, exact: true })).toBeFocused();

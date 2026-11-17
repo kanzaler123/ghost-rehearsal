@@ -9,7 +9,6 @@ import { exportBatch, exportGroup } from './export';
 import { labels } from './labels';
 import type { LabLanguage } from './labels';
 import type { Condition, Distribution, JobStatus } from './types';
-import './styles.css';
 
 const statuses: JobStatus[] = ['succeeded', 'failed', 'aborted', 'canceled', 'not-run'];
 const number = (value: number | null | undefined) => value == null ? '—' : new Intl.NumberFormat('en', { maximumFractionDigits: 3 }).format(value);
