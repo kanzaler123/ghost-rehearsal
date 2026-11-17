@@ -298,19 +298,26 @@ function CanvasInner(props: Props) {
     return [...frames, ...stages, ...cards];
   }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, props.run?.population.length, running, draggable]);
   const [flowNodes, setFlowNodes] = useState(mapped);
+  const detail = detailAt(zoom);
+  const measurement = useRef({ plan, detail, lang: t.lang });
   useEffect(() => {
     const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
     selection.current = { planId: plan.id, id: props.selected };
+    const changedPlan = measurement.current.plan !== plan;
+    const resized = measurement.current.detail !== detail || measurement.current.lang !== t.lang;
+    measurement.current = { plan, detail, lang: t.lang };
     setFlowNodes(previousNodes => {
       const byId = new Map(previousNodes.map(node => [node.id, node]));
       return mapped.map(node => {
         // A stage ID can switch between frame and card; never carry a frame's size over to a card.
         const found = byId.get(node.id);
         const current = found?.type === node.type ? found : undefined;
-        return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
+        return { ...current, ...node, measured: running && mapped.length > 50 && (resized || current?.data.running !== node.data.running
+          || (changedPlan && (node.type !== 'workflow' || current?.type !== 'workflow' || JSON.stringify(current.data.node) !== JSON.stringify(node.data.node)))) ? undefined : current?.measured,
+          selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
       });
     });
-  }, [mapped, plan.id, props.selected]);
+  }, [mapped, plan.id, props.selected, detail, t.lang]);
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------
@@ -438,7 +445,7 @@ function CanvasInner(props: Props) {
       onNodeDragStart={userMove}
       onDelete={({ nodes, edges: removed }) => props.onDelete(nodes.filter(node => node.type === 'workflow').map(node => node.id), removed.filter(edge => !edge.id.startsWith('agg:')).map(edge => edge.id))}
       nodesDraggable={draggable} nodesConnectable={props.editable && !panMode} elementsSelectable={!panMode} edgesReconnectable={false} deleteKeyCode={props.editable && !panMode ? ['Backspace', 'Delete'] : null}
-      minZoom={0.1} maxZoom={2.5} zoomOnDoubleClick={false}
+      minZoom={0.1} maxZoom={2.5} zoomOnDoubleClick={false} onlyRenderVisibleElements={running && flowNodes.length > 50}
       panOnDrag={panMode || !props.editable ? [0, 1] : [1]} panActivationKeyCode={props.editable ? 'Space' : null}
       selectionOnDrag={!panMode && props.editable} selectionKeyCode={panMode ? null : 'Shift'} multiSelectionKeyCode={['Control', 'Meta', 'Shift']}>
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} color="color-mix(in srgb, var(--line-2) 22%, transparent)" />
