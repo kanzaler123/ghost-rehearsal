@@ -6,7 +6,7 @@ See how staffing and flow decisions change people’s waiting before real guests
 
 [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Kiro usage status](KIRO_USAGE.md) · [MIT license](LICENSE)
 
-![The Haunted House example in the Ghost Rehearsal workbench](docs/images/workbench.png)
+![The Open House example in the Ghost Rehearsal workbench, with English labels](docs/images/workbench.png)
 
 ## What you can do
 
