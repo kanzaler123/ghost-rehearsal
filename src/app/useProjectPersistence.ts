@@ -94,7 +94,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
       const conflicted = result.value.status === 'conflict';
       setConflict(conflicted); setError(null); setConfirmedText(conflicted ? '' : captured);
       if (kind === 'saved' && !conflicted) setSavedText(captured);
-      succeeded = !conflicted;
+      succeeded = !conflicted || recovering;
     }).finally(() => { if (mounted.current) setPending(count => count - 1); });
     queue.current = operation;
     return operation.then(() => succeeded);
@@ -106,8 +106,12 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   }
   async function recover(revision: Revision<ProjectDocument>, resolve = false) {
     if (revision.status !== 'ready') return;
-    if (active && text !== confirmedText) await write('draft');
-    accept(revision, resolve ? recovery.filter(item => item.projectId === revision.projectId).map(item => item.id) : [revision.id]);
+    const context = editor.current;
+    if (active && text !== confirmedText && !await write('draft', project, true)) return;
+    if (editor.current !== context || latest.current.text !== text) return;
+    const parents = recovery.filter(item => item.projectId === revision.projectId).map(item => item.id);
+    if (context.id === revision.projectId) parents.push(...context.parents);
+    accept(revision, resolve ? [...new Set(parents)] : [revision.id]);
     editor.current.confirmed = '';
     setConfirmedText('');
     await write('draft', revision.value, true);

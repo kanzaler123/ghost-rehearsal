@@ -810,8 +810,8 @@ export function App() {
         {persistence.recovery.map(item => <div className="check-item" key={item.id}>
           <span>{item.status === 'ready' ? item.value.scenarios.map(scenario => scenario.name ?? scenario.id).join(', ') : item.status} · {new Date(item.createdAt).toLocaleString(lang)} · {item.tabId}</span>
           <button type="button" onClick={() => download(`recovery-${item.id.replaceAll(':', '-')}.json`, item.raw, 'application/json')}>{t.persistence.raw}</button>
-          <button type="button" disabled={item.status !== 'ready'} onClick={() => void persistence.recover(item)}>{t.persistence.restore}</button>
-          {persistence.recovery.filter(head => head.projectId === item.projectId).length > 1 && <button type="button" disabled={item.status !== 'ready'} onClick={() => void persistence.recover(item, true)}>{t.persistence.resolve}</button>}
+          <button type="button" disabled={item.status !== 'ready'} onClick={() => { projectRead.current += 1; projectImporter.current?.cancel(); void persistence.recover(item); }}>{t.persistence.restore}</button>
+          {persistence.recovery.filter(head => head.projectId === item.projectId).length > 1 && <button type="button" disabled={item.status !== 'ready'} onClick={() => { projectRead.current += 1; projectImporter.current?.cancel(); void persistence.recover(item, true); }}>{t.persistence.resolve}</button>}
         </div>)}
       </div>
     </Modal>}

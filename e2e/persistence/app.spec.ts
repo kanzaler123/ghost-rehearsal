@@ -77,6 +77,58 @@ test('constructor plan IDs work through import, real Worker and reload', async (
   expect(errors).toEqual([]);
 });
 
+test('a failed draft write prevents recovery from replacing unsaved edits', async ({ page }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const t = await openExample(page, info);
+  await page.getByTitle(t.header.saveTitle, { exact: true }).click();
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  const original = JSON.parse((await storedProject(page, 'saved'))!).scenarios[0].name as string;
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add;
+    let failing = true;
+    (window as typeof window & { restoreWrites: () => void }).restoreWrites = () => { failing = false; };
+    IDBObjectStore.prototype.add = function (value, key) {
+      if (failing && this.name === 'revisions') throw new DOMException('Injected full quota', 'QuotaExceededError');
+      return add.call(this, value, key);
+    };
+  });
+  await renameEvent(page, t, 'Unsaved recovery original');
+  await expect(page.getByRole('alert').filter({ hasText: t.persistence.failed })).toBeVisible();
+  await page.getByRole('button', { name: t.persistence.recover, exact: true }).click();
+  const recovery = page.getByRole('dialog', { name: t.persistence.recover });
+  await recovery.getByRole('button', { name: t.persistence.restore, exact: true }).first().click();
+  await expect(recovery).toBeVisible();
+  await expect(page.locator('.event-title')).toContainText('Unsaved recovery original');
+  await expect(page.getByTitle(t.header.undo, { exact: false })).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(recovery).toHaveCount(0);
+  const notice = page.getByRole('alert').filter({ hasText: t.persistence.failed });
+  const [raw] = await Promise.all([page.waitForEvent('download'), notice.getByRole('button', { name: t.persistence.raw, exact: true }).click()]);
+  const stream = await raw.createReadStream(); const chunks: Buffer[] = []; for await (const chunk of stream!) chunks.push(chunk);
+  const recovered = JSON.parse(Buffer.concat(chunks).toString());
+  expect(recovered.project.scenarios[0].name).toBe('Unsaved recovery original');
+  expect(recovered.recovery.some((item: { raw: string }) => item.raw.includes('Unsaved recovery original'))).toBe(true);
+  await notice.getByRole('button', { name: t.persistence.recover, exact: true }).click();
+  await page.evaluate(() => (window as typeof window & { restoreWrites: () => void }).restoreWrites());
+  await recovery.getByRole('button', { name: t.persistence.restore, exact: true }).first().click();
+  await expect(recovery).toHaveCount(0);
+  await expect(page.locator('.event-title')).toHaveText(original!);
+  expect(await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('ghost-rehearsal.persistence.v2');
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    try {
+      return await new Promise<boolean>((resolve, reject) => {
+        const request = db.transaction('revisions').objectStore('revisions').getAll();
+        request.onsuccess = () => resolve(JSON.stringify(request.result).includes('Unsaved recovery original'));
+        request.onerror = () => reject(request.error);
+      });
+    } finally { db.close(); }
+  })).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('unreadable template storage retains its original and requires explicit repair', async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => {
