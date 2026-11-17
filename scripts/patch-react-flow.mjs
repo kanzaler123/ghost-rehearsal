@@ -23,3 +23,21 @@ for (const extension of ['js', 'mjs']) {
   if (source.split(original).length !== 2) throw new Error('React Flow resize patch no longer matches the installed version.');
   writeFileSync(path, source.replace(original, patched));
 }
+
+const extentOriginal = '.extent(() => cachedExtent)';
+const extentPatched = `.extent(() => {
+            if (!cachedExtent[1][0] || !cachedExtent[1][1]) {
+                const bounds = domNode.getBoundingClientRect();
+                cachedExtent = [[0, 0], [bounds.width, bounds.height]];
+            }
+            return cachedExtent;
+        })`;
+const observationOriginal = 'if (entry?.contentRect) {';
+const observationPatched = 'if (entry?.contentRect?.width && entry.contentRect.height) {';
+for (const extension of ['js', 'mjs']) {
+  const path = new URL('../node_modules/@xyflow/system/dist/esm/index.' + extension, import.meta.url);
+  const source = readFileSync(path, 'utf8');
+  if (source.includes(extentPatched) && source.includes(observationPatched)) continue;
+  if (source.split(extentOriginal).length !== 2 || source.split(observationOriginal).length !== 2) throw new Error('React Flow extent patch no longer matches the installed version.');
+  writeFileSync(path, source.replace(extentOriginal, extentPatched).replace(observationOriginal, observationPatched));
+}

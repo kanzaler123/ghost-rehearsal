@@ -63,3 +63,29 @@ for (const asset of ['js', 'css']) test(`analysis loads only on demand and a fai
   await expect(page.getByRole('button', { name: lab.title, exact: true })).toBeFocused();
   expect(errors).toEqual([]);
 });
+
+for (const motion of ['no-preference', 'reduce'] as const) test(`hidden comparison canvases keep finite viewports with motion=${motion}`, async ({ page }, info) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.emulateMedia({ reducedMotion: motion });
+  const t = await openExample(page, info);
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (let iteration = 0; iteration < 3; iteration++) {
+    await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+    await expect(page.locator('.people-stats b')).toHaveCount(3);
+    await expect(page.locator('.canvas-shell').first()).toBeHidden();
+    await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+    await expect(page.locator('.canvas-shell')).toBeVisible();
+    await page.getByTitle(t.stage.overview, { exact: true }).click();
+    await expect.poll(() => page.locator('.react-flow__viewport').getAttribute('style')).not.toContain('NaN');
+    await expect.poll(() => page.locator('.canvas-shell').evaluate(element => Number(getComputedStyle(element).getPropertyValue('--canvas-zoom')))).toBeGreaterThan(0);
+    await expect.poll(async () => {
+      const before = await page.locator('.react-flow__viewport').getAttribute('style');
+      await page.waitForTimeout(150);
+      return before === await page.locator('.react-flow__viewport').getAttribute('style');
+    }).toBe(true);
+    await expect(page.locator('.react-flow__viewport')).not.toHaveAttribute('style', /NaN|Infinity/);
+  }
+  expect(errors).toEqual([]);
+});
