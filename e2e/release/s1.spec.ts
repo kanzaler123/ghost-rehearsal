@@ -91,6 +91,62 @@ for (const motion of ['no-preference', 'reduce'] as const) test(`hidden comparis
   expect(errors).toEqual([]);
 });
 
+test('replay can locate distant nodes after seeks and plan switches', async ({ page }, info) => {
+  const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  const project = JSON.parse(readFileSync(new URL('../../examples/open-house.json', import.meta.url), 'utf8')) as ProjectDocument;
+  project.scenarios[0].attributes = [];
+  project.scenarios[0].arrivalStreams = [{ id: 'guests', kind: 'records', provenance: { kind: 'synthetic' }, records: [0, 1, 2].map(index => ({ id: `p${index}`, arrivalTime: 0, attributes: {} })) }];
+  for (const plan of project.plans) {
+    plan.assignments = [];
+    plan.graph = { nodes: Array.from({ length: 62 }, (_, index) => {
+      const shared = { id: `n${index}`, name: `Replay node ${index}`, layout: { x: index % 10 * 350, y: Math.floor(index / 10) * 230 } };
+      return index === 0 ? { ...shared, type: 'entrance' as const, arrivalStreamIds: ['guests'] }
+        : index === 61 ? { ...shared, type: 'exit' as const }
+          : { ...shared, type: 'service' as const, stageKey: `s${index}`, requirements: [], openWindows: [], duration: { kind: 'fixed' as const, value: 10, provenance: { kind: 'synthetic' as const } } };
+    }), edges: Array.from({ length: 61 }, (_, index) => ({ id: `e${index}`, source: `n${index}`, target: `n${index + 1}` })) };
+  }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
+  await page.goto('./');
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'distant-replay.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
+  await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+  await expect(page.locator('.people-stats b')).toHaveCount(3);
+  await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
+  const slider = page.locator('.scrubber'), play = page.locator('.play-btn');
+  if (await page.locator('.sidebar.is-rail .plan-badge.is-a').isVisible()) await page.locator('.sidebar.is-rail .plan-badge.is-a').click();
+  for (const at of [900, 30]) {
+    await page.getByTitle(t.stage.fit, { exact: true }).click();
+    await slider.fill(String(at));
+    await page.getByLabel(t.sidebar.searchLabel, { exact: true }).fill('Replay node 61');
+    const target = page.locator('.plan-nodes').getByRole('button', { name: 'Replay node 61', exact: true });
+    if (at === 900) await target.press('Enter'); else await target.click();
+    const node = page.locator('.react-flow__node[data-id="n61"]');
+    await expect(node.locator('.card-live b')).toHaveText(at === 900 ? '3' : '0');
+    await expect.poll(() => node.evaluate(element => {
+      const r = element.getBoundingClientRect(), c = element.closest('.canvas-shell')!.getBoundingClientRect();
+      return r.left < c.right && r.right > c.left && r.top < c.bottom && r.bottom > c.top;
+    })).toBe(true);
+    await expect(page.locator('.react-flow__viewport')).not.toHaveAttribute('style', /NaN|Infinity/);
+  }
+  await play.click();
+  await expect.poll(() => slider.inputValue().then(Number)).toBeGreaterThan(30);
+  await page.locator('.plan-main[aria-pressed="false"]').first().click();
+  await expect(slider).toHaveValue('0');
+  await expect(play).toHaveAttribute('aria-label', t.dock.play);
+  await page.getByLabel(t.sidebar.searchLabel, { exact: true }).fill('Replay node 61');
+  await page.locator('.plan-nodes').getByRole('button', { name: 'Replay node 61', exact: true }).click();
+  await expect(page.locator('.react-flow__node[data-id="n61"] .card-live b')).toHaveText('0');
+  await page.getByTitle(t.stage.overview, { exact: true }).click();
+  await expect(page.locator('.react-flow__viewport')).not.toHaveAttribute('style', /NaN|Infinity/);
+  await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await expect(page.locator('.react-flow__node[data-id="n61"] .card-name')).toHaveText('Replay node 61');
+  expect(errors).toEqual([]);
+});
+
 test('empirical playback can pause, seek, switch plans and replace the project without resize errors', async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   const errors: string[] = [];
