@@ -26,7 +26,7 @@
 .ds-editor table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
 .ds-editor caption { text-align: left; font-weight: 600; padding: var(--space-3) 0; }
 .ds-editor td, .ds-editor th { padding: var(--space-3); text-align: left; border-bottom: var(--stroke) solid var(--text-secondary); overflow-wrap: anywhere; }
-.ds-error, .ds-errors { color: var(--line); }
+.ds-error, .ds-errors { color: inherit; }
 .ds-provenance [aria-invalid="true"] { border-color: var(--line); }
 .ds-details { min-width: 0; margin: var(--space-4) 0; }
 .ds-details > summary { cursor: pointer; margin-bottom: var(--space-3); }
