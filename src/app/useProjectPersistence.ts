@@ -8,6 +8,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const store = useRef<Persistence | null>(null);
   const editor = useRef({ id: newProjectId(), parents: [] as string[], confirmed: '' });
   const queue = useRef(Promise.resolve());
+  const recoveryRequest = useRef(0);
   const mounted = useRef(false);
   const load = useRef(onLoad); load.current = onLoad;
   const [ready, setReady] = useState(false);
@@ -76,7 +77,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
         });
       });
     })();
-    return () => { live = false; mounted.current = false; unsubscribe?.(); instance?.close(); store.current = null; };
+    return () => { live = false; mounted.current = false; recoveryRequest.current += 1; unsubscribe?.(); instance?.close(); store.current = null; };
   }, [retry]);
 
   function write(kind: 'saved' | 'draft', document = project, recovering = false) {
@@ -106,9 +107,10 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   }
   async function recover(revision: Revision<ProjectDocument>, resolve = false) {
     if (revision.status !== 'ready') return;
+    const request = ++recoveryRequest.current;
     const context = editor.current;
     if (active && text !== confirmedText && !await write('draft', project, true)) return;
-    if (editor.current !== context || latest.current.text !== text) return;
+    if (request !== recoveryRequest.current || editor.current !== context || latest.current.text !== text) return;
     const parents = recovery.filter(item => item.projectId === revision.projectId).map(item => item.id);
     if (context.id === revision.projectId) parents.push(...context.parents);
     accept(revision, resolve ? [...new Set(parents)] : [revision.id]);
@@ -141,7 +143,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
   }, [protectedEdit]);
-  return { ready, error, conflict, pending, savedText, confirmedText, recovery, chooseRecovery, setChooseRecovery,
+  return { ready, error, conflict, pending, savedText, confirmedText, recovery, chooseRecovery, setChooseRecovery: (choose: boolean) => { recoveryRequest.current += 1; setChooseRecovery(choose); },
     templates, templateState, templateBusy, write, replace, recover, saveTemplates, retry: () => setRetry(value => value + 1),
     unsaved: text !== savedText || conflict, draftSaved: text === confirmedText && !conflict && !pending,
   };

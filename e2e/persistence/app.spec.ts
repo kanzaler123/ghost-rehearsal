@@ -129,6 +129,87 @@ test('a failed draft write prevents recovery from replacing unsaved edits', asyn
   expect(errors).toEqual([]);
 });
 
+for (const later of ['new-event', 'reopened-recovery'] as const) test(`a closed recovery cannot replace the ${later} dialog after its draft write completes`, async ({ page }, info) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  const t = await openExample(page, info);
+  await page.getByTitle(t.header.saveTitle, { exact: true }).click();
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  const original = JSON.parse((await storedProject(page, 'saved'))!).scenarios[0].name as string;
+  await page.evaluate(() => {
+    const add = IDBObjectStore.prototype.add;
+    IDBObjectStore.prototype.add = function (value, key) {
+      if (this.name === 'revisions') throw new DOMException('Injected full quota', 'QuotaExceededError');
+      return add.call(this, value, key);
+    };
+    (window as typeof window & { restoreWrites: () => void }).restoreWrites = () => { IDBObjectStore.prototype.add = add; };
+  });
+  await renameEvent(page, t, 'Current content backed up');
+  await expect(page.getByRole('alert').filter({ hasText: t.persistence.failed })).toBeVisible();
+  await page.getByRole('button', { name: t.persistence.recover, exact: true }).click();
+  const recovery = page.getByRole('dialog', { name: t.persistence.recover });
+  await page.evaluate(() => {
+    (window as typeof window & { restoreWrites: () => void }).restoreWrites();
+    const transaction = IDBDatabase.prototype.transaction;
+    IDBDatabase.prototype.transaction = function (...args: Parameters<IDBDatabase['transaction']>) {
+      const tx = transaction.apply(this, args);
+      if (args[1] === 'readwrite') {
+        IDBDatabase.prototype.transaction = transaction;
+        tx.addEventListener('complete', event => {
+          event.stopImmediatePropagation();
+          (window as typeof window & { finishRecovery: () => void }).finishRecovery = () => tx.dispatchEvent(new Event('complete'));
+        }, { once: true });
+      }
+      return tx;
+    };
+  });
+  const restore = recovery.locator('.check-item').filter({ hasText: original }).getByRole('button', { name: t.persistence.restore, exact: true });
+  await restore.click();
+  await page.waitForFunction(() => typeof (window as typeof window & { finishRecovery?: unknown }).finishRecovery === 'function');
+  if (later === 'new-event') await page.keyboard.press('Escape');
+  else await recovery.getByRole('button', { name: t.common.closeDialog, exact: true }).click();
+  await expect(recovery).toHaveCount(0);
+  if (later === 'new-event') {
+    await page.locator('.event-card summary').click();
+    await page.getByRole('button', { name: t.eventSetup.new, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: t.eventSetup.title, exact: true });
+    await dialog.getByLabel(t.dialogs.eventName, { exact: true }).fill('Later unsaved event draft');
+    await dialog.getByLabel(t.dialogs.count, { exact: true }).fill('137');
+    await dialog.getByLabel(t.eventSetup.startingFlow, { exact: true }).selectOption('candy');
+    await dialog.getByLabel(t.dialogs.eventName, { exact: true }).focus();
+  } else await page.getByRole('button', { name: t.persistence.recover, exact: true }).click();
+  await page.evaluate(async () => {
+    (window as typeof window & { finishRecovery: () => void }).finishRecovery();
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
+  await expect(page.locator('.event-title')).toHaveText('Current content backed up');
+  await expect(page.getByTitle(t.header.undo, { exact: false })).toBeEnabled();
+  expect(await storedProject(page, 'draft')).toContain('Current content backed up');
+  if (later === 'new-event') {
+    const dialog = page.getByRole('dialog', { name: t.eventSetup.title, exact: true });
+    await expect(dialog).toBeVisible();
+    expect(await dialog.evaluate(element => element.matches(':modal'))).toBe(true);
+    await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toHaveValue('Later unsaved event draft');
+    await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toBeFocused();
+    await expect(dialog.getByLabel(t.dialogs.count, { exact: true })).toHaveValue('137');
+    await expect(dialog.getByLabel(t.eventSetup.startingFlow, { exact: true })).toHaveValue('candy');
+    await dialog.getByRole('button', { name: t.eventSetup.create, exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await page.getByTitle(t.header.saveTitle, { exact: true }).click();
+    await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+    const saved = JSON.parse((await storedProject(page, 'saved'))!) as ProjectDocument;
+    expect(saved.scenarios.some(scenario => scenario.name === 'Current content backed up')).toBe(true);
+    expect(saved.scenarios.find(scenario => scenario.name === 'Later unsaved event draft')?.arrivalStreams[0]).toMatchObject({ count: 137 });
+  } else {
+    await expect(recovery).toBeVisible();
+    await recovery.locator('.check-item').filter({ hasText: 'Current content backed up' }).getByRole('button', { name: t.persistence.restore, exact: true }).click();
+    await expect(recovery).toHaveCount(0);
+    await expect(page.locator('.event-title')).toHaveText('Current content backed up');
+    await expect(page.getByTitle(t.header.undo, { exact: false })).toBeDisabled();
+    await expect(page.locator('.status-notice')).toHaveText(t.review.draftRestored);
+  }
+  expect(errors).toEqual([]);
+});
+
 test('unreadable template storage retains its original and requires explicit repair', async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => {
