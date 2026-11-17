@@ -311,7 +311,7 @@ function CanvasInner(props: Props) {
         // A stage ID can switch between frame and card; never carry a frame's size over to a card.
         const found = byId.get(node.id);
         const current = found?.type === node.type ? found : undefined;
-        return { ...current, ...node, measured: !resized && current?.data.running === node.data.running ? current?.measured : undefined,
+        return { ...current, ...node, measured: running && mapped.length > 50 && (resized || current?.data.running !== node.data.running) ? undefined : current?.measured,
           selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
       });
     });
