@@ -93,6 +93,7 @@ test('arrival file import is staged, validates before outer Apply and round-trip
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: t.header.import, exact: true }).click();
   await (await chooser).setFiles({ name: 'roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(imported)) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   expect(await exportProject(page, t)).toEqual(imported);
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   await expect(page.locator('.run-state-card')).toHaveAttribute('data-state', 'complete');
