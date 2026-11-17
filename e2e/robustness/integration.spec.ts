@@ -61,6 +61,7 @@ test('selected comparison plans run at cutoff and group export reproduces in the
   const chooseFile = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: t.header.import, exact: true }).click();
   await (await chooseFile).setFiles((await groupFile.path())!);
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.locator('.workspace-menu > summary').click();
   await page.getByLabel(t.run.scope, { exact: true }).selectOption('cutoff');

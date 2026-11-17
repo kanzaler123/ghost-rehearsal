@@ -71,6 +71,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
     await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
     await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
     await page.locator('input[type=file]').first().setInputFiles({ name: 'motion-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(project) });
+    await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
     await expect(page.getByRole('tab', { name: t.modes.Build, exact: true })).toBeVisible();
     await page.locator('.workspace-menu > summary').click();
     await page.getByRole('button', { name: t.header.export, exact: true }).click();

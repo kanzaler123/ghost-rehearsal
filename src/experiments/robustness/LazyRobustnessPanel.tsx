@@ -3,6 +3,8 @@ import type { ComponentProps } from 'react';
 import type { RobustnessPanel } from './RobustnessPanel';
 import { useI18n } from '../../i18n';
 
+let stylesheet: Promise<void> | undefined;
+
 export function LazyRobustnessPanel(props: ComponentProps<typeof RobustnessPanel>) {
   const { t } = useI18n();
   const [Panel, setPanel] = useState<typeof RobustnessPanel>();
@@ -11,7 +13,19 @@ export function LazyRobustnessPanel(props: ComponentProps<typeof RobustnessPanel
   useEffect(() => {
     let live = true;
     setFailed(false);
-    void import('./RobustnessPanel').then(module => { if (live) setPanel(() => module.RobustnessPanel); }, () => { if (live) setFailed(true); });
+    if (!stylesheet) stylesheet = new Promise<void>((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = new URL('./styles.css', import.meta.url).href;
+      link.onload = () => resolve();
+      link.onerror = () => { link.remove(); stylesheet = undefined; reject(new Error('Analysis stylesheet failed to load.')); };
+      document.head.append(link);
+    });
+    void (async () => {
+      try {
+        const [module] = await Promise.all([import('./RobustnessPanel'), stylesheet]);
+        if (live) setPanel(() => module.RobustnessPanel);
+      } catch { if (live) setFailed(true); }
+    })();
     return () => { live = false; };
   }, [attempt]);
   if (Panel) return <Panel {...props} />;

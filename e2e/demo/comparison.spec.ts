@@ -148,6 +148,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
   await page.locator('input[type=file]').first().setInputFiles({ name: 'roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(projectText) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   expect(await exportFromMenu(page, t, t.dialogs.exportProject)).toBe(projectText);
   await page.locator('input[type=file]').first().setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{') });
   await expect(page.getByRole('dialog')).toBeVisible();

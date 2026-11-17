@@ -24,6 +24,7 @@ test('replay and inspector freshness follow real results, input edits and run sc
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'canvas-playback.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
   const slider = page.getByLabel(t.dock.timeline, { exact: true });
   await expect(slider).toBeEnabled();
@@ -48,6 +49,7 @@ test('replay and inspector freshness follow real results, input edits and run sc
   await expect(finish.locator('.is-done b')).toHaveText('300');
   await expect(service.locator('.visitor')).toHaveCount(0);
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await page.getByTitle(t.stage.overview, { exact: true }).click();
   await service.locator('.card-name').click();
   const inspector = page.locator('.inspector:not(.collapsed)');
   const freshness = inspector.locator('.stale-note');
@@ -69,6 +71,7 @@ test('replay and inspector freshness follow real results, input edits and run sc
   await expect(slider).toBeEnabled();
   await expect(page.getByRole('button', { name: t.run.start, exact: true })).toBeVisible();
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await page.getByTitle(t.stage.overview, { exact: true }).click();
   await service.locator('.card-name').click();
   await expect(inspector.locator('.node-results')).toBeVisible();
   await expect(freshness).toHaveCount(0);
