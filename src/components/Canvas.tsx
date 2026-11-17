@@ -298,19 +298,24 @@ function CanvasInner(props: Props) {
     return [...frames, ...stages, ...cards];
   }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, props.run?.population.length, running, draggable]);
   const [flowNodes, setFlowNodes] = useState(mapped);
+  const detail = detailAt(zoom);
+  const measurement = useRef({ plan, detail, lang: t.lang });
   useEffect(() => {
     const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
     selection.current = { planId: plan.id, id: props.selected };
+    const resized = measurement.current.plan !== plan || measurement.current.detail !== detail || measurement.current.lang !== t.lang;
+    measurement.current = { plan, detail, lang: t.lang };
     setFlowNodes(previousNodes => {
       const byId = new Map(previousNodes.map(node => [node.id, node]));
       return mapped.map(node => {
         // A stage ID can switch between frame and card; never carry a frame's size over to a card.
         const found = byId.get(node.id);
         const current = found?.type === node.type ? found : undefined;
-        return { ...current, ...node, selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
+        return { ...current, ...node, measured: !resized && current?.data.running === node.data.running ? current?.measured : undefined,
+          selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
       });
     });
-  }, [mapped, plan.id, props.selected]);
+  }, [mapped, plan.id, props.selected, detail, t.lang]);
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------

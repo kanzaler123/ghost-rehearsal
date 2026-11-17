@@ -118,6 +118,14 @@ test('replay can locate distant nodes after seeks and plan switches', async ({ p
   await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
   const slider = page.locator('.scrubber'), play = page.locator('.play-btn');
   if (await page.locator('.sidebar.is-rail .plan-badge.is-a').isVisible()) await page.locator('.sidebar.is-rail .plan-badge.is-a').click();
+  await slider.fill('150');
+  await page.getByLabel(t.sidebar.searchLabel, { exact: true }).fill('Replay node 10');
+  await page.locator('.plan-nodes').getByRole('button', { name: 'Replay node 10', exact: true }).press('Enter');
+  await expect.poll(async () => {
+    const path = await page.locator('.react-flow__edge[data-id="e9"] .react-flow__edge-path').getAttribute('d');
+    const height = await page.locator('.react-flow__node[data-id="n10"]').evaluate(element => element.getBoundingClientRect().height / Number(getComputedStyle(element.closest('.canvas-shell')!).getPropertyValue('--canvas-zoom')));
+    return Math.abs(Number(path?.match(/-?\d+(?:\.\d+)?/g)?.[1]) - height / 2);
+  }).toBeLessThan(0.05);
   for (const at of [900, 30]) {
     await page.getByTitle(t.stage.fit, { exact: true }).click();
     await slider.fill(String(at));
