@@ -438,7 +438,7 @@ function CanvasInner(props: Props) {
       onNodeDragStart={userMove}
       onDelete={({ nodes, edges: removed }) => props.onDelete(nodes.filter(node => node.type === 'workflow').map(node => node.id), removed.filter(edge => !edge.id.startsWith('agg:')).map(edge => edge.id))}
       nodesDraggable={draggable} nodesConnectable={props.editable && !panMode} elementsSelectable={!panMode} edgesReconnectable={false} deleteKeyCode={props.editable && !panMode ? ['Backspace', 'Delete'] : null}
-      minZoom={0.1} maxZoom={2.5} zoomOnDoubleClick={false} onlyRenderVisibleElements={running}
+      minZoom={0.1} maxZoom={2.5} zoomOnDoubleClick={false} onlyRenderVisibleElements={running && flowNodes.length > 50}
       panOnDrag={panMode || !props.editable ? [0, 1] : [1]} panActivationKeyCode={props.editable ? 'Space' : null}
       selectionOnDrag={!panMode && props.editable} selectionKeyCode={panMode ? null : 'Shift'} multiSelectionKeyCode={['Control', 'Meta', 'Shift']}>
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} color="color-mix(in srgb, var(--line-2) 22%, transparent)" />
