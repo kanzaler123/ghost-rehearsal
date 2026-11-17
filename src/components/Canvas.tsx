@@ -303,7 +303,8 @@ function CanvasInner(props: Props) {
   useEffect(() => {
     const changed = selection.current.planId !== plan.id || selection.current.id !== props.selected;
     selection.current = { planId: plan.id, id: props.selected };
-    const resized = measurement.current.plan !== plan || measurement.current.detail !== detail || measurement.current.lang !== t.lang;
+    const changedPlan = measurement.current.plan !== plan;
+    const resized = measurement.current.detail !== detail || measurement.current.lang !== t.lang;
     measurement.current = { plan, detail, lang: t.lang };
     setFlowNodes(previousNodes => {
       const byId = new Map(previousNodes.map(node => [node.id, node]));
@@ -311,7 +312,8 @@ function CanvasInner(props: Props) {
         // A stage ID can switch between frame and card; never carry a frame's size over to a card.
         const found = byId.get(node.id);
         const current = found?.type === node.type ? found : undefined;
-        return { ...current, ...node, measured: running && mapped.length > 50 && (resized || current?.data.running !== node.data.running) ? undefined : current?.measured,
+        return { ...current, ...node, measured: running && mapped.length > 50 && (resized || current?.data.running !== node.data.running
+          || (changedPlan && (node.type !== 'workflow' || current?.type !== 'workflow' || JSON.stringify(current.data.node) !== JSON.stringify(node.data.node)))) ? undefined : current?.measured,
           selected: changed ? node.selected : current?.selected ?? node.selected, position: current?.dragging ? current.position : node.position } as AnyNode;
       });
     });

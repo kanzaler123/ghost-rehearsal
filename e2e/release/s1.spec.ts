@@ -108,6 +108,7 @@ test('replay can locate distant nodes after seeks and plan switches', async ({ p
           : { ...shared, type: 'service' as const, stageKey: `s${index}`, requirements: [], openWindows: [], duration: { kind: 'fixed' as const, value: 10, provenance: { kind: 'synthetic' as const } } };
     }), edges: Array.from({ length: 61 }, (_, index) => ({ id: `e${index}`, source: `n${index}`, target: `n${index + 1}` })) };
   }
+  for (const node of project.plans[1].graph.nodes.filter(node => node.id === 'n9' || node.id === 'n10')) node.name = 'A longer replay node name wrapping across two lines';
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
@@ -118,6 +119,23 @@ test('replay can locate distant nodes after seeks and plan switches', async ({ p
   await page.getByRole('tab', { name: t.modes.Rehearse, exact: true }).click();
   const slider = page.locator('.scrubber'), play = page.locator('.play-btn');
   if (await page.locator('.sidebar.is-rail .plan-badge.is-a').isVisible()) await page.locator('.sidebar.is-rail .plan-badge.is-a').click();
+  await page.locator('.plan-list').getByRole('button', { name: project.plans[0].name, exact: true }).click();
+  await page.getByTitle(t.stage.fit, { exact: true }).click();
+  await expect(page.locator('.react-flow__node[data-id="n10"] .flow-card')).toHaveClass(/lod-mid/);
+  const nodeHeight = () => page.locator('.react-flow__node[data-id="n10"]').evaluate(element => element.getBoundingClientRect().height / Number(getComputedStyle(element.closest('.canvas-shell')!).getPropertyValue('--canvas-zoom')));
+  const initialHeight = await nodeHeight();
+  for (const secondPlan of [true, false]) {
+    await page.locator('.plan-main[aria-pressed="false"]').first().click();
+    await expect(page.locator('.react-flow__node[data-id="n10"] .card-name')).toHaveText(secondPlan ? 'A longer replay node name wrapping across two lines' : 'Replay node 10');
+    await expect(page.locator('.react-flow__node[data-id="n10"] .flow-card')).toHaveClass(/lod-mid/);
+    if (secondPlan) await expect.poll(nodeHeight).toBeGreaterThan(initialHeight);
+    else await expect.poll(nodeHeight).toBeCloseTo(initialHeight, 1);
+    await expect(page.locator('.react-flow__node[data-id="n9"]')).toHaveCount(0);
+    await expect.poll(async () => {
+      const path = await page.locator('.react-flow__edge[data-id="e9"] .react-flow__edge-path').getAttribute('d');
+      return Math.abs(Number(path?.match(/-?\d+(?:\.\d+)?/g)?.[1]) - await nodeHeight() / 2);
+    }).toBeLessThan(0.05);
+  }
   await slider.fill('150');
   await page.getByLabel(t.sidebar.searchLabel, { exact: true }).fill('Replay node 10');
   await page.locator('.plan-nodes').getByRole('button', { name: 'Replay node 10', exact: true }).press('Enter');
