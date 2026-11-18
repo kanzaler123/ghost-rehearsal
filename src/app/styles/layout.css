@@ -350,7 +350,6 @@
 .opening-page { --opening-gutter: clamp(var(--space-5), 5vw, var(--space-12)); height: 100dvh; overflow: auto; background: var(--bg-0); color: var(--text-primary); }
 .opening-topbar { position: sticky; top: 0; justify-content: flex-end; height: var(--topbar-h); padding-inline: var(--opening-gutter); }
 .opening-topbar .brand { margin-right: auto; }
-.opening-topbar .brand-text small { display: block; }
 .opening-page .btn.run { width: auto; }
 .opening-page .btn { min-height: var(--touch-min); }
 .opening-hero { isolation: isolate; position: relative; display: flex; flex-direction: column; justify-content: center; min-height: calc(100svh - var(--topbar-h)); background: radial-gradient(ellipse at 72% 40%, var(--fx-velvet), transparent 58%), var(--bg-0); }
