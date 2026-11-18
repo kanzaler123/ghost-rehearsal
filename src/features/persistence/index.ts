@@ -32,7 +32,7 @@ function reject(code: PersistenceError['code'], message: string, recovery: RawRe
 }
 
 function projectSnapshot(revisions: StoredRevision[], projectId: string): ProjectSnapshot {
-  return { projectId, ...snapshot(revisions.filter(revision => revision.projectId === projectId), decodeProject) };
+  return Object.assign(snapshot(revisions.filter(revision => revision.projectId === projectId), decodeProject), { projectId });
 }
 
 function templateSnapshot(revisions: StoredRevision[]): TemplateSnapshot {
@@ -236,9 +236,9 @@ export class Persistence {
     const result = await this.transaction('readwrite', (revisions, store, settings) => {
       if (!projectId) reject('invalid', 'A storage project ID is required.');
       this.checkParents(revisions.filter(revision => revision.projectId === projectId), candidate.parents);
-      const state = projectSnapshot(revisions, projectId);
-      const parent = state.history.find(revision => revision.id === candidate.parents[0]);
-      if (candidate.parents.length === 1 && parent?.status === 'ready' && parent.raw === raw && parent.kind === candidate.kind && !parent.dismissed) {
+      const parent = revisions.find(revision => revision.id === candidate.parents[0]);
+      if (candidate.parents.length === 1 && parent?.raw === raw && parent.kind === candidate.kind && !parent.dismissed) {
+        const state = projectSnapshot(revisions, projectId);
         const status = !sameHeads(state, candidate.parents) ? 'conflict' as const : options.kind === 'saved' ? 'saved' as const : 'draft-saved' as const;
         if (status === 'saved') settings.put(parent.id, 'savedRevisionId');
         return { revision: parent, snapshot: state, status };

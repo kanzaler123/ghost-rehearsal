@@ -27,8 +27,8 @@ import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Res
 import { comparisonContext, compatibleRuns, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
 import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, templateLibrarySchema } from '../features/project';
-import type { SavedTemplate } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, subflowDependencies, templateLibrarySchema } from '../features/project';
+import type { SavedTemplate, TemplateBindings, TemplateDependency } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
 import { issueText, localizeDocument, useI18n, zodIssueText } from '../i18n';
@@ -63,7 +63,7 @@ import { loadArrangement, saveArrangement } from './preferences';
 import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'save-template' | 'rename-plan' | null;
+type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const MODES: { mode: Mode; icon: typeof Hammer }[] = [{ mode: 'Build', icon: Hammer }, { mode: 'Rehearse', icon: Play }, { mode: 'Compare', icon: Columns2 }];
@@ -125,6 +125,7 @@ export function App() {
   const [templateName, setTemplateName] = useState('');
   const [templateError, setTemplateError] = useState('');
   const [templateNotice, setTemplateNotice] = useState('');
+  const [connections, setConnections] = useState<{ template: SavedTemplate; dependencies: TemplateDependency[]; values: TemplateBindings } | null>(null);
   const [templateResources, setTemplateResources] = useState<'share' | 'copy'>('share');
   const [notice, setNoticeState] = useState<Record<Lang, string> | null>(null);
   const [showIssues, setShowIssues] = useState(false);
@@ -301,10 +302,22 @@ export function App() {
     commit(next); setPlanId(added.id); setSecondId(''); setMode('Build'); setPlaying(false); setTime(0); setSearch(''); setInspectorOpen(false); setDockOpen(false);
     setSelection({ id: '', kind: 'node', owner: added.id }); setDialog(null); say(tr => tr.templates.added);
   }
-  function useNodeTemplate(template: SavedTemplate) {
+  function useNodeTemplate(template: SavedTemplate, bindings?: TemplateBindings) {
     if (mode !== 'Build') return;
-    const added = addNodeFromTemplate(plan, scenario, template, templateResources);
-    changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); requestView('default'); setDialog(null); say(tr => tr.templates.added);
+    try {
+      if (!bindings && template.document.plans[0].graph.nodes.find(node => node.id === template.nodeId)?.type === 'subflow') {
+        const dependencies = subflowDependencies(plan, scenario, template);
+        if (dependencies.length) {
+          const values: TemplateBindings = {};
+          for (const item of dependencies) if (item.kind !== 'incoming' && item.kind !== 'outgoing' && item.options.some(option => option.id === item.id)) {
+            values[item.kind] = { ...values[item.kind], [item.id]: item.id };
+          }
+          setConnections({ template, dependencies, values }); setTemplateError(''); setDialog('template-bindings'); return;
+        }
+      }
+      const added = addNodeFromTemplate(plan, scenario, template, templateResources, bindings);
+      changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); requestView('default'); setDialog(null); say(tr => tr.templates.added);
+    } catch (error) { setTemplateError(error instanceof Error && error.cause ? issueText(error.cause as ValidationIssue, lang) : t.templates.bindingError); }
   }
   function switchLanguage(next: Lang) {
     if (next === lang) return;
@@ -898,6 +911,21 @@ export function App() {
         {!templates.some(item => libraryTab === 'nodes' ? !!item.nodeId : !item.nodeId) && <p className="template-empty">{t.templates.empty}</p>}
         <p className="form-error" role="alert">{templateError}</p><p className="subtle template-local">{t.templates.local}</p>
       </div>
+    </Modal>}
+    {dialog === 'template-bindings' && connections && <Modal title={t.templates.connectTitle} onClose={() => openLibrary('nodes')}>
+      <form onSubmit={event => { event.preventDefault(); useNodeTemplate(connections.template, connections.values); }}>
+        <div className="modal-body"><p>{t.templates.connectHint}</p>{connections.dependencies.map(item => <label className="field" key={`${item.kind}:${item.id}`}><span>{t.templates.bindingKinds[item.kind]} · {item.name}</span>
+          <select required value={connections.values[item.kind]?.[item.id] ?? ''} onChange={event => {
+            const value = event.target.value, values = { ...connections.values, [item.kind]: { ...connections.values[item.kind], [item.id]: value } };
+            const exits = connections.dependencies.filter(port => port.kind === 'outgoing');
+            if (item.kind === 'incoming' && connections.dependencies.filter(port => port.kind === 'incoming').length === 1 && exits.length === 1) {
+              values.outgoing = { [exits[0].id]: plan.graph.edges.find(edge => edge.id === value)?.target ?? '' };
+            }
+            setConnections({ ...connections, values }); setTemplateError('');
+          }}><option value="">{t.templates.chooseConnection}</option>{item.options.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select>
+          {!item.options.length && <small>{t.templates.bindingError}</small>}</label>)}<p className="form-error" role="alert">{templateError}</p></div>
+        <div className="modal-footer"><button type="button" className="btn ghost" onClick={() => openLibrary('nodes')}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={connections.dependencies.some(item => !connections.values[item.kind]?.[item.id])}>{t.dialogs.checkApply}</button></div>
+      </form>
     </Modal>}
     {dialog === 'save-template' && templateDraft && <Modal title={t.templates.saveTitle} icon={<BookmarkPlus size={18} />} onClose={() => setDialog(null)}>
       <form onSubmit={async event => { event.preventDefault(); const next = { ...templateDraft, name: templateName.trim() }; if (!templateLibrarySchema.safeParse([next]).success) { setTemplateError(t.templates.invalid); return; } if (await persistTemplates([...currentTemplates.current, next])) { setDialog(null); say(tr => tr.templates.stored); } }}>

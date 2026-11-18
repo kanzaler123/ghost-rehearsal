@@ -82,11 +82,11 @@ export function stationsOf(journey: Journey): Station[] {
   return result;
 }
 
-/** Service nodes correspond across plans when they share a stage key; other nodes when they share an ID. */
 export function sameStation(a: Plan, aId: string | undefined, b: Plan, bId: string | undefined): boolean {
   if (aId === bId) return true;
   const left = a.graph.nodes.find(node => node.id === aId), right = b.graph.nodes.find(node => node.id === bId);
-  return left?.type === 'service' && right?.type === 'service' && left.stageKey === right.stageKey;
+  return left?.type === 'service' && right?.type === 'service' && left.stageKey === right.stageKey
+    && (!b.graph.nodes.some(node => node.id === aId) || !a.graph.nodes.some(node => node.id === bId));
 }
 
 export interface Difference { time: number; a?: Segment; b?: Segment }

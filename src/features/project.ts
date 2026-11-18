@@ -1,6 +1,6 @@
 import example from '../../examples/open-house.json';
 import { z } from 'zod';
-import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, duplicatePlan, idSchema, parseDocument, projectDocumentSchema } from '../schemas';
+import { DOCUMENT_FORMAT, PRODUCT_STATEMENT, duplicatePlan, idSchema, parseDocument, projectDocumentSchema, validateGraph, validatePlan } from '../schemas';
 import type { Edge, Node, Plan, ProjectDocument, Scenario, ValidationIssue } from '../schemas';
 import type { SimulationRun } from '../simulation/types';
 import { issueText } from '../i18n/issues';
@@ -148,9 +148,183 @@ export function addEvent(project: ProjectDocument, event: ProjectDocument): Proj
   return next;
 }
 
-export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate, resources: 'share' | 'copy' = 'share'): { plan: Plan; node: Node } {
+export type TemplateBindings = Partial<Record<'nodes' | 'streams' | 'attributes' | 'incoming' | 'outgoing', Record<string, string>>>;
+export type TemplateDependency = { kind: keyof TemplateBindings; id: string; name: string; options: { id: string; name: string }[] };
+
+function subflowMembers(template: SavedTemplate): Node[] {
+  const source = template.document.plans[0], byId = new Map(source.graph.nodes.map(node => [node.id, node]));
+  const selected = new Map<string, Node>();
+  function visit(id: string) {
+    const node = byId.get(id);
+    if (!node || selected.has(id)) throw new Error(`Invalid subflow member: ${id}`);
+    selected.set(id, node);
+    if (node.type === 'subflow') node.memberNodeIds.forEach(visit);
+  }
+  visit(template.nodeId!);
+  return [...selected.values()];
+}
+
+export function subflowDependencies(plan: Plan, scenario: Scenario, template: SavedTemplate): TemplateDependency[] {
+  const members = subflowMembers(template), ids = new Set(members.map(node => node.id));
+  const source = template.document.plans[0], origin = template.document.scenarios[0];
+  const dependencies = new Map<string, TemplateDependency>();
+  const boundStreams = new Set(plan.graph.nodes.flatMap(node => node.type === 'entrance' ? node.arrivalStreamIds : []));
+  const attributeValues = new Map<string, Set<string>>();
+  function external(id: string) {
+    if (!ids.has(id)) dependencies.set(`nodes:${id}`, { kind: 'nodes', id, name: source.graph.nodes.find(node => node.id === id)?.name ?? id,
+      options: plan.graph.nodes.filter(node => node.type !== 'subflow' && node.type !== 'entrance').map(node => ({ id: node.id, name: node.name })) });
+  }
+  for (const node of members) {
+    if ((node.type === 'service' || node.type === 'waiting_area') && node.fullPolicy?.kind === 'reroute') external(node.fullPolicy.targetNodeId);
+    if (node.type === 'service') for (const policy of [node.closePolicy?.queued, node.closePolicy?.late]) if (policy?.kind === 'redirect') external(policy.targetNodeId);
+    if (node.type === 'entrance') for (const id of node.arrivalStreamIds) dependencies.set(`streams:${id}`, { kind: 'streams', id, name: id,
+      options: scenario.arrivalStreams.filter(stream => !boundStreams.has(stream.id)).map(stream => ({ id: stream.id, name: stream.id })) });
+    if (node.type === 'decision' && node.routing.kind === 'attribute') for (const branch of node.routing.branches) {
+      if (!branch.condition) continue;
+      const { attributeId, values } = branch.condition;
+      const required = attributeValues.get(attributeId) ?? new Set<string>(); values.forEach(value => required.add(value)); attributeValues.set(attributeId, required);
+    }
+  }
+  for (const [id, values] of attributeValues) dependencies.set(`attributes:${id}`, { kind: 'attributes', id, name: origin.attributes.find(item => item.id === id)?.name ?? id,
+    options: scenario.attributes.filter(item => [...values].every(value => item.values.includes(value))).map(item => ({ id: item.id, name: item.name ?? item.id })) });
+  if (plan.graph.edges.length && !validateGraph(scenario, plan).some(issue => issue.severity === 'error')) {
+    const name = (graph: Plan, id: string) => graph.graph.nodes.find(node => node.id === id)?.name ?? id;
+    const incoming = source.graph.edges.filter(edge => !ids.has(edge.source) && ids.has(edge.target));
+    const fed = new Set(source.graph.edges.filter(edge => ids.has(edge.source)).map(edge => edge.target));
+    const entries = incoming.filter(edge => !fed.has(edge.target));
+    const routes = plan.graph.edges.map(edge => ({ id: edge.id, name: `${name(plan, edge.source)} → ${name(plan, edge.target)}${edge.branchKey ? ' · ' + edge.branchKey : ''}` }));
+    for (const edge of entries.length ? entries : incoming.slice(0, 1)) {
+      if (fed.has(edge.target) && entries.length) continue;
+      dependencies.set(`incoming:${edge.id}`, { kind: 'incoming', id: edge.id, name: name(source, edge.target), options: routes });
+      fed.add(edge.target);
+    }
+    const destinations = plan.graph.nodes.filter(node => node.type !== 'subflow' && node.type !== 'entrance').map(node => ({ id: node.id, name: node.name }));
+    for (const edge of source.graph.edges.filter(edge => ids.has(edge.source) && !ids.has(edge.target))) {
+      dependencies.set(`outgoing:${edge.id}`, { kind: 'outgoing', id: edge.id, name: `${name(source, edge.source)}${edge.branchKey ? ' · ' + edge.branchKey : ''}`, options: destinations });
+    }
+  }
+  return [...dependencies.values()];
+}
+
+function addSubflowFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate, resources: 'share' | 'copy', bindings: TemplateBindings): { plan: Plan; node: Node } {
+  const source = template.document.plans[0], originals = subflowMembers(template), ids = new Set(originals.map(node => node.id));
+  const resolved: Record<keyof TemplateBindings, Map<string, string>> = { nodes: new Map(), streams: new Map(), attributes: new Map(), incoming: new Map(), outgoing: new Map() };
+  for (const dependency of subflowDependencies(plan, scenario, template)) {
+    const id = bindings[dependency.kind]?.[dependency.id] ?? (dependency.kind === 'incoming' || dependency.kind === 'outgoing' ? '' : dependency.id);
+    if (!dependency.options.some(option => option.id === id)) throw new Error(`Choose a compatible ${dependency.kind} binding: ${dependency.name}`);
+    if (dependency.kind === 'streams' && [...resolved.streams.values()].includes(id)) throw new Error(`Arrival stream already bound: ${id}`);
+    if (dependency.kind === 'incoming' && [...resolved.incoming.values()].includes(id)) throw new Error(`Route already bound: ${id}`);
+    resolved[dependency.kind].set(dependency.id, id);
+  }
+  const next = structuredClone(plan), nodes = structuredClone(originals);
+  const nodeIds = new Map<string, string>(), edgeIds = new Map<string, string>();
+  const stageKeys = new Map<string, string>(), decisionKeys = new Map<string, string>();
+  const usedNodes = next.graph.nodes.map(node => node.id), usedEdges = next.graph.edges.map(edge => edge.id);
+  const stages = next.graph.nodes.flatMap(node => node.type === 'service' ? [node.stageKey] : []);
+  const decisions = next.graph.nodes.flatMap(node => node.type === 'decision' ? [node.decisionKey] : []);
+  for (const node of nodes) { const id = newId(node.type.replace('_', '-'), usedNodes); usedNodes.push(id); nodeIds.set(node.id, id); }
+  const edges = structuredClone(source.graph.edges.filter(edge => ids.has(edge.source) && ids.has(edge.target)));
+  for (const edge of edges) { const id = newId('route', usedEdges); usedEdges.push(id); edgeIds.set(edge.id, id); edge.id = id; edge.source = nodeIds.get(edge.source)!; edge.target = nodeIds.get(edge.target)!; }
+  const rerouted = new Set(resolved.incoming.values());
+  for (const [id, target] of resolved.outgoing) {
+    const edge = structuredClone(source.graph.edges.find(item => item.id === id)!);
+    edge.id = newId('route', usedEdges); usedEdges.push(edge.id); edge.source = nodeIds.get(edge.source)!; edge.target = target; edges.push(edge);
+    const merge = next.graph.nodes.find(item => item.id === target);
+    if (merge?.type === 'merge') {
+      const slot = merge.incomingPriority.findIndex(route => rerouted.has(route));
+      if (slot < 0) merge.incomingPriority.push(edge.id); else merge.incomingPriority[slot] = edge.id;
+    }
+  }
+  for (const [id, route] of resolved.incoming) {
+    const edge = next.graph.edges.find(item => item.id === route)!;
+    const merge = next.graph.nodes.find(item => item.id === edge.target);
+    if (merge?.type === 'merge') merge.incomingPriority = merge.incomingPriority.filter(item => item !== route);
+    edge.target = nodeIds.get(source.graph.edges.find(item => item.id === id)!.target)!;
+    edgeIds.set(id, route);
+  }
+  const targetNode = (id: string) => nodeIds.get(id) ?? resolved.nodes.get(id)!;
+  for (const node of nodes) {
+    node.id = nodeIds.get(node.id)!;
+    node.layout = { ...node.layout, x: node.layout.x + 60, y: node.layout.y + 180 };
+    if (node.type === 'subflow') node.memberNodeIds = node.memberNodeIds.map(id => nodeIds.get(id)!);
+    if ((node.type === 'service' || node.type === 'waiting_area') && node.fullPolicy?.kind === 'reroute') node.fullPolicy.targetNodeId = targetNode(node.fullPolicy.targetNodeId);
+    if (node.type === 'service') {
+      if (!stageKeys.has(node.stageKey)) { const key = newId('stage', stages); stages.push(key); stageKeys.set(node.stageKey, key); }
+      node.stageKey = stageKeys.get(node.stageKey)!;
+      for (const policy of [node.closePolicy?.queued, node.closePolicy?.late]) if (policy?.kind === 'redirect') policy.targetNodeId = targetNode(policy.targetNodeId);
+    }
+    if (node.type === 'entrance') node.arrivalStreamIds = node.arrivalStreamIds.map(id => resolved.streams.get(id)!);
+    if (node.type === 'decision') {
+      if (!decisionKeys.has(node.decisionKey)) { const key = newId('decision', decisions); decisions.push(key); decisionKeys.set(node.decisionKey, key); }
+      node.decisionKey = decisionKeys.get(node.decisionKey)!;
+      if (node.routing.kind === 'attribute') for (const branch of node.routing.branches) if (branch.condition) branch.condition.attributeId = resolved.attributes.get(branch.condition.attributeId)!;
+    }
+    if (node.type === 'merge') { node.incomingPriority = node.incomingPriority.flatMap(id => edgeIds.has(id) ? [edgeIds.get(id)!] : []); if (!node.incomingPriority.length) node.incomingPriority = ['connect-an-edge']; }
+  }
+  const services = originals.filter((node): node is Extract<Node, { type: 'service' }> => node.type === 'service');
+  const skills = new Map<string, string>(), devices = new Map<string, string>();
+  const requiredSkills = new Set(services.flatMap(node => node.requirements.flatMap(item => item.kind === 'staff' ? [item.skillId] : [])));
+  for (const id of requiredSkills) {
+    const skill = source.skills.find(item => item.id === id);
+    if (!skill) throw new Error(`Missing skill: ${id}`);
+    let match = next.skills.find(item => item.id === id && item.name === skill.name);
+    if (!match) { match = { ...skill, id: newId('skill', next.skills.map(item => item.id)) }; next.skills.push(match); }
+    skills.set(id, match.id);
+  }
+  const relevant = (id: string) => {
+    const assignment = source.assignments.find(item => item.resourceUnitId === id);
+    return !assignment || assignment.periods.some(period => period.nodeIds.some(node => ids.has(node)));
+  };
+  const canShare = (id: string) => !next.assignments.some(item => item.resourceUnitId === id)
+    || next.assignments.some(item => item.resourceUnitId === id && item.periods.some(period => period.nodeIds.some(node => ids.has(node))));
+  function assign(oldId: string, newId: string, eligible: string[], shared: boolean) {
+    if (shared) {
+      next.assignments.find(item => item.resourceUnitId === newId)?.periods.forEach(period => {
+        const added = period.nodeIds.flatMap(id => nodeIds.has(id) ? [nodeIds.get(id)!] : []);
+        period.nodeIds = [...new Set([...period.nodeIds, ...added])];
+      });
+    } else {
+      const original = source.assignments.find(item => item.resourceUnitId === oldId);
+      next.assignments.push({ resourceUnitId: newId, periods: original
+        ? original.periods.map(period => ({ ...period, nodeIds: period.nodeIds.flatMap(id => nodeIds.has(id) ? [nodeIds.get(id)!] : []) }))
+        : [{ from: 0, nodeIds: eligible.map(id => nodeIds.get(id)!) }] });
+    }
+  }
+  const requiredDevices = new Set(services.flatMap(node => node.requirements.flatMap(item => item.kind === 'device' ? [item.deviceTypeId] : [])));
+  for (const id of requiredDevices) {
+    const device = source.deviceTypes.find(item => item.id === id);
+    if (!device) throw new Error(`Missing device: ${id}`);
+    let match = resources === 'share' ? next.deviceTypes.find(item => JSON.stringify(item) === JSON.stringify(device)
+      && Array.from({ length: item.quantity }, (_, index) => canShare(`${item.id}:${index + 1}`)).every(Boolean)) : undefined;
+    const shared = !!match;
+    if (!match) { match = structuredClone(device); match.id = newId('device', next.deviceTypes.map(item => item.id)); match.unavailability = match.unavailability.map(window => ({ ...window, resourceUnitId: `${match!.id}:${window.resourceUnitId.split(':').at(-1)}` })); next.deviceTypes.push(match); }
+    const eligible = services.filter(node => node.requirements.some(item => item.kind === 'device' && item.deviceTypeId === id)).map(node => node.id);
+    for (let unit = 1; unit <= device.quantity; unit++) assign(`${id}:${unit}`, `${match.id}:${unit}`, eligible, shared);
+    devices.set(id, match.id);
+  }
+  for (const staff of source.staff.filter(item => item.skillIds.some(id => skills.has(id)) && relevant(item.id))) {
+    const mapped = staff.skillIds.flatMap(id => skills.has(id) ? [skills.get(id)!] : []);
+    const shared = resources === 'share' && canShare(staff.id) && next.staff.some(item => JSON.stringify(item) === JSON.stringify(staff) && mapped.every(id => item.skillIds.includes(id)));
+    const copy = structuredClone(staff);
+    if (!shared) { copy.id = newId('staff', next.staff.map(item => item.id)); copy.skillIds = mapped; next.staff.push(copy); }
+    const eligible = services.filter(node => node.requirements.some(item => item.kind === 'staff' && staff.skillIds.includes(item.skillId))).map(node => node.id);
+    assign(staff.id, copy.id, eligible, shared);
+  }
+  for (const node of nodes) if (node.type === 'service') for (const requirement of node.requirements) {
+    if (requirement.kind === 'staff') requirement.skillId = skills.get(requirement.skillId)!;
+    else requirement.deviceTypeId = devices.get(requirement.deviceTypeId)!;
+  }
+  nodes[0].name = template.name;
+  next.graph.nodes.push(...nodes); next.graph.edges.push(...edges);
+  const invalid = [...validatePlan(next), ...validateGraph(scenario, next)].find(issue => issue.severity === 'error');
+  if (invalid && !validateGraph(scenario, plan).some(issue => issue.severity === 'error')) throw new Error(invalid.code, { cause: invalid });
+  return { plan: next, node: nodes[0] };
+}
+
+export function addNodeFromTemplate(plan: Plan, scenario: Scenario, template: SavedTemplate, resources: 'share' | 'copy' = 'share', bindings: TemplateBindings = {}): { plan: Plan; node: Node } {
   const source = template.document.plans[0];
   const original = source.graph.nodes.find(node => node.id === template.nodeId)!;
+  if (original.type === 'subflow') return addSubflowFromTemplate(plan, scenario, template, resources, bindings);
   const next = structuredClone(plan);
   const node = structuredClone(original);
   node.id = newId(node.type.replace('_', '-'), next.graph.nodes.map(item => item.id));

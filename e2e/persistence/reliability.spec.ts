@@ -59,6 +59,28 @@ async function seed(page: Page) {
   });
 }
 
+test('saving a changed draft does not parse superseded project bodies', async ({ page }) => {
+  await visit(page); await connect(page);
+  const result = await page.evaluate(async () => {
+    const { api, store } = window.persistenceTest, document = api.initialDocument();
+    const oldBodies = new Set<string>();
+    let parents: string[] = [];
+    for (let index = 0; index < 100; index++) {
+      document.plans[0].name = `Draft ${index}`;
+      const { revision } = api.unwrap(await store.writeProject('long-history', document, { kind: 'draft', parents }));
+      oldBodies.add(revision.raw); parents = [revision.id];
+    }
+    document.plans[0].name = 'New draft';
+    const parse = JSON.parse;
+    let parsedOld = 0;
+    JSON.parse = (...args) => { if (oldBodies.has(args[0])) parsedOld++; return parse(...args); };
+    const write = await store.writeProject('long-history', document, { kind: 'draft', parents }).finally(() => { JSON.parse = parse; });
+    const { status, snapshot } = api.unwrap(write);
+    return { status, parsedOld, heads: snapshot.heads.length, retained: snapshot.history.length };
+  });
+  expect(result).toEqual({ status: 'draft-saved', parsedOld: 0, heads: 1, retained: 101 });
+});
+
 test('fresh storage, constructor project round trip, owned draft dismissal and reload recovery', async ({ page }) => {
   await visit(page); await connect(page);
   const baseId = await seed(page);

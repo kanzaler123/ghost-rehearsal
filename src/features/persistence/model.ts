@@ -56,15 +56,19 @@ export function decodeTemplates(revision: StoredRevision): Revision<SavedTemplat
 }
 
 export function snapshot<T>(revisions: StoredRevision[], decode: (revision: StoredRevision) => Revision<T>): Snapshot<T> {
-  const history = revisions.map(decode);
-  const active = history.filter(revision => !revision.dismissed);
-  const superseded = new Set(history.flatMap(revision => revision.parents));
-  const heads = active.filter(revision => !superseded.has(revision.id));
+  const superseded = new Set(revisions.flatMap(revision => revision.parents));
+  const heads = revisions.filter(revision => !revision.dismissed && !superseded.has(revision.id)).map(decode);
   const bad = heads.find(revision => revision.status !== 'ready');
-  if (bad) return { status: bad.status, heads, history };
-  if (!heads.length) return { status: 'empty', heads, history };
-  if (heads.length > 1) return { status: 'conflict', heads, history };
   const current = heads[0];
-  if (current.status !== 'ready') return { status: current.status, heads, history };
-  return { status: 'ready', current, heads, history };
+  const state = bad ? { status: bad.status } : !current ? { status: 'empty' as const }
+    : heads.length > 1 ? { status: 'conflict' as const }
+    : current.status === 'ready' ? { status: current.status, current } : { status: current.status };
+  let history: Revision<T>[] | undefined;
+  return { ...state, heads, get history() {
+    if (!history) {
+      const byId = new Map(heads.map(head => [head.id, head]));
+      history = revisions.map(row => byId.get(row.id) ?? decode(row));
+    }
+    return history;
+  } };
 }

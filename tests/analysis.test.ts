@@ -93,6 +93,26 @@ describe('ghost journeys', () => {
     expect(firstDifference(journeyOf(a, 'guests:p0'), journeyOf(b, 'guests:p0'), request.plan, slower.plan)).toMatchObject({ time: 10 });
   });
 
+  it('distinguishes two existing desks but matches a newly introduced desk of the same stage', () => {
+    const request = serviceFixture(), { nodes, edges } = request.plan.graph;
+    const desk = nodes.find(node => node.type === 'service')!;
+    nodes.push({ ...desk, id: 'second' }, { id: 'choice', name: 'Choice', layout: desk.layout, type: 'decision', decisionKey: 'choice',
+      routing: { kind: 'probability', branches: [{ branchKey: 'first', weight: 1 }, { branchKey: 'other', weight: 0 }] } });
+    edges[0].target = 'choice';
+    edges.push({ id: 'first', source: 'choice', target: desk.id, branchKey: 'first' },
+      { id: 'other', source: 'choice', target: 'second', branchKey: 'other' }, { id: 'second-out', source: 'second', target: 'exit' });
+    const alternate = structuredClone(request);
+    for (const edge of alternate.plan.graph.edges.filter(edge => edge.source === 'choice')) edge.target = edge.target === desk.id ? 'second' : desk.id;
+    const left = simulate(request), right = simulate(alternate);
+    expect([left.status, right.status]).toEqual(['succeeded', 'succeeded']);
+    const first = journeyOf(left, 'guests:p0'), second = journeyOf(right, 'guests:p0');
+    expect(firstDifference(first, second, request.plan, alternate.plan)).toMatchObject({ time: 0, a: { nodeId: desk.id }, b: { nodeId: 'second' } });
+    const original = serviceFixture();
+    const single = journeyOf(simulate(original), 'guests:p0');
+    expect(firstDifference(single, second, original.plan, alternate.plan)).toBeNull();
+    expect(firstDifference(second, single, alternate.plan, original.plan)).toBeNull();
+  });
+
   it('treats simultaneous routing and queue entry as transitions, not lasting differences', () => {
     const request = serviceFixture();
     const a = simulate(request);

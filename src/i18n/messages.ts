@@ -174,6 +174,9 @@ const en = {
   },
   templates: {
     title: 'The spellbook', subtitle: 'Your next haunting starts here.',
+    connectTitle: 'Connect the copied subflow', connectHint: 'Choose how guests enter and leave the copy. Nothing changes until you apply.',
+    chooseConnection: 'Choose…', bindingError: 'Choose compatible routes or resources. Each incoming route can be used only once.',
+    bindingKinds: { incoming: 'Enter from route', outgoing: 'Continue to station', nodes: 'Transfer target', streams: 'Arrival stream', attributes: 'Guest attribute' },
     browse: 'Templates', nodes: 'Nodes', plans: 'Plans', presets: 'Ready to use', saved: 'My templates',
     savePlan: 'Save plan as template', saveNode: 'Save node as template', saveTitle: 'Keep this for another night',
     name: 'Template name', save: 'Save template', remove: 'Delete template', empty: 'Your saved templates will appear here.',
@@ -657,6 +660,9 @@ const zh: Messages = {
   },
   templates: {
     title: '灵感魔法书', subtitle: '下一场奇妙之夜，从这里开始。',
+    connectTitle: '连接新复制的子流程', connectHint: '选择访客从哪条路线进入副本，离开后去哪一站。确认前不会改动方案。',
+    chooseConnection: '请选择…', bindingError: '请选择兼容的路线或资源；同一条进入路线只能选一次。',
+    bindingKinds: { incoming: '从哪条路线进入', outgoing: '离开后去哪站', nodes: '转送目标', streams: '到达流', attributes: '访客属性' },
     browse: '模板库', nodes: '节点', plans: '方案', presets: '预设模板', saved: '我的模板',
     savePlan: '将方案存为模板', saveNode: '将节点存为模板', saveTitle: '留给下一个奇妙之夜',
     name: '模板名称', save: '保存模板', remove: '删除模板', empty: '保存的模板会出现在这里。',

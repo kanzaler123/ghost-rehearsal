@@ -8,6 +8,16 @@ function revision(id: string, parents: string[] = [], raw = JSON.stringify(initi
 }
 
 describe('recovery snapshots', () => {
+  it('decodes only active heads until the full history is requested', () => {
+    const raw = JSON.stringify(initialDocument());
+    const chain = Array.from({ length: 100 }, (_, index) => revision(String(index), index ? [String(index - 1)] : [], raw));
+    const decoded: string[] = [];
+    const state = snapshot(chain, item => { decoded.push(item.id); return decodeProject(item); });
+    expect(decoded).toEqual(['99']);
+    expect(state.history.map(item => item.id)).toEqual(chain.map(item => item.id));
+    expect(state.history[0]).toMatchObject({ status: 'ready', raw });
+  });
+
   it('detects sibling revisions without relying on timestamps or enumeration order', () => {
     const base = revision('base');
     const a = revision('a', ['base']), b = revision('b', ['base']);

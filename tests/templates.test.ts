@@ -5,6 +5,38 @@ import { MESSAGES } from '../src/i18n/messages';
 import { planSchema, projectDocumentSchema, validateGraph } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 
+it('copies nested subflow members and routes independently and runs the resulting plan', () => {
+  const document = halloweenProject('haunted', MESSAGES.en), source = document.plans[0], target = emptyProject();
+  const members = source.graph.nodes.map(node => node.id);
+  source.graph.nodes.push({ id: 'inner', type: 'subflow', name: 'Inner', layout: { x: 0, y: 0 }, memberNodeIds: members.slice(1) },
+    { id: 'outer', type: 'subflow', name: 'Outer', layout: { x: 0, y: 0 }, memberNodeIds: [members[0], 'inner'] });
+  const before = JSON.stringify(document);
+  const added = addNodeFromTemplate(target.plans[0], target.scenarios[0], { id: 'group', name: 'Copy', nodeId: 'outer', document });
+  expect(added.plan.graph.nodes).toHaveLength(source.graph.nodes.length);
+  expect(added.plan.graph.edges).toHaveLength(source.graph.edges.length);
+  expect(validateGraph(target.scenarios[0], added.plan).filter(issue => issue.severity === 'error')).toEqual([]);
+  expect(simulate({ schemaVersion: 1, scenario: target.scenarios[0], plan: added.plan, runMode: 'run_to_completion' }).status).toBe('succeeded');
+  expect(JSON.stringify(document)).toBe(before);
+  expect(target.plans[0].graph.nodes).toEqual([]);
+});
+
+it.each(['share', 'copy'] as const)('inserts a second runnable Open House verification on the chosen route (%s)', mode => {
+  const document = initialDocument(), plan = document.plans[0], scenario = document.scenarios[0], before = JSON.stringify(plan);
+  const template = { id: 'group', name: 'Verification copy', nodeId: 'verification', document };
+  const incoming = { 'regular-checkin': 'regular-checkin' };
+  expect(() => addNodeFromTemplate(plan, scenario, template, mode)).toThrow();
+  expect(() => addNodeFromTemplate(plan, scenario, template, mode, { incoming, outgoing: { 'review-holding': 'exit-no-such' } })).toThrow();
+  expect(() => addNodeFromTemplate(plan, scenario, template, mode, { incoming, outgoing: { 'review-holding': 'holding' } })).toThrow();
+  const added = addNodeFromTemplate(plan, scenario, template, mode, { incoming, outgoing: { 'review-holding': 'checkin' } });
+  const members = added.node.type === 'subflow' ? added.node.memberNodeIds : [];
+  expect(members).toHaveLength(4);
+  expect(members.every(id => !plan.graph.nodes.some(node => node.id === id))).toBe(true);
+  expect(added.plan.graph.edges.filter(edge => members.includes(edge.source) && members.includes(edge.target))).toHaveLength(4);
+  expect(added.plan.graph.edges.find(edge => edge.id === 'vip-checked')).toEqual(plan.graph.edges.find(edge => edge.id === 'vip-checked'));
+  expect(simulate({ schemaVersion: 1, scenario, plan: added.plan, runMode: 'cutoff' }).status).toBe('succeeded');
+  expect(JSON.stringify(plan)).toBe(before);
+});
+
 it.each(['share', 'copy'] as const)('reuses only staff posted to the recheck template with %s resources', mode => {
   const document = initialDocument(); document.plans = [document.plans[0]];
   const plan = document.plans[0], before = JSON.stringify(plan);
