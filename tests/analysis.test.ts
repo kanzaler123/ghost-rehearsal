@@ -302,8 +302,8 @@ describe('comparison report', () => {
 
   it('accounts for every arrived guest once in the impact summary', () => {
     const people = affected(statsA, statsB);
-    expect(people.better + people.worse + people.same).toBe(people.total);
-    expect(people.bins.reduce((sum, count) => sum + count, 0)).toBe(people.total);
+    expect(people.better + people.worse + people.same + people.excluded).toBe(people.total);
+    expect(people.bins.reduce((sum, count) => sum + count, 0)).toBe(people.total - people.excluded);
     expect(people.rescued).toBe(7);
     expect(affectedVisitors(statsA, statsB)).toHaveLength(people.total);
     expect(affectedVisitors(statsA, statsB, 'less')).toHaveLength(people.better);
@@ -327,6 +327,20 @@ describe('comparison report', () => {
     expect(affectedVisitors(a, b, 'same').map(item => item.id).sort()).toEqual(['equal', 'near-less', 'near-more']);
     expect(comparePicks(a, b).find(group => group.key === 'less')).toMatchObject({ total: 1, items: [{ id: 'less', value: -60 }] });
     expect(comparePicks(a, b).find(group => group.key === 'more')).toMatchObject({ total: 1, items: [{ id: 'more', value: 60 }] });
+  });
+
+  it.each(['rejected', 'dismissed', 'diverted', 'loop_limit'] as const)('keeps waits truncated by %s out of all waiting bins in either direction', outcome => {
+    const completed = { ...statsA.visitors[0], id: 'guest', outcome: 'completed' as const, waiting: 180 };
+    const departed = { ...completed, outcome, waiting: 0, completedAt: null };
+    for (const threshold of [0, 60] as const) for (const reverse of [false, true]) {
+      const a = { ...statsA, visitors: [reverse ? departed : completed] };
+      const b = { ...statsB, visitors: [reverse ? completed : departed] };
+      expect(affected(a, b, threshold)).toEqual({ total: 1, better: 0, worse: 0, same: 0, excluded: 1,
+        rescued: Number(reverse), lost: Number(!reverse), bins: [0, 0, 0, 0, 0, 0, 0] });
+      for (const filter of ['less', 'more', 'same'] as const) expect(affectedVisitors(a, b, filter, threshold)).toEqual([]);
+      expect(comparePicks(a, b, 3, threshold).map(group => group.key)).toEqual([reverse ? 'rescued' : 'lost']);
+      expect(affectedVisitors(a, b, reverse ? 'rescued' : 'lost', threshold)[0].id).toBe('guest');
+    }
   });
 
   it('merges parallel lanes of one stage into one station and keeps person-time totals', () => {

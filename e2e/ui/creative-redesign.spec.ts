@@ -19,7 +19,7 @@ for (const activation of ['pointer', 'Enter', 'Space'] as const) test(`welcome s
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.locator('.context-menu[open], .workspace-menu[open], .guide-options[open], .comparison-options[open], .canvas-menu, [popover]:popover-open')).toHaveCount(0);
   expect(await page.evaluate(() => document.activeElement !== document.body && !!document.activeElement?.getClientRects().length)).toBe(true);
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
   await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).click();
   await expect(page.locator('.ghost-id code')).toHaveText('side-stream:10');
@@ -49,7 +49,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   }, outcome);
   await page.locator('input[type=file]').first().setInputFiles({ name: 'pending.json', mimeType: 'application/json', buffer: readFileSync('examples/open-house.json') });
   await page.getByRole('button', { name: t.redesign.begin, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   const identity = await page.locator('.comparison-identities').textContent();
   await page.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
   await page.waitForTimeout(100);
@@ -66,7 +66,7 @@ test('visible run checks and queue lengths share the actual population scale', a
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), lang);
   await page.goto('./');
   await page.getByRole('button', { name: t.redesign.begin, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   const mobile = page.locator('.mobile-compare-nav');
   if (await mobile.isVisible()) await mobile.getByRole('button', { name: t.workspace.canvas, exact: true }).click();
   await expect(page.getByRole('combobox', { name: t.run.scope, exact: true })).toBeVisible();

@@ -37,6 +37,6 @@ export async function selectPacking(page: Page, t: Messages) {
 export async function compareExample(page: Page, t: Messages) {
   if (!await page.getByRole('button', { name: t.guide.start, exact: true }).isVisible()) await page.locator('.side-collapse').click();
   await page.getByRole('button', { name: t.guide.start, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   return page.getByRole('region', { name: t.guide.title, exact: true });
 }

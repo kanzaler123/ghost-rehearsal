@@ -28,7 +28,7 @@ export function DivergenceCard({ journeys, plans, onJump, onInspect, onEvidence 
     </div>
     {difference ? <>
       <div className="divergence-states">{states.map((side, index) => <div key={plans[index].id}>
-        <span className={`ab-badge${index ? ' alt' : ''}`}>{index ? 'B' : 'A'}</span>
+        <span className={`ab-badge${index ? ' alt' : ''}`}>{index ? t.sidebar.secondBadge : t.sidebar.currentBadge}</span>
         {side.nodeId && onInspect ? <button type="button" className="text-btn" onClick={() => onInspect([side.nodeId!], plans[index].id)}>{side.name ?? side.nodeId}</button> : <span>{side.name ?? t.reportUi.notInSystem}</span>}
         <time>{formatTime('since' in side.state ? side.state.since : 'time' in side.state ? side.state.time : difference.time)}</time>
         <p>{describeStatus(side.state, plans[index], difference.time, t)}</p>

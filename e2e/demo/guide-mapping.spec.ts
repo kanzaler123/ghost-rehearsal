@@ -13,9 +13,9 @@ test('guide explains B/C pane mapping without opening More', async ({ page }, in
   await expect(mapping).toHaveText(t.guide.mapping);
   await expect(mapping).toBeVisible();
   await expect(guide.locator('.guide-options')).not.toHaveAttribute('open');
-  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText('A 41 → B 72');
+  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText(`${t.compare.a} 41 → ${t.compare.b} 72`);
   const names = await page.locator('.report-plans b').allTextContents();
-  await expect(page.locator('.comparison-identities > span')).toHaveText([`A · ${names[0]}`, `B · ${names[1]}`]);
+  await expect(page.locator('.comparison-identities > span')).toHaveText([`${t.compare.a} · ${names[0]}`, `${t.compare.b} · ${names[1]}`]);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await mapping.scrollIntoViewIfNeeded();
   await page.screenshot({ path: info.outputPath('visible-bc-mapping.png'), fullPage: false });
@@ -33,7 +33,7 @@ test('guide explains B/C pane mapping without opening More', async ({ page }, in
   await more.click();
   await guide.getByRole('button', { name: t.guide.reset, exact: true }).click();
   await expect(mapping).toHaveCount(0);
-  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText('A 43 → B 41');
+  await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
   expect(errors).toEqual([]);
 });
 
@@ -58,7 +58,7 @@ test('mapping follows actual mode and sidebar comparison identities', async ({ p
   await choose.focus();
   await expect(choose).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(page.locator('.comparison-identities > span').nth(1)).toHaveText(`B · ${originalName}`);
+  await expect(page.locator('.comparison-identities > span').nth(1)).toHaveText(`${t.compare.b} · ${originalName}`);
   await expect(mapping).toHaveCount(0);
   await expect(guide.getByText(t.guide.mapping, { exact: true })).toHaveCount(0);
   expect(errors).toEqual([]);

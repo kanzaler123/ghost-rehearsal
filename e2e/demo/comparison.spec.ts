@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { openExample } from '../ui/studio';
 import { MESSAGES } from '../../src/i18n/messages';
 import type { Messages } from '../../src/i18n/messages';
 import type { Plan, ProjectDocument, Scenario } from '../../src/schemas';
@@ -19,6 +20,32 @@ async function selectComparisonOption(page: Page, label: string, value: string) 
   await page.getByLabel(label, { exact: true }).selectOption(value);
   await page.locator('.comparison-options > summary').click();
 }
+
+test('Open House keeps its baseline and comparison on first open, draft recovery and canonical re-import', async ({ page }, info) => {
+  const t = await openExample(page, info);
+  async function checkPair() {
+    await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+    await expect(page.locator('.report-snapshot .snapshot-item > small').first()).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
+    await page.getByRole('button', { name: t.comparePicker.title, exact: true }).click();
+    const picker = page.getByRole('dialog', { name: t.comparePicker.title });
+    const baseline = picker.getByLabel(t.comparePicker.left);
+    await expect(baseline).toHaveValue('baseline');
+    await expect(baseline.locator('option').first()).toHaveAttribute('value', 'baseline');
+    await expect(picker.getByLabel(t.comparePicker.right)).toHaveValue('alternative');
+    await page.keyboard.press('Escape');
+  }
+  await checkPair();
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  const raw = await exportFromMenu(page, t, t.dialogs.exportProject);
+  expect((JSON.parse(raw) as ProjectDocument).plans.map(plan => plan.id)).toEqual(['alternative', 'baseline']);
+  await page.reload();
+  await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  await checkPair();
+  await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'reopen.json', mimeType: 'application/json', buffer: Buffer.from(raw) });
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
+  await checkPair();
+});
 
 test('real Worker: guided A/B/C, scopes, bilingual evidence and project round trip', async ({ page }, info) => {
   const lang = info.project.name.endsWith('zh') ? 'zh' : 'en';
@@ -40,12 +67,12 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(outcome('left').locator('td').nth(1)).toHaveText('6');
   expect(workers.some(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
   await expect(page.getByLabel(t.evidence.threshold, { exact: true })).toHaveValue('60');
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
-  await expect(page.locator('.bin-count')).toHaveText(['7', '2', '3', '279', '1', '1', '7']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
+  await expect(page.locator('.bin-count')).toHaveText(['4', '2', '3', '276', '1', '1', '7']);
   const initialWorkerCount = workers.length;
   await selectComparisonOption(page, t.evidence.threshold, '0');
-  await expect(page.locator('.people-stats b')).toHaveText(['66', '26', '208']);
-  await expect(page.locator('.bin-count')).toHaveText(['7', '2', '57', '208', '18', '1', '7']);
+  await expect(page.locator('.people-stats b')).toHaveText(['63', '26', '205']);
+  await expect(page.locator('.bin-count')).toHaveText(['4', '2', '57', '205', '18', '1', '7']);
   await selectComparisonOption(page, t.review.basis, 'completion');
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('149');
   await expect(page.locator('.is-report .statistics-scope')).toContainText('120:00');
@@ -55,7 +82,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   expect(workers).toHaveLength(initialWorkerCount);
 
   await page.locator('.people-stats button').first().click();
-  await expect(page.locator('.people-count')).toContainText('66');
+  await expect(page.locator('.people-count')).toContainText('63');
   await expect(page.locator('.people-list .people-result')).toHaveCount(20);
   await page.locator('.ghost-stories input[type=search]').fill('main-stream:20');
   await expect(page.locator('.people-list .people-result')).toHaveCount(1);
@@ -63,7 +90,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(page.locator('.ghost-id code')).toHaveText('main-stream:20');
   await page.locator('.journey-header button').first().click();
   const report = await exportFromMenu(page, t, t.evidence.comparison);
-  expect(report).toContain(`${t.evidence.anyGroups.less}: 66`);
+  expect(report).toContain(`${t.evidence.anyGroups.less}: 63`);
   expect(report).toContain(`${t.evidence.completed}: n=43`);
   await selectComparisonOption(page, t.evidence.threshold, '60');
   await page.locator('.people-stats button').first().click();
@@ -76,9 +103,18 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await guide.getByRole('button', { name: t.guide.actions[2], exact: true }).click();
   await expect(page.locator('.evidence-card')).toContainText('check-staff');
   await expect(page.locator('.evidence-card')).toContainText(t.review.states.unposted);
-  await expect(page.locator('.pair-groups b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.pair-groups b')).toHaveText(['9', '9', '276']);
+  await page.locator('.pair-groups button').last().click();
+  const list = page.locator('.paired-list'), firstGuest = await list.locator('tbody button').first().innerText();
+  await expect(list.locator('tbody tr')).toHaveCount(20);
+  await list.getByRole('button', { name: t.reportUi.next }).press('Enter');
+  await expect(list.locator('nav')).toContainText('21–40 / 276');
+  await expect(list.locator('tbody button').first()).not.toHaveText(firstGuest);
+  await list.getByRole('button', { name: t.reportUi.previous }).press('Space');
+  await expect(list.locator('tbody button').first()).toHaveText(firstGuest);
+  await page.locator('.pair-groups button').last().click();
   await selectComparisonOption(page, t.evidence.threshold, '0');
-  await expect(page.locator('.pair-groups b')).toHaveText(['66', '26', '208']);
+  await expect(page.locator('.pair-groups b')).toHaveText(['63', '26', '205']);
   await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.packing, exact: true }).click();
   await expect(page.locator('.evidence-card')).toContainText('pack-staff');
@@ -92,7 +128,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(guide).toContainText(t.guide.mapping);
   const identities = page.locator('.comparison-identities');
   const names = await page.locator('.report-plans b').allTextContents();
-  await expect(identities).toHaveText(`A · ${names[0]}B · ${names[1]}`);
+  await expect(identities).toHaveText(`${t.compare.a} · ${names[0]}${t.compare.b} · ${names[1]}`);
   await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.resources, exact: true }).click();
   await expect(page.locator('.resource-comparison table').first().locator('tbody tr').first().locator('td')).toHaveText(['3', '4', '+1']);
@@ -106,7 +142,8 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await guide.getByRole('button', { name: t.guide.actions[5], exact: true }).click();
   const exported = await pending;
   const arrangement = await readFile((await exported.path())!, 'utf8');
-  expect(arrangement).toContain(t.review.demoName);
+  expect(arrangement).toContain(`${t.compare.a}: ${names[0]} (`);
+  expect(arrangement).toContain(`${t.compare.b}: ${names[1]} (`);
   expect(arrangement).toContain(`${t.outcomes.completed}: 72`);
   expect(arrangement).toContain(`${t.outcomes.unfinished}: 218`);
   expect(arrangement).toContain(`${t.outcomes.diverted}: 10`);
@@ -247,7 +284,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   expect(workers.every(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
   const preserved = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
   await page.locator('.is-report').getByRole('button', { name: t.guide.start, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   const retained = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
   for (const plan of preserved.plans) expect(retained.plans.find(item => item.id === plan.id)).toEqual(plan);
   for (const scenario of preserved.scenarios) expect(retained.scenarios.find(item => item.id === scenario.id)).toEqual(scenario);

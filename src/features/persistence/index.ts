@@ -10,6 +10,8 @@ export { LEGACY_KEYS } from './model';
 export type { PersistenceError, ProjectSnapshot, RawRecovery, Result, Revision, Snapshot, StoredRevision, TemplateSnapshot, WriteReceipt } from './model';
 
 const DATABASE = 'ghost-rehearsal.persistence.v2';
+const DRAFT_LIMIT = 20;
+type ProjectParent = Pick<StoredRevision, 'id' | 'kind' | 'projectId'>;
 type Change = 'local' | 'external' | 'legacy' | 'refresh' | 'closed';
 type LegacyStorage = () => Pick<Storage, 'getItem'>;
 export type WorkspaceSnapshot = { savedRevisionId: string | null; projects: ProjectSnapshot[]; templates: TemplateSnapshot };
@@ -33,6 +35,44 @@ function reject(code: PersistenceError['code'], message: string, recovery: RawRe
 
 function projectSnapshot(revisions: StoredRevision[], projectId: string): ProjectSnapshot {
   return Object.assign(snapshot(revisions.filter(revision => revision.projectId === projectId), decodeProject), { projectId });
+}
+
+function compactProjectDrafts(rows: StoredRevision[], store: IDBObjectStore, savedRevisionId: string | null) {
+  if (rows.length <= DRAFT_LIMIT) return rows;
+  const children = new Map<string, number>(), mergeParents = new Set<string>();
+  for (const row of rows) for (const id of row.parents) {
+    children.set(id, (children.get(id) ?? 0) + 1);
+    if (row.parents.length > 1) mergeParents.add(id);
+  }
+  const byId = new Map(rows.map(row => [row.id, row]));
+  const recent = new Set<string>();
+  let generation = rows.filter(row => !children.has(row.id));
+  for (let depth = 0; depth < DRAFT_LIMIT && generation.length; depth++) {
+    const parents: StoredRevision[] = [];
+    for (const row of generation) {
+      if (recent.has(row.id)) continue;
+      recent.add(row.id);
+      for (const id of row.parents) parents.push(byId.get(id)!);
+    }
+    generation = parents;
+  }
+  const remove = new Set(rows.filter(row => row.kind === 'draft' && !row.source && !row.dismissed
+    && row.id !== savedRevisionId && !recent.has(row.id) && children.get(row.id) === 1 && row.parents.length <= 1
+    && !mergeParents.has(row.id) && !row.parents.some(id => children.get(id)! > 1)).map(row => row.id));
+  if (!remove.size) return rows;
+  const retained: StoredRevision[] = [];
+  for (const row of rows) {
+    if (remove.has(row.id)) { store.delete(row.id); continue; }
+    if (!row.parents.some(id => remove.has(id))) { retained.push(row); continue; }
+    const parents = row.parents.flatMap(id => {
+      let parent: string | undefined = id;
+      while (parent && remove.has(parent)) parent = byId.get(parent)!.parents[0];
+      return parent ? [parent] : [];
+    });
+    const updated = { ...row, parents };
+    store.put(updated); retained.push(updated);
+  }
+  return retained;
 }
 
 function templateSnapshot(revisions: StoredRevision[]): TemplateSnapshot {
@@ -223,20 +263,26 @@ export class Persistence {
     return this.transaction('readonly', revisions => templateSnapshot(revisions));
   }
 
-  async writeProject(projectId: string, document: ProjectDocument, options: { kind: 'draft' | 'saved'; parents: readonly string[] }): Promise<Result<WriteReceipt<ProjectDocument>>> {
+  async writeProject(projectId: string, document: ProjectDocument, options: { kind: 'draft' | 'saved'; parents: readonly (string | ProjectParent)[] }): Promise<Result<WriteReceipt<ProjectDocument>>> {
     let raw: string;
     try { raw = serializeDocument(document); }
     catch (error) { return { ok: false, error: { code: 'invalid', message: String(error), recovery: [{ raw: JSON.stringify(document) }] } }; }
     const candidate: StoredRevision = { version: 1, id: crypto.randomUUID(), projectId, kind: options.kind, tabId: this.tabId,
-      parents: [...options.parents], createdAt: Date.now(), raw };
+      parents: options.parents.map(parent => typeof parent === 'string' ? parent : parent.id), createdAt: Date.now(), raw };
     const decoded = decodeProject(candidate);
     if (decoded.status !== 'ready') return { ok: false, error: { code: 'invalid', message: decoded.message, recovery: [{ raw }] } };
     const migration = await this.migrateLegacy();
     if (!migration.ok) return { ok: false, error: { ...migration.error, recovery: [...migration.error.recovery, { raw }] } };
-    const result = await this.transaction('readwrite', (revisions, store, settings) => {
+    const result = await this.transaction('readwrite', (revisions, store, settings, savedRevisionId) => {
       if (!projectId) reject('invalid', 'A storage project ID is required.');
-      this.checkParents(revisions.filter(revision => revision.projectId === projectId), candidate.parents);
-      const parent = revisions.find(revision => revision.id === candidate.parents[0]);
+      const rows = revisions.filter(row => row.projectId === projectId);
+      const byId = new Map(revisions.map(row => [row.id, row]));
+      const missing = options.parents.filter((parent): parent is ProjectParent => typeof parent !== 'string' && rows.length > 0
+        && !byId.has(parent.id) && parent.kind === 'draft' && parent.projectId === projectId);
+      this.checkParents([...rows, ...missing], candidate.parents);
+      // A pruned parent has a newer descendant the stale tab has never seen.
+      if (missing.length) candidate.parents = candidate.parents.filter(id => byId.has(id));
+      const parent = byId.get(candidate.parents[0]);
       if (candidate.parents.length === 1 && parent?.raw === raw && parent.kind === candidate.kind && !parent.dismissed) {
         const state = projectSnapshot(revisions, projectId);
         const status = !sameHeads(state, candidate.parents) ? 'conflict' as const : options.kind === 'saved' ? 'saved' as const : 'draft-saved' as const;
@@ -244,7 +290,8 @@ export class Persistence {
         return { revision: parent, snapshot: state, status };
       }
       store.add(candidate);
-      const next = projectSnapshot([...revisions, candidate], projectId);
+      const retained = compactProjectDrafts([...rows, candidate], store, savedRevisionId);
+      const next = projectSnapshot(retained, projectId);
       if (options.kind === 'saved' && next.status === 'ready') settings.put(candidate.id, 'savedRevisionId');
       return { revision: candidate, snapshot: next, status: next.status !== 'ready' ? 'conflict' as const : options.kind === 'saved' ? 'saved' as const : 'draft-saved' as const };
     });
@@ -253,7 +300,7 @@ export class Persistence {
     return result;
   }
 
-  private checkParents(revisions: StoredRevision[], parents: readonly string[]): void {
+  private checkParents(revisions: Pick<StoredRevision, 'id'>[], parents: readonly string[]): void {
     if (new Set(parents).size !== parents.length || parents.some(id => !revisions.some(revision => revision.id === id))) {
       reject('invalid', 'Parents must identify existing revisions in the same project or library.');
     }

@@ -53,7 +53,11 @@ test('comparison and guest evidence occupy the first screen', async ({ page }, i
   await expect(page.getByLabel(t.dock.timeline, { exact: true })).toHaveValue('210');
   const identities = await page.locator('.comparison-identities > span').allTextContents();
   expect(identities).toHaveLength(2);
-  for (const identity of identities) await expect(page.locator('.ghost-futures')).toContainText(identity.replace(/^[AB] · /, ''));
+  const futures = page.locator('.ghost-futures .future-plan');
+  for (const [index, role] of [t.compare.a, t.compare.b].entries()) {
+    expect(identities[index]).toContain(`${role} · `);
+    await expect(futures.nth(index)).toContainText(identities[index].slice(role.length + 3));
+  }
   await expect(page.locator('.lane')).toHaveCount(2);
   if (!mobile) {
     await expect.poll(() => fullyVisible(page.locator('.ghost-card'))).toBe(true);

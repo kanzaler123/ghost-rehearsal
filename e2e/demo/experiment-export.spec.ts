@@ -67,10 +67,12 @@ test('guide exports only its reproducible A/B/C experiment and preserves existin
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   await expect(pickerButton).toBeEnabled();
   await pickerButton.click();
-  const c = experiment.plans.find(plan => !!plan.sourcePlanId)!;
+  const c = experiment.plans.find(plan => plan.name === t.review.demoName)!;
   const b = experiment.plans.find(plan => plan.id === c.sourcePlanId)!;
   const left = picker.getByLabel(t.comparePicker.left, { exact: true });
   const right = picker.getByLabel(t.comparePicker.right, { exact: true });
+  await expect(left).toHaveValue(b.sourcePlanId!);
+  await expect(right).toHaveValue(b.id);
   await left.selectOption(b.id);
   await expect(picker.getByRole('alert')).toHaveText(t.comparePicker.distinct);
   await expect(left).toHaveAccessibleDescription(t.comparePicker.distinct);
@@ -88,7 +90,7 @@ test('guide exports only its reproducible A/B/C experiment and preserves existin
   expect((await worker).url()).toMatch(/\/assets\/worker-[^/]+\.js$/);
   await expect(picker).toHaveCount(0);
   await expect(pickerButton).toBeEnabled();
-  await expect(page.locator('.comparison-identities > span')).toHaveText([`A · ${b.name}`, `B · ${c.name}`]);
+  await expect(page.locator('.comparison-identities > span')).toHaveText([`${t.compare.a} · ${b.name}`, `${t.compare.b} · ${c.name}`]);
   await page.locator('.report-step > summary').filter({ hasText: t.compare.steps.outcomes }).click();
   const outcome = (key: keyof Messages['compare']['rows']) => page.locator('.outcome-table').getByRole('row').filter({ has: page.getByRole('rowheader', { name: t.compare.rows[key], exact: true }) });
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('41');

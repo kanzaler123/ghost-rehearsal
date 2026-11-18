@@ -181,7 +181,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
       <div className="ghost-futures">{journeys.map((journey, column) => {
         const outcome = statisticsAt(runs[column], basis)?.visitors.find(item => item.id === visitorId);
         return <div className="future-row" key={column}>
-          <strong className="future-plan">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}{plans[column].name}</strong>
+          <strong className="future-plan">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? t.sidebar.secondBadge : t.sidebar.currentBadge}</span>}{plans[column].name}</strong>
           <span><small>{text.replayState} · {formatTime(Math.min(replayTime, journey.until))}</small>{journey.events.length ? describeStatus(statusAt(journey, Math.min(replayTime, journey.until)), plans[column], Math.min(replayTime, journey.until), t) : text.noData}</span>
           <span><small>{basis === 'completion' ? text.finalOutcome : text.cutoffOutcome} · {formatTime(journey.until)}</small>{journey.events.length && outcome ? t.journey.outcome(t.outcomes[outcome.outcome], t.formatWait(outcome.waiting)) : text.noData}</span>
         </div>;
@@ -196,7 +196,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           const status = statusAt(journey, Math.min(replayTime, journey.until));
           const at = journey.arrival === undefined || replayTime < journey.arrival ? undefined : Math.min(replayTime, journey.end?.time ?? journey.until);
           return <div className="lane" key={column}>
-            <span className={cls('lane-label', compare && (column ? 'is-b' : 'is-a'))}>{compare ? (column ? 'B' : 'A') : ''}</span>
+            <span className={cls('lane-label', compare && (column ? 'is-b' : 'is-a'))}>{compare ? (column ? t.sidebar.secondBadge : t.sidebar.currentBadge) : ''}</span>
             <div className="lane-track">
               {!journey.events.length && <span className="lane-no-data">{text.noData}</span>}
               {journey.segments.map((segment, index) => {
@@ -233,7 +233,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
       {journeys.some(journey => journey.segments.length) && <details className="journey-segments">
         <summary>{text.chooseSegment}</summary>
         <div className="segment-choices">{journeys.map((journey, column) => <section className="segment-plan" key={column} aria-label={plans[column].name}>
-          <h4>{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}{plans[column].name}</h4>
+          <h4>{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? t.sidebar.secondBadge : t.sidebar.currentBadge}</span>}{plans[column].name}</h4>
           {!journey.segments.length && <p>{text.noData}</p>}
           <ol>{journey.segments.map((segment, index) => {
             const key = `${column}-${index}`, detail = segmentText(segment, plans[column], basis, t);
@@ -248,7 +248,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         <summary>{t.review[basis]} · {t.journey.station} · {t.journey.evidence(journeys.reduce((sum, journey) => sum + journey.events.length, 0))}</summary>
         <StationTable journeys={journeys} plans={plans} compare={compare} cutoff={cutoff} onInspect={onInspect} />
         <div className={cls('journey-columns', compare && 'two')}>{journeys.map((journey, column) => <div key={column} className="journey-column">
-          <div className="journey-heading">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? 'B' : 'A'}</span>}<b>{plans[column].name}</b></div>
+          <div className="journey-heading">{compare && <span className={cls('ab-badge', column === 1 && 'alt')}>{column ? t.sidebar.secondBadge : t.sidebar.currentBadge}</span>}<b>{plans[column].name}</b></div>
           {!journey.events.length && <p>{text.noData}</p>}
           <ol className="journey-events">{journey.events.map(event => <li key={event.seq}><button type="button" onClick={() => onJump(event.time, event.nodeId, plans[column].id)}>
             <time>{formatTime(event.time)}</time><i className={`dot t-${EVENT_TONES[event.type] ?? 'system'}`} /><span>{t.eventTypes[event.type] ?? event.type}</span><small>{nodeName(plans[column], event.nodeId)}</small>
@@ -272,7 +272,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         {visible.map(item => {
           const pair = pairMap.get(item.id), outcome = outcomes.get(item.id);
           return <button type="button" key={item.id} className={cls('people-result', item.id === visitorId && 'active')} aria-pressed={item.id === visitorId} onClick={() => chooseAndReveal(item.id)}>
-            <Ghost size={14} /><span><b>{item.name}</b>{pair ? <small>A: {t.outcomes[pair.a.outcome]} · B: {t.outcomes[pair.b.outcome]}</small> : outcome && <small>{t.outcomes[outcome.outcome]}</small>}</span>
+            <Ghost size={14} /><span><b>{item.name}</b>{pair ? <small>{t.compare.a}: {t.outcomes[pair.a.outcome]} · {t.compare.b}: {t.outcomes[pair.b.outcome]}</small> : outcome && <small>{t.outcomes[outcome.outcome]}</small>}</span>
             {pair ? <small className="people-delta">{pair.delta === 0 ? '0' : `${pair.delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(pair.delta))}`}</small> : outcome && <small className="people-delta">{t.formatWait(outcome.waiting)}</small>}
           </button>;
         })}
@@ -322,12 +322,12 @@ function StationTable({ journeys, plans, compare, cutoff, onInspect }: { journey
   if (!rows.length) return <p className="station-table-wrap">{t.reportUi.noData}</p>;
   const cell = (value: number | undefined, column = 0) => value === undefined ? <span className="muted">{journeys[column]?.events.length ? t.journey.notVisited : t.reportUi.noData}</span> : t.formatWait(value);
   return <div className="station-table-wrap"><table className="station-table">
-    <caption>{t.reportUi.stationCaption(formatTime(cutoff))}{compare && journeys[0].until !== journeys[1]?.until ? ` · A ${formatTime(journeys[0].until)} / B ${formatTime(journeys[1].until)}` : ''}</caption>
-    <thead><tr><th>{t.journey.station}</th>{compare ? <><th>A · {t.journey.wait}</th><th>B · {t.journey.wait}</th><th>{t.journey.delta}</th><th>A · {t.journey.service}</th><th>B · {t.journey.service}</th></> : <><th>{t.journey.wait}</th><th>{t.journey.service}</th></>}</tr></thead>
+    <caption>{t.reportUi.stationCaption(formatTime(cutoff))}{compare && journeys[0].until !== journeys[1]?.until ? ` · ${t.compare.a} ${formatTime(journeys[0].until)} / ${t.compare.b} ${formatTime(journeys[1].until)}` : ''}</caption>
+    <thead><tr><th>{t.journey.station}</th>{compare ? <><th>{t.compare.a} · {t.journey.wait}</th><th>{t.compare.b} · {t.journey.wait}</th><th>{t.journey.delta}</th><th>{t.compare.a} · {t.journey.service}</th><th>{t.compare.b} · {t.journey.service}</th></> : <><th>{t.journey.wait}</th><th>{t.journey.service}</th></>}</tr></thead>
     <tbody>{rows.map((row, index) => {
       const delta = row.a && row.b ? row.b.queue - row.a.queue : undefined;
       return <tr key={index} className={cls(delta !== undefined && Math.abs(delta) > 0.5 && 'differs', (!row.a || !row.b) && compare && 'differs')}>
-        <td>{row.name}{onInspect && <span className="station-actions">{[row.a, row.b].map((station, column) => station && <button type="button" className="text-btn" key={column} onClick={() => onInspect(station.nodeIds, plans[column].id)}>{column ? 'B' : 'A'} · {t.reportUi.inspect}</button>)}</span>}</td>
+        <td>{row.name}{onInspect && <span className="station-actions">{[row.a, row.b].map((station, column) => station && <button type="button" className="text-btn" key={column} onClick={() => onInspect(station.nodeIds, plans[column].id)}>{column ? t.compare.b : t.compare.a} · {t.reportUi.inspect}</button>)}</span>}</td>
         {compare ? <>
           <td>{cell(row.a?.queue)}</td><td>{cell(row.b?.queue, 1)}</td>
           <td><DeltaBadge metric="avgWait" a={row.a?.queue} b={row.b?.queue} format={t.formatWait} /></td>

@@ -65,8 +65,8 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
   const stationName = (row: StationRow) => list([...new Set([...row.a.map(id => nameIn([planA], id)), ...row.b.map(id => nameIn([planB], id))])], t);
   const signed = (value: number, format: (value: number) => string) => Number.isFinite(value) ? `${value > 0 ? '+' : value < 0 ? '−' : ''}${format(Math.abs(value))}` : '—';
   const text = t.reportUi;
-  const emptyState = data && data.people.total > 0 ? deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: !data.people.better && !data.people.worse, evidenceCount: (runA?.events.length ?? 0) + (runB?.events.length ?? 0) }) : null;
-  const unavailable = context.status === 'missing-run' ? text.missingPlans(t.list.join([!runA ? `A · ${planA.name}` : '', !runB ? `B · ${planB.name}` : ''].filter(Boolean))) : context.status === 'stale' ? c.stale : t.evidence.unavailable[context.status];
+  const emptyState = data && data.people.total > 0 ? deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: data.people.same > 0 && !data.people.better && !data.people.worse && context.visitors.every(pair => pair.a.outcome === pair.b.outcome), evidenceCount: (runA?.events.length ?? 0) + (runB?.events.length ?? 0) }) : null;
+  const unavailable = context.status === 'missing-run' ? text.missingPlans(t.list.join([!runA ? `${c.a} · ${planA.name}` : '', !runB ? `${c.b} · ${planB.name}` : ''].filter(Boolean))) : context.status === 'stale' ? c.stale : t.evidence.unavailable[context.status];
   function browse(filter: AffectedFilter) {
     if (!a || !b) return;
     const people = context.select(filter);
@@ -81,8 +81,8 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
     </header>
     {data && a && b && <ComparisonSnapshot a={a} b={b} cost={data.cost} />}
     {data && a && b && <ConclusionGroups metrics={comparisonMetrics(a, b, data.cost, t)} onEvidence={onEvidence} />}
-    {context.status === 'ready' && runA && runB && <details className="snapshot-scope"><summary>{t.evidence.sample} {context.sampleSize} · {t.review[basis]} · A {formatTime(a!.until)} / B {formatTime(b!.until)}</summary>
-      <div className="report-plans"><span className="ab-badge">A</span><b tabIndex={0} title={planA.name} aria-label={planA.name}>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt">B</span><b tabIndex={0} title={planB.name} aria-label={planB.name}>{planB.name}</b></div>
+    {context.status === 'ready' && runA && runB && <details className="snapshot-scope"><summary>{t.evidence.sample} {context.sampleSize} · {t.review[basis]} · {c.a} {formatTime(a!.until)} / {c.b} {formatTime(b!.until)}</summary>
+      <div className="report-plans"><span className="ab-badge" title={c.a}>{t.sidebar.currentBadge}</span><b tabIndex={0} title={planA.name} aria-label={planA.name}>{planA.name}</b><ArrowRight size={13} aria-hidden="true" /><span className="ab-badge alt" title={c.b}>{t.sidebar.secondBadge}</span><b tabIndex={0} title={planB.name} aria-label={planB.name}>{planB.name}</b></div>
       <StatisticsScope runs={[runA, runB]} basis={basis} threshold={threshold} />
       <p className="report-note">{t.reportUi.resourceWindow}</p>
     </details>}
@@ -120,7 +120,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
           <button type="button" className="bad" disabled={!data.people.worse} onClick={() => browse('more')} title={text.browse}><b>{data.people.worse}</b>{groups.more}</button>
           <button type="button" disabled={!data.people.same} onClick={() => browse('same')} title={text.browse}><b>{data.people.same}</b>{groups.same}</button>
         </div>
-        <p className="report-note">{t.evidence.rule}</p>
+        <p className="report-note">{t.evidence.rule} {t.evidence.excluded(data.people.excluded)}</p>
         <details className="report-distribution"><summary>{c.histogram}</summary>
         <div className="histogram" role="img" aria-label={`${c.histogram}: ${data.people.bins.map((count, index) => `${bins[index]} ${count}`).join(', ')}`}>
           {data.people.bins.map((count, index) => {
@@ -148,7 +148,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
               : up ? text.grew(stationName(up))
               : text.unchangedStations;
           })()}</p>
-          <div className="why-title"><span>{c.whyTitle}</span><span className="why-legend"><i className="a" />A<i className="b" />B</span></div>
+          <div className="why-title"><span>{c.whyTitle}</span><span className="why-legend"><i className="a" />{c.a}<i className="b" />{c.b}</span></div>
           {data.stations.slice(0, 5).map(row => {
             const peak = Math.max(1, ...data.stations.map(item => Math.max(item.waitA, item.waitB)));
             const delta = row.waitB - row.waitA;
@@ -159,8 +159,8 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
               <span className="why-values"><b className={cls(delta < 0 && 'good', delta > 0 && 'bad')}>{signed(delta, t.formatPersonTime)}</b><small>{c.peak(row.peakA, row.peakB)}</small></span>
             </button><div className="station-actions">
               {onMoment && <button type="button" className="text-btn" onClick={() => onMoment(ids)}>{text.moment}</button>}
-              {onInspect && row.a.length > 0 && <button type="button" className="text-btn" onClick={() => onInspect(row.a, planA.id)}>A · {text.inspect}</button>}
-              {onInspect && row.b.length > 0 && <button type="button" className="text-btn" onClick={() => onInspect(row.b, planB.id)}>B · {text.inspect}</button>}
+              {onInspect && row.a.length > 0 && <button type="button" className="text-btn" onClick={() => onInspect(row.a, planA.id)}>{c.a} · {text.inspect}</button>}
+              {onInspect && row.b.length > 0 && <button type="button" className="text-btn" onClick={() => onInspect(row.b, planB.id)}>{c.b} · {text.inspect}</button>}
             </div></div>;
           })}
         </> : <p className="subtle">{c.whyNone}</p>}
@@ -194,7 +194,7 @@ function Outcomes({ a, b }: { a: Statistics; b: Statistics }) {
     { key: 'total', a: totalWait(a), b: totalWait(b), format: value => t.formatPersonTime(value), higherIsBetter: false },
   ];
   return <table className="outcome-table">
-    <thead><tr><th>{c.metric}</th><th><span className="ab-badge">A</span></th><th><span className="ab-badge alt">B</span></th><th>{c.delta}</th></tr></thead>
+    <thead><tr><th>{c.metric}</th><th><span className="ab-badge" title={c.a}>{t.sidebar.currentBadge}</span></th><th><span className="ab-badge alt" title={c.b}>{t.sidebar.secondBadge}</span></th><th>{c.delta}</th></tr></thead>
     <tbody>{rows.map(row => {
       const metric: MetricKey = row.key === 'average' ? 'avgWait' : row.key === 'p90' ? 'p90Wait' : row.key === 'total' ? 'totalWait' : row.key as MetricKey;
       return <tr key={row.key}>

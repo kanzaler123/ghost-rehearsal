@@ -41,7 +41,7 @@ export function generatePopulation(scenario: Scenario): Participant[] {
   const people: Participant[] = [];
   for (const stream of scenario.arrivalStreams) {
     if (stream.kind === 'records') {
-      stream.records.forEach(record => people.push({ id: `${stream.id}:${record.id}`, arrivalStreamId: stream.id, arrivalTime: milliseconds(record.arrivalTime) / 1000, attributes: { ...record.attributes } }));
+      stream.records.forEach(record => people.push({ id: `${stream.id}:${record.id}`, arrivalStreamId: stream.id, arrivalTime: milliseconds(record.arrivalTime) / 1000, attributes: Object.assign(Object.create(null), record.attributes) }));
       continue;
     }
     const times: number[] = [];
@@ -62,7 +62,7 @@ export function generatePopulation(scenario: Scenario): Participant[] {
     }
     times.forEach((arrivalTime, index) => {
       const id = `${stream.id}:${index + 1}`;
-      const attributes: Record<string, string> = {};
+      const attributes: Record<string, string> = Object.create(null);
       for (const attribute of scenario.attributes) {
         const distribution = stream.attributeDistributions[attribute.id].values;
         const u = keyedDraw(scenario.seed, 'attribute', id, attribute.id, 1);

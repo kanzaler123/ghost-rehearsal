@@ -5,7 +5,7 @@ test('arrangement preference survives reload and narrow screens force rows', asy
   const t = await openExample(page, info);
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   const choices = page.getByRole('group', { name: t.arrangement.label, exact: true });
   await choices.getByRole('button', { name: t.arrangement.cols, exact: true }).click();
   await expect(choices.getByRole('button', { name: t.arrangement.cols, exact: true })).toHaveAttribute('aria-pressed', 'true');

@@ -33,7 +33,7 @@ test('capture matching UI review states', async ({ page }, info) => {
   await capture('rehearse-tracked');
   await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
   await page.getByRole('button', { name: t.guide.start, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   await capture('two-futures-overview');
   if (narrow) await capture('narrow-report');
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });

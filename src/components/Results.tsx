@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { ArrowUpRight, Sparkles } from 'lucide-react';
 import type { Plan } from '../schemas';
 import { assignmentDescription, durationDescription, formatTime, nodeInstructions } from '../features/project';
@@ -47,19 +48,42 @@ interface InsightsProps {
   onRerun?: () => void;
 }
 
+function PagedList<T>({ items, label, children }: { items: T[]; label: string; children: (page: T[]) => ReactNode }) {
+  const { t } = useI18n();
+  const [page, setPage] = useState(0);
+  const size = 20, last = Math.max(0, Math.ceil(items.length / size) - 1);
+  const current = Math.min(page, last), start = current * size;
+  return <>{children(items.slice(start, start + size))}
+    <nav className="people-pagination" aria-label={label}>
+      <button type="button" className="text-btn" disabled={!current} onClick={() => setPage(current - 1)}>{t.reportUi.previous}</button>
+      <span aria-live="polite">{items.length ? start + 1 : 0}–{Math.min(start + size, items.length)} / {items.length}</span>
+      <button type="button" className="text-btn" disabled={current === last} onClick={() => setPage(current + 1)}>{t.reportUi.next}</button>
+    </nav></>;
+}
+
 export function Insights({ run, second, compare, comparisonReady, changes, scenarioId, overrides, basis, onSelectNode, onChoose, onJump, onExperiment, threshold = THRESHOLD, initialEvidence, onRerun }: InsightsProps) {
   const { t } = useI18n();
   const i = t.insights;
-  const context = useMemo(() => comparisonContext(run, second, basis, threshold, comparisonReady), [run, second, basis, threshold, comparisonReady]);
+  const context = useMemo(() => comparisonContext(run, compare ? second : undefined, basis, threshold, comparisonReady), [run, second, compare, basis, threshold, comparisonReady]);
   const stats = compare ? context.a : statisticsAt(run, basis);
   const secondStats = compare ? context.b : null;
   const [group, setGroup] = useState<'less' | 'more' | 'same' | null>(null);
   const [selected, setSelected] = useState<{ id: string; owner: string } | null>(initialEvidence ?? null);
-  const pairs = compare ? context.visitors : [];
-  const groups = Object.fromEntries((['less', 'more', 'same'] as const).map(key => [key, context.select(key)]));
+  const pairs = context.visitors;
+  const pairMap = useMemo(() => new Map(pairs.map(pair => [pair.id, pair])), [pairs]);
+  const groupRows = useMemo(() => {
+    if (!group) return [];
+    const selection = context.select(group);
+    return group === 'same' ? [...selection].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)) : selection;
+  }, [context, group]);
   const groupLabels = threshold ? t.evidence.groups : t.evidence.anyGroups;
-  const transitions = new Map<string, number>();
-  pairs.filter(pair => pair.a.outcome !== pair.b.outcome).forEach(pair => { const key = `${pair.a.outcome}:${pair.b.outcome}`; transitions.set(key, (transitions.get(key) ?? 0) + 1); });
+  const transitions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const pair of pairs) if (pair.a.outcome !== pair.b.outcome) {
+      const key = `${pair.a.outcome}:${pair.b.outcome}`; counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [pairs]);
   const nameOf = (id: string) => run.request.plan.graph.nodes.find(node => node.id === id)?.name ?? second?.request.plan.graph.nodes.find(node => node.id === id)?.name ?? id;
   const waits = new Map<string, { a: number; b: number }>();
   stats?.nodes.forEach(item => waits.set(item.id, { a: item.waiting, b: 0 }));
@@ -71,6 +95,8 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
   const evidenceId = selected?.id ?? rows[0]?.[0] ?? '';
   const evidenceRun = second && secondStats && (selected?.owner === second.request.plan.id || (!selected && !run.request.plan.graph.nodes.some(node => node.id === evidenceId))) ? second : run;
   const evidence = useMemo(() => nodeEvidence(evidenceRun, evidenceId, basis), [evidenceRun, evidenceId, basis]);
+  const guests = useMemo(() => evidence ? [...evidence.visitors].sort((a, b) => Math.abs(pairMap.get(b)?.delta ?? 0) - Math.abs(pairMap.get(a)?.delta ?? 0)) : [], [evidence, pairMap]);
+  const records = useMemo(() => evidence ? [...new Map([...evidence.resources.flatMap(unit => unit.records.slice(-3)), ...evidence.events].map(event => [event.seq, event])).values()].sort((a, b) => a.seq - b.seq) : [], [evidence]);
   const emptyEvidence = deriveEmptyState({ rosterEmpty: false, filterActive: false, noDifference: false, evidenceCount: evidence?.events.length ?? 0 });
   const pick = (id: string, owner: string) => { setSelected({ id, owner }); onSelectNode(id, owner); };
   const changeText = (plan: Plan, change: PlanChange) => {
@@ -85,11 +111,11 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
     <StatisticsScope runs={secondStats && second ? [run, second] : [run]} basis={basis} threshold={threshold} />
     {compare && secondStats && <section className="paired-summary">
       <h3>{t.review.paired}</h3>
-      <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{groups[key].length}</b> {groupLabels[key]}</button>)}</div>
-      <p className="subtle">{t.evidence.rule}</p>
+      <div className="pair-groups">{(['less', 'more', 'same'] as const).map(key => <button type="button" className={cls('btn', group === key && 'active')} aria-pressed={group === key} key={key} onClick={() => setGroup(group === key ? null : key)}><b>{context.counts![key === 'less' ? 'better' : key === 'more' ? 'worse' : 'same']}</b> {groupLabels[key]}</button>)}</div>
+      <p className="subtle">{t.evidence.rule} {t.evidence.excluded(context.counts!.excluded)}</p>
       <p className="subtle">{t.review.caveat}</p>
       <p>{t.review.transitions}: {[...transitions].map(([key, count]) => { const [a, b] = key.split(':'); return <span className="chip" key={key}>{count} · {t.outcomes[a]} → {t.outcomes[b]}</span>; })}</p>
-      {group && <div className="paired-list"><table><thead><tr><th>{t.review.guest}</th><th>A</th><th>B</th><th>{t.review.delta}</th></tr></thead><tbody>{[...groups[group]].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).map(pair => <tr key={pair.id}><td><button type="button" className="text-btn" onClick={() => onChoose(pair.id)}>{pair.id}</button></td><td>{t.formatWait(pair.a.waiting)} · {t.outcomes[pair.a.outcome]}</td><td>{t.formatWait(pair.b.waiting)} · {t.outcomes[pair.b.outcome]}</td><td>{pair.delta > 0 ? '+' : ''}{t.formatWait(pair.delta)}</td></tr>)}</tbody></table></div>}
+      {group && <div className="paired-list"><PagedList key={`${group}-${threshold}`} items={groupRows} label={groupLabels[group]}>{page => <table><thead><tr><th>{t.review.guest}</th><th>{t.compare.a}</th><th>{t.compare.b}</th><th>{t.review.delta}</th></tr></thead><tbody>{page.map(pair => <tr key={pair.id}><td><button type="button" className="text-btn" onClick={() => onChoose(pair.id)}>{pair.id}</button></td><td>{t.formatWait(pair.a.waiting)} · {t.outcomes[pair.a.outcome]}</td><td>{t.formatWait(pair.b.waiting)} · {t.outcomes[pair.b.outcome]}</td><td>{pair.delta > 0 ? '+' : ''}{t.formatWait(pair.delta)}</td></tr>)}</tbody></table>}</PagedList></div>}
     </section>}
     <div className="insights">
     <div className="bottleneck-chart">
@@ -97,19 +123,19 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
       {rows.length ? rows.map(([id, value], index) => <div key={id} className={cls('bar-row', index === 0 && 'is-top')}>
         <span className="bar-name">{nameOf(id)}</span>
         <span className="bar-tracks">
-          <button type="button" className="bar-track" disabled={!run.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`A · ${nameOf(id)}`} onClick={() => pick(id, run.request.plan.id)}><i style={{ width: `${value.a / peak * 100}%` }} /></button>
-          {secondStats && second && <button type="button" className="bar-track alt" disabled={!second.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`B · ${nameOf(id)}`} onClick={() => pick(id, second.request.plan.id)}><i style={{ width: `${value.b / peak * 100}%` }} /></button>}
+          <button type="button" className="bar-track" disabled={!run.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`${compare ? t.compare.a : run.request.plan.name} · ${nameOf(id)}`} onClick={() => pick(id, run.request.plan.id)}><i style={{ width: `${value.a / peak * 100}%` }} /></button>
+          {secondStats && second && <button type="button" className="bar-track alt" disabled={!second.request.plan.graph.nodes.some(node => node.id === id)} aria-label={`${t.compare.b} · ${nameOf(id)}`} onClick={() => pick(id, second.request.plan.id)}><i style={{ width: `${value.b / peak * 100}%` }} /></button>}
         </span>
         <span className="bar-values"><b>{t.formatPersonTime(value.a)}</b>{secondStats && <b className="alt">{t.formatPersonTime(value.b)}</b>}</span>
       </div>) : <p className="subtle">{stats ? i.none : i.incomplete}</p>}
-      {secondStats && rows.length > 0 && <div className="bar-legend"><span><i />A</span><span className="alt"><i />B</span></div>}
+      {secondStats && rows.length > 0 && <div className="bar-legend"><span><i />{t.compare.a}</span><span className="alt"><i />{t.compare.b}</span></div>}
     </div>
     <div className="insight-note">
       <span className="eyebrow"><Sparkles size={12} aria-hidden="true" />{i.eyebrow}</span>
       {compare ? <>
         <h3>{comparisonReady ? i.compareTitle : i.staleTitle}</h3>
         <p>{comparisonReady && stats && secondStats ? i.compareSummary(`${completedDelta >= 0 ? '+' : ''}${completedDelta}`, waitDelta === null ? i.noData : `${waitDelta > 0 ? '+' : ''}${t.formatWait(waitDelta)}`) : i.needFresh}</p>
-        {comparisonReady && second && changes.length > 0 && <details><summary>{t.review.changes}</summary>{changes.map(change => <div className="parameter-change" key={`${change.kind}-${change.id}`}><b>{i.kinds[change.kind]} {nameOf(change.id)} · {i.changeLabels[change.label]}</b><p>A: {changeText(run.request.plan, change)}</p><p>B: {changeText(second.request.plan, change)}</p></div>)}</details>}
+        {comparisonReady && second && changes.length > 0 && <details><summary>{t.review.changes}</summary>{changes.map(change => <div className="parameter-change" key={`${change.kind}-${change.id}`}><b>{i.kinds[change.kind]} {nameOf(change.id)} · {i.changeLabels[change.label]}</b><p>{t.compare.a}: {changeText(run.request.plan, change)}</p><p>{t.compare.b}: {changeText(second.request.plan, change)}</p></div>)}</details>}
         {onExperiment && comparisonReady && <div className="demo-next"><p>{t.review.demoHint}</p><button type="button" className="btn accent" onClick={onExperiment}>{t.review.demo}</button></div>}
       </> : <>
         <h3>{i.rehearseTitle}</h3><p>{i.rehearseText1}</p><p>{i.rehearseText2}</p>
@@ -126,8 +152,8 @@ export function Insights({ run, second, compare, comparisonReady, changes, scena
         {nodeInstructions(evidence.node, evidenceRun.request.plan, t).map((line, index) => <p key={index}>{line}</p>)}
         <ul>{evidence.resources.map(resource => <li key={resource.id}>{resource.id}: {t.review.states[resource.state] ?? resource.state}{resource.busyAt ? ` → ${nameOf(resource.busyAt)}` : ''}{!resource.posted && resource.state !== 'unposted' ? ` · ${t.review.states.unposted}` : ''}</li>)}</ul>
         <p className="subtle">{t.review.hypothesis}</p>
-        <details><summary>{t.review.affected} ({evidence.visitors.length})</summary><div className="evidence-guests">{[...evidence.visitors].sort((a, b) => Math.abs(pairs.find(pair => pair.id === b)?.delta ?? 0) - Math.abs(pairs.find(pair => pair.id === a)?.delta ?? 0)).map(id => <button type="button" className="text-btn" key={id} onClick={() => onChoose(id)}>{id}{pairs.length > 0 ? ` · Δ ${t.formatWait(pairs.find(pair => pair.id === id)?.delta)}` : ''}</button>)}</div></details>
-        <details><summary>{t.review.records}</summary><EventLog nameOf={id => visitorName(id, evidenceRun.request.plan, evidenceRun.request.scenario)} plan={evidenceRun.request.plan} events={[...new Map([...evidence.resources.flatMap(unit => unit.records.slice(-3)), ...evidence.events].map(event => [event.seq, event])).values()].sort((a, b) => a.seq - b.seq)} onPick={event => { onJump(event.time, event.nodeId ?? evidence.node.id, evidenceRun.request.plan.id); if (event.participantId) onChoose(event.participantId); }} /></details>
+        <details><summary>{t.review.affected} ({guests.length})</summary><PagedList key={`${evidenceRun.request.plan.id}-${evidenceId}`} items={guests} label={t.review.affected}>{page => <div className="evidence-guests">{page.map(id => <button type="button" className="text-btn" key={id} onClick={() => onChoose(id)}>{id}{pairs.length > 0 ? ` · Δ ${t.formatWait(pairMap.get(id)?.delta)}` : ''}</button>)}</div>}</PagedList></details>
+        <details><summary>{t.review.records}</summary><PagedList key={`${evidenceRun.request.plan.id}-${evidenceId}`} items={records} label={t.review.records}>{page => <EventLog nameOf={id => visitorName(id, evidenceRun.request.plan, evidenceRun.request.scenario)} plan={evidenceRun.request.plan} events={page} onPick={event => { onJump(event.time, event.nodeId ?? evidence.node.id, evidenceRun.request.plan.id); if (event.participantId) onChoose(event.participantId); }} />}</PagedList></details>
       </> : emptyEvidence && <RunStateCard kind={emptyEvidence.kind} action={emptyEvidence.action} detail={t.review.noEvidence} onAction={() => onRerun?.()} />}
     </section>
   </div>;
@@ -165,13 +191,13 @@ export function ResourceUse({ run, second, basis, limits, onLimits }: { run: Sim
   return <div className="resource-comparison">
     <h3>{t.review.resourceCounts}</h3>
     <p className="subtle">{t.review.hoursHint}</p>
-    <table><thead><tr><th>{t.review.resourceCounts}</th><th>A · {formatTime(stats.until)}</th>{right && <><th>B · {formatTime(right.until)}</th><th>{t.review.delta}</th></>}</tr></thead><tbody>
+    <table><thead><tr><th>{t.review.resourceCounts}</th><th>{right ? t.compare.a : run.request.plan.name} · {formatTime(stats.until)}</th>{right && <><th>{t.compare.b} · {formatTime(right.until)}</th><th>{t.review.delta}</th></>}</tr></thead><tbody>
       {(['staff', 'devices'] as const).flatMap(kind => { const a = totals(run, kind), b = right && second ? totals(second, kind) : null; return (['count', 'scheduled', 'busy', 'overtime'] as const).map(key => <tr key={`${kind}-${key}`}><th>{t.review[kind]} · {key === 'count' ? t.review.resourceCounts : t.review[key]}</th><td>{a[key].toFixed(key === 'count' ? 0 : 2)}</td>{b && <><td>{b[key].toFixed(key === 'count' ? 0 : 2)}</td><td>{Math.round((b[key] - a[key]) * 100) > 0 ? '+' : ''}{(Math.round((b[key] - a[key]) * 100) / 100).toFixed(key === 'count' ? 0 : 2)}</td></>}</tr>); })}
     </tbody></table>
     <div className="resource-limits"><b>{t.review.budget}</b><label>{t.review.maxStaff}<input type="number" min={0} value={maxStaff} onChange={event => onLimits({ ...limits, staff: event.target.value })} /></label><label>{t.review.maxDevices}<input type="number" min={0} value={maxDevices} onChange={event => onLimits({ ...limits, devices: event.target.value })} /></label>
-      {!maxStaff && !maxDevices ? <p>{t.review.noBudget}</p> : [run, ...(right && second ? [second] : [])].map((result, index) => <p key={index}>{index ? 'B' : 'A'}: {(maxStaff !== '' && totals(result, 'staff').count > Number(maxStaff)) || (maxDevices !== '' && totals(result, 'devices').count > Number(maxDevices)) ? t.review.exceeds : t.review.within}</p>)}
+      {!maxStaff && !maxDevices ? <p>{t.review.noBudget}</p> : [run, ...(right && second ? [second] : [])].map((result, index) => <p key={index}>{right ? (index ? t.compare.b : t.compare.a) : run.request.plan.name}: {(maxStaff !== '' && totals(result, 'staff').count > Number(maxStaff)) || (maxDevices !== '' && totals(result, 'devices').count > Number(maxDevices)) ? t.review.exceeds : t.review.within}</p>)}
     </div>
-    <table><thead><tr><th>{t.review.resourceCounts}</th><th>A</th>{right && <><th>B</th><th>{t.review.delta}</th></>}</tr></thead><tbody>{ids.map(id => {
+    <table><thead><tr><th>{t.review.resourceCounts}</th><th>{right ? t.compare.a : run.request.plan.name}</th>{right && <><th>{t.compare.b}</th><th>{t.review.delta}</th></>}</tr></thead><tbody>{ids.map(id => {
       const a = stats.resources.find(item => item.id === id), b = right?.resources.find(item => item.id === id);
       return <tr key={id}><th title={id}>{resourceName(a ? run.request.plan : second!.request.plan, id)}</th><td>{utilization(a?.utilization)}{a && <small>{t.resources.detail(t.formatWait(a.busy), t.formatWait(a.handover), t.formatWait(a.overtime))}</small>}</td>{right && <><td>{utilization(b?.utilization)}{b && <small>{t.resources.detail(t.formatWait(b.busy), t.formatWait(b.handover), t.formatWait(b.overtime))}</small>}</td><td>{a && b ? t.resources.detail(t.formatWait(b.busy - a.busy), t.formatWait(b.handover - a.handover), t.formatWait(b.overtime - a.overtime)) : '—'}</td></>}</tr>;
     })}</tbody></table>

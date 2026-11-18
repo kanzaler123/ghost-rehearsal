@@ -16,10 +16,10 @@ describe('comparison context', () => {
       planId: run.request.plan.id, name: run.request.plan.name, inputKey: run.inputKey, scenarioKey: run.scenarioKey, modelVersion: run.modelVersion,
       until: 1800, arrived: 300, notArrived: 0, unpaired: 0, runLimit: false,
     });
-    expect(context.counts).toMatchObject({ better: 12, worse: 9, same: 279 });
-    expect(context.select('less')).toHaveLength(12);
-    expect(context.picks().find(group => group.key === 'less')!.total).toBe(12);
-    expect(comparisonContext(a, b, 'cutoff', 0)).toMatchObject({ rule: 'any-change', counts: { better: 66, worse: 26, same: 208 } });
+    expect(context.counts).toMatchObject({ better: 9, worse: 9, same: 276, excluded: 6 });
+    expect(context.select('less')).toHaveLength(9);
+    expect(context.picks().find(group => group.key === 'less')!.total).toBe(9);
+    expect(comparisonContext(a, b, 'cutoff', 0)).toMatchObject({ rule: 'any-change', counts: { better: 63, worse: 26, same: 205, excluded: 6 } });
     const final = comparisonContext(a, b, 'completion');
     expect(final.sides.every(side => side?.until === 7200 && side.runLimit)).toBe(true);
     expect(comparisonReport(a, b, true, MESSAGES.en, 'cutoff', 60)).toContain(`Scenario SHA-256: ${a.scenarioKey}`);

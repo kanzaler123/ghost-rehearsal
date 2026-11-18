@@ -44,7 +44,7 @@ The original two-plan example, blank flows, Haunted house and reusable templates
 
 Use **Run scope → Run to completion** in the strip below the top toolbar, rerun, and choose **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
 
-The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting.
+The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting. The left slot is the baseline and the right slot is the comparison. Waiting groups and their histogram exclude guests who left early on either side. At the Open House cutoff, 9 guests waited at least a minute less, 9 waited at least a minute more and 276 changed by less than a minute. The other 6 paired guests left early. All 300 still count toward outcome comparisons.
 
 Primary waiting includes all arrived guests; the separate **Completed only** group shows its own sample size, mean and P90 (90th percentile). Each side reports its actual statistics end, arrived/not-arrived counts and exclusions from the paired sample. Final results may end at different times. Missing final results and stale comparisons do not supply current comparison evidence.
 
@@ -54,7 +54,7 @@ Primary waiting includes all arrived guests; the separate **Completed only** gro
 
 ### Draft recovery
 
-Applied project edits are saved as drafts separately from manual saves when their data format is valid. Apply changes in dialogs before relying on draft recovery. Refresh restores the newest draft; incomplete/invalid edits and unavailable storage trigger leave protection. A browser draft is local to that browser, so export important projects as files. Rehearsal results are recalculated after reloading.
+Applied project edits are saved as drafts separately from manual saves when their data format is valid. Autosave keeps the latest 20 revisions along each branch, plus manual saves, fork and merge points, and their recovery choices. Apply changes in dialogs before relying on draft recovery. Refresh restores the newest draft; incomplete/invalid edits and unavailable storage trigger leave protection. A browser draft is local to that browser, so export important projects as files. Rehearsal results are recalculated after reloading.
 
 ### Templates and backups
 

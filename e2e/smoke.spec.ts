@@ -13,7 +13,7 @@ test('production subpath loads the workbench and runs the actual Worker', async 
   await expect(page).toHaveURL(info.project.use.baseURL!);
   await page.getByRole('dialog').getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   expect(workers.some(url => url.startsWith(info.project.use.baseURL!) && /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
   expect(errors).toEqual([]);
   await page.screenshot({ path: info.outputPath('production-smoke.png'), fullPage: true });

@@ -110,7 +110,7 @@ export function FlowNavigator({ plan, index, view, previous, expanded, selected,
       <span className="eyebrow">{t.navigator.title}</span>
       <button type="button" className="icon-btn" aria-label={t.sidebar.expand} title={t.sidebar.expand} onClick={onExpandSidebar}><PanelLeftOpen size={16} /></button>
     </div>
-    <p className="nav-plan" title={plan.name}><span className="ab-badge">A</span>{plan.name}</p>
+    <p className="nav-plan" title={plan.name}>{plan.name}</p>
     <div className="nav-list">{items.map(id => <div key={id} className="nav-group">
       {row(id)}
       {index.subflows.has(id) && (expanded === 'all' || expanded.has(id)) && index.members.get(id)!.map(member => row(member, true))}

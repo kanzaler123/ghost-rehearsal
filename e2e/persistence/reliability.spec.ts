@@ -59,7 +59,7 @@ async function seed(page: Page) {
   });
 }
 
-test('saving a changed draft does not parse superseded project bodies', async ({ page }) => {
+test('101 linear drafts are trimmed atomically without parsing superseded project bodies', async ({ page }) => {
   await visit(page); await connect(page);
   const result = await page.evaluate(async () => {
     const { api, store } = window.persistenceTest, document = api.initialDocument();
@@ -76,9 +76,105 @@ test('saving a changed draft does not parse superseded project bodies', async ({
     JSON.parse = (...args) => { if (oldBodies.has(args[0])) parsedOld++; return parse(...args); };
     const write = await store.writeProject('long-history', document, { kind: 'draft', parents }).finally(() => { JSON.parse = parse; });
     const { status, snapshot } = api.unwrap(write);
-    return { status, parsedOld, heads: snapshot.heads.length, retained: snapshot.history.length };
+    const reopened = api.unwrap(await store.readProject('long-history'));
+    return { status, parsedOld, heads: snapshot.heads.length, retained: reopened.history.length, matches: reopened.heads[0].id === snapshot.heads[0].id };
   });
-  expect(result).toEqual({ status: 'draft-saved', parsedOld: 0, heads: 1, retained: 101 });
+  expect(result).toEqual({ status: 'draft-saved', parsedOld: 0, heads: 1, retained: 20, matches: true });
+});
+
+test('a sleeping tab can fork from a pruned draft and resolve both edits after further compaction', async ({ page, context }) => {
+  await visit(page); await connect(page);
+  const tab = await context.newPage(); await visit(tab); await connect(tab);
+  const id = 'constructor';
+  const saved = await page.evaluate(async id => {
+    const { store, api } = window.persistenceTest, doc = api.emptyProject();
+    const saved = api.unwrap(await store.writeProject(id, doc, { kind: 'saved', parents: [] })).revision;
+    doc.plans[0].name = 'Both tabs saw this';
+    api.unwrap(await store.writeProject(id, doc, { kind: 'draft', parents: [saved.id] }));
+    api.unwrap(await store.writeProject('other', api.emptyProject(), { kind: 'draft', parents: [] }));
+    return saved.id;
+  }, id);
+  const old = await tab.evaluate(async id => {
+    const { store, api } = window.persistenceTest;
+    const state = api.unwrap(await store.readProject(id));
+    if (state.status !== 'ready') throw new Error('Expected draft');
+    return state.current;
+  }, id);
+  const advance = (parent: string) => page.evaluate(async ({ id, parent }) => {
+    const { store, api } = window.persistenceTest, doc = api.emptyProject();
+    for (let i = 0; i < 30; i++) {
+      doc.plans[0].name = `Active tab ${i}`;
+      parent = api.unwrap(await store.writeProject(id, doc, { kind: 'draft', parents: [parent] })).revision.id;
+    }
+    return parent;
+  }, { id, parent });
+  const first = await advance(old.id);
+  const fork = await tab.evaluate(async old => {
+    const { store, api } = window.persistenceTest;
+    const raw = await store.exportRaw(old.id);
+    if (raw.ok || raw.error.code !== 'not-found') throw new Error('Stale base should have been pruned');
+    old.value.plans[0].name = 'Sleeping tab edit';
+    const result = api.unwrap(await store.writeProject(old.projectId!, old.value, { kind: 'draft', parents: [old] }));
+    return { id: result.revision.id, status: result.status, heads: result.snapshot.heads.map(head => head.raw) };
+  }, old);
+  expect(fork.status).toBe('conflict');
+  expect(fork.heads).toHaveLength(2);
+  expect(fork.heads.join(' ')).toContain('Sleeping tab edit');
+  expect(fork.heads.join(' ')).toContain('Active tab 29');
+  const active = await advance(first);
+  const result = await tab.evaluate(async ({ id, active, fork, old }) => {
+    const { store, api } = window.persistenceTest, doc = api.emptyProject();
+    const before = api.unwrap(await store.readProject(id));
+    doc.plans[0].name = 'Resolved together';
+    const merge = api.unwrap(await store.writeProject(id, doc, { kind: 'draft', parents: [active, fork, old] }));
+    store.close();
+    const reopened = api.unwrap(await api.openPersistence({ databaseName: 'task-a' }));
+    const state = api.unwrap(await reopened.readWorkspace());
+    reopened.close();
+    return { heads: before.heads.map(row => row.id).sort(), retained: before.history.length, status: merge.status,
+      parents: merge.revision.parents, saved: state.savedRevisionId, current: state.projects.find(p => p.projectId === id)!.heads[0].raw,
+      other: state.projects.find(p => p.projectId === 'other')!.history.length };
+  }, { id, active, fork: fork.id, old });
+  expect(result).toMatchObject({ heads: [active, fork.id].sort(), retained: 22, status: 'draft-saved',
+    parents: [active, fork.id], saved, other: 1 });
+  expect(result.current).toContain('Resolved together');
+});
+
+test('pruning preserves manual saves, fork and merge choices and rolls back on a failed delete', async ({ page }) => {
+  await visit(page); await connect(page);
+  const result = await page.evaluate(async () => {
+    const { store, api } = window.persistenceTest, doc = api.emptyProject();
+    const write = async (name: string, parents: string[], kind: 'saved' | 'draft' = 'draft') => {
+      doc.plans[0].name = name;
+      return api.unwrap(await store.writeProject('tree', doc, { kind, parents })).revision.id;
+    };
+    const original = await write('Original', [], 'saved');
+    const base = await write('Fork point', [original]);
+    const a = await write('Left edit', [base]), b = await write('Right edit', [base]);
+    const merge = await write('Merged', [a, b]), saved = await write('Manual save', [merge], 'saved');
+    let tip = saved;
+    for (let i = 0; i < 20; i++) tip = await write(`Draft ${i}`, [tip]);
+    const before = api.unwrap(await store.readProject('tree')).history.map(row => row.id).sort();
+    const remove = IDBObjectStore.prototype.delete;
+    IDBObjectStore.prototype.delete = function(key) {
+      remove.call(this, key);
+      throw new DOMException('Interrupted pruning', 'QuotaExceededError');
+    };
+    doc.plans[0].name = 'Pending edit';
+    const failed = await store.writeProject('tree', doc, { kind: 'draft', parents: [tip] })
+      .finally(() => { IDBObjectStore.prototype.delete = remove; });
+    const after = api.unwrap(await store.readProject('tree'));
+    await write('Pending edit', [tip]);
+    const workspace = api.unwrap(await store.readWorkspace());
+    const state = workspace.projects[0], records = new Map(state.history.map(row => [row.id, row]));
+    return { failed, rolledBack: after.heads[0].id === tip && before.join() === after.history.map(row => row.id).sort().join(),
+      protected: [original, base, a, b, merge, saved].every(id => records.has(id)),
+      mergeIntact: records.get(merge)?.parents.join() === [a, b].join(), pointerIntact: workspace.savedRevisionId === saved,
+      rows: state.history.length, status: state.status, raw: state.heads[0].raw };
+  });
+  expect(result).toMatchObject({ failed: { ok: false, error: { code: 'quota' } }, rolledBack: true,
+    protected: true, mergeIntact: true, pointerIntact: true, rows: 26, status: 'ready' });
+  expect(result.raw).toContain('Pending edit');
 });
 
 test('fresh storage, constructor project round trip, owned draft dismissal and reload recovery', async ({ page }) => {

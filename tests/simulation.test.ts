@@ -5,7 +5,8 @@ import type { RunRequest, ServiceNode } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 import { generatePopulation, inputKey, keyedDraw, scenarioKey } from '../src/simulation/input';
 import * as input from '../src/simulation/input';
-import { playbackAt } from '../src/simulation/metrics';
+import { createPlaybackReader, playbackAt } from '../src/simulation/playback';
+import { liveSummary, nodeEvidence } from '../src/features/analysis';
 
 function fixture(): RunRequest {
   return {
@@ -24,6 +25,38 @@ function fixture(): RunRequest {
 const service = (request: RunRequest) => request.plan.graph.nodes[1] as ServiceNode;
 
 describe('离散事件仿真', () => {
+  it.each(['service', 'exit'] as const)('runs, replays and counts a %s with the legal ID constructor', role => {
+    const request = fixture(), id = 'constructor';
+    request.scenario.observationCutoff = 40;
+    const stream = request.scenario.arrivalStreams[0], entrance = request.plan.graph.nodes[0];
+    if (entrance.type !== 'entrance' || stream.kind !== 'records') throw new Error('fixture');
+    stream.id = id; stream.records[0].id = id; entrance.arrivalStreamIds = [id];
+    request.plan.graph.nodes.find(node => node.type === role)!.id = id;
+    for (const edge of request.plan.graph.edges) {
+      if (edge.source === role) edge.source = id;
+      if (edge.target === role) edge.target = id;
+    }
+    request.plan.graph.edges[0].id = id;
+    const run = simulate(request);
+    expect(run.status).toBe('succeeded');
+    expect(run.statistics!.outcomes.completed).toBe(3);
+    const serviceId = role === 'service' ? id : 'service', exitId = role === 'exit' ? id : 'exit';
+    expect(run.statistics!.nodes.find(node => node.id === serviceId)).toMatchObject({ waiting: 30, averageWaiting: 10, maxQueue: 2 });
+    expect(run.statistics!.visitors.reduce((sum, person) => sum + person.nodeWaiting[serviceId], 0)).toBe(30);
+    expect(nodeEvidence(run, serviceId, 'cutoff')!.queued).toBe(2);
+    const reader = createPlaybackReader(run.events, request.plan, { checkpointInterval: 2 });
+    for (const time of [40, 0, 40]) {
+      const view = reader.at(time);
+      expect(view).toEqual(playbackAt(run.events, request.plan, time));
+      expect(Object.getPrototypeOf(view.nodes)).toBeNull();
+      expect(Object.getPrototypeOf(view.visitors)).toBeNull();
+      expect(view.visitors[id]).toBeUndefined();
+      const summary = liveSummary(view);
+      expect(summary.exits[exitId] ?? 0).toBe(time ? 3 : 0);
+    }
+    reader.dispose();
+  });
+
   it('replays passage and occupancy across node types after backward seeks and reordered plans', () => {
     const request = fixture(); request.scenario.observationCutoff = 40;
     request.plan.graph.nodes.push({ id: 'hold', type: 'waiting_area', name: 'Hold', layout: { x: 150, y: 0 }, release: { kind: 'until_time', releaseAt: 5 } });

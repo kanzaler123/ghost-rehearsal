@@ -5,7 +5,7 @@ import { projectDocumentSchema } from '../src/schemas';
 import type { Plan, RunRequest } from '../src/schemas';
 import { simulate } from '../src/simulation/engine';
 import type { SimulationRun } from '../src/simulation/types';
-import { affectedVisitors } from '../src/features/analysis';
+import { affectedVisitors, comparisonContext } from '../src/features/analysis';
 import { readProject } from '../src/features/project';
 import { MESSAGES } from '../src/i18n/messages';
 import { issueText } from '../src/i18n/issues';
@@ -95,7 +95,7 @@ import { CompareReport } from '../src/components/CompareReport';
 import { Inspector } from '../src/components/Inspector';
 import { ResourcesEditor } from '../src/components/Dialogs';
 import { GhostJourney } from '../src/components/Journey';
-import { ResourceUse } from '../src/components/Results';
+import { Insights, ResourceUse } from '../src/components/Results';
 
 type Element = ReactElement<Record<string, any>>;
 const document = projectDocumentSchema.parse(example);
@@ -394,4 +394,43 @@ describe('studio presentation preserves simulation contracts', () => {
     expect(canvas().request.target.byPlan).toEqual({ [planA.id]: ['checkin'], [planB.id]: ['checkin-extra'] });
     expect(tree.some(item => item.props['aria-label'] === t.dock.play)).toBe(true);
   });
+});
+
+it('pages all 10,000 paired guests and backlog guests in stable wait order', () => {
+  compare();
+  const count = 10_000, nodeId = 'checkin';
+  const visitors = Array.from({ length: count }, (_, i) => ({
+    ...lastRuns[0].statistics!.visitors[0], id: `guest-${i}`, outcome: 'unfinished' as const, waiting: 10_100,
+  }));
+  const run = { ...lastRuns[0], events: visitors.map((visitor, seq) => ({
+    type: 'QUEUE_ENTER' as const, time: 0, seq, nodeId, participantId: visitor.id,
+  })), statistics: { ...lastRuns[0].statistics!, visitors, arrived: count, until: 10_100 } };
+  const second = { ...lastRuns[1], statistics: { ...lastRuns[1].statistics!, arrived: count, until: 10_100,
+    visitors: visitors.map((visitor, i) => ({ ...visitor, waiting: i })) } };
+  const context = comparisonContext(run, second, 'cutoff');
+  expect(context.select()).toBe(context.visitors);
+  for (const filter of ['less', 'more', 'same', 'rescued', 'lost'] as const) expect(context.select(filter)).toBe(context.select(filter));
+  expect(context.select('less')).toHaveLength(count);
+  const onChoose = vi.fn();
+  const panel = () => flatten(hooks.render(() => Insights({ run, second, compare: true, comparisonReady: true,
+    basis: 'cutoff', initialEvidence: { id: nodeId, owner: run.request.plan.id }, changes: [], scenarioId: run.request.scenario.id,
+    overrides: 0, onSelectNode: vi.fn(), onChoose, onJump: vi.fn() }), 'insights'));
+  panel().find(item => item.type === 'button' && text(item).includes(t.evidence.groups.less))!.props.onClick();
+  const elements = panel();
+  for (const label of [t.evidence.groups.less, t.review.affected]) {
+    const list = elements.find(item => item.props.label === label && typeof item.props.children === 'function')!;
+    const renderPage = () => flatten(hooks.render(() => (list.type as (props: typeof list.props) => unknown)(list.props), label));
+    for (let start = 0; start < count; start += 20) {
+      const page = renderPage(), buttons = page.filter(item => item.type === 'button');
+      const guests = buttons.filter(item => text(item).startsWith('guest-'));
+      expect(guests).toHaveLength(20);
+      expect(text(guests[0]).split(' ')[0]).toBe(`guest-${start}`);
+      expect(text(guests[19]).split(' ')[0]).toBe(`guest-${start + 19}`);
+      expect(text(page.find(item => item.type === 'nav'))).toContain(`${start + 1}–${start + 20} / 10000`);
+      expect(buttons.find(item => text(item) === t.reportUi.previous)!.props.disabled).toBe(start === 0);
+      const next = buttons.find(item => text(item) === t.reportUi.next)!;
+      if (start + 20 < count) next.props.onClick();
+      else { expect(next.props.disabled).toBe(true); guests[19].props.onClick(); expect(onChoose).toHaveBeenLastCalledWith('guest-9999'); }
+    }
+  }
 });

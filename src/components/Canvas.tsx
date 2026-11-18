@@ -225,7 +225,7 @@ interface Props {
   editable: boolean; issues: ValidationIssue[]; view: PlaybackState; previous?: PlaybackState; run?: SimulationRun; time: number; stale: boolean;
   tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string; changed?: Set<string>;
   request: ViewRequest; stageView: boolean; expanded: Set<string> | 'all'; onStage: (id: string, open: boolean) => void;
-  label?: { badge: string; name: string; note?: string; status?: string };
+  label?: { badge: 'A' | 'B'; name: string; note?: string; status?: string };
   compact?: boolean; reducedMotion?: boolean; onManual?: () => void;
 }
 
@@ -475,7 +475,7 @@ function CanvasInner(props: Props) {
       </>}
       <button type="button" className="canvas-menu-fit" onClick={() => { placement.request('default'); setMenu(null); }}>{t.stage.fit}</button>
     </div>}
-    {props.label && <div className={cls('pane-label', props.label.badge === 'B' && 'alt')}><span>{props.label.badge}</span><b title={props.label.name} aria-label={props.label.name} tabIndex={0}>{props.label.name}</b><small className="read-only-chip">{t.studioUi.readOnly}</small>
+    {props.label && <div className={cls('pane-label', props.label.badge === 'B' && 'alt')}><span title={props.label.badge === 'B' ? t.compare.b : t.compare.a}>{props.label.badge === 'B' ? t.sidebar.secondBadge : t.sidebar.currentBadge}</span><b title={props.label.name} aria-label={props.label.name} tabIndex={0}>{props.label.name}</b><small className="read-only-chip">{t.studioUi.readOnly}</small>
       {props.label.note && <em>{props.label.note}</em>}
       {props.label.status && <i className="pane-tracked"><Ghost size={13} />{props.label.status}</i>}
     </div>}

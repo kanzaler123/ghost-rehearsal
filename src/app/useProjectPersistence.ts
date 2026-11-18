@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectDocument } from '../schemas';
 import type { SavedTemplate } from '../features/project';
 import { newProjectId, openPersistence } from '../features/persistence';
-import type { Persistence, PersistenceError, Revision, TemplateSnapshot } from '../features/persistence';
+import type { Persistence, PersistenceError, Revision, StoredRevision, TemplateSnapshot } from '../features/persistence';
 
 export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null) => void) {
   const store = useRef<Persistence | null>(null);
-  const editor = useRef({ id: newProjectId(), parents: [] as string[], confirmed: '' });
+  const editor = useRef({ id: newProjectId(), parents: [] as StoredRevision[], confirmed: '' });
   const queue = useRef(Promise.resolve());
   const recoveryRequest = useRef(0);
   const mounted = useRef(false);
@@ -29,7 +29,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const text = useMemo(() => JSON.stringify(project), [project]);
   const latest = useRef({ project, text, confirmedText }); latest.current = { project, text, confirmedText };
 
-  function accept(revision: Revision<ProjectDocument>, parents = [revision.id]) {
+  function accept(revision: Revision<ProjectDocument>, parents: StoredRevision[] = [revision]) {
     if (revision.status !== 'ready') return;
     editor.current = { id: revision.projectId!, parents, confirmed: JSON.stringify(revision.value) };
     setSavedText(revision.kind === 'saved' ? JSON.stringify(revision.value) : '');
@@ -74,7 +74,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
           setRecovery(result.value.projects.flatMap(item => item.heads));
           if (!templateWriting.current) receiveTemplates(result.value.templates);
           const current = result.value.projects.find(item => item.projectId === editor.current.id);
-          if (current && (current.status !== 'ready' || !editor.current.parents.includes(current.current.id))) setConflict(true);
+          if (current && (current.status !== 'ready' || !editor.current.parents.some(parent => parent.id === current.current.id))) setConflict(true);
         });
       });
     })();
@@ -89,7 +89,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     const operation = queue.current.then(async () => {
       if (kind === 'draft' && context.confirmed === captured) { succeeded = true; return; }
       const result = await instance.writeProject(context.id, document, { kind, parents: context.parents });
-      if (result.ok) { context.parents = [result.value.revision.id]; context.confirmed = result.value.status === 'conflict' ? '' : captured; }
+      if (result.ok) { context.parents = [result.value.revision]; context.confirmed = result.value.status === 'conflict' ? '' : captured; }
       if (!mounted.current || editor.current !== context) return;
       if (!result.ok) { setError(result.error); setConfirmedText(''); return; }
       setRecovery(previous => [...previous.filter(item => item.projectId !== context.id), ...result.value.snapshot.heads]);
@@ -112,9 +112,9 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     const context = editor.current;
     if (active && text !== confirmedText && !await write('draft', project, true)) return;
     if (request !== recoveryRequest.current || editor.current !== context || latest.current.text !== text) return;
-    const parents = recoveryOptions.filter(item => item.projectId === revision.projectId).map(item => item.id);
+    const parents: StoredRevision[] = recoveryOptions.filter(item => item.projectId === revision.projectId);
     if (context.id === revision.projectId) parents.push(...context.parents);
-    accept(revision, resolve ? [...new Set(parents)] : [revision.id]);
+    accept(revision, resolve ? [...new Map(parents.map(parent => [parent.id, parent])).values()] : [revision]);
     editor.current.confirmed = '';
     setConfirmedText('');
     await write('draft', revision.value, true);

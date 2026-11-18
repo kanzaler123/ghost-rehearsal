@@ -9,7 +9,7 @@ test('topbar cutoff execution selects available statistics without changing full
   await compareExample(page, t);
   const basis = page.getByLabel(t.review.basis, { exact: true });
   const completed = page.locator('.report-snapshot .snapshot-item > small').first();
-  await expect(completed).toHaveText('A 43 → B 41');
+  await expect(completed).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
   async function chooseBasis(value: 'cutoff' | 'completion') {
     await page.locator('.comparison-options > summary').click();
     await basis.selectOption(value);
@@ -34,16 +34,16 @@ test('topbar cutoff execution selects available statistics without changing full
   await run();
   await expect(basis).toHaveValue('cutoff');
   await expect(basis.locator('option[value=completion]')).toBeDisabled();
-  await expect(completed).toHaveText('A 43 → B 41');
+  await expect(completed).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
   await expect(page.locator('.report-stale')).toHaveCount(0);
   await run();
   await expect(basis).toHaveValue('cutoff');
-  await expect(completed).toHaveText('A 43 → B 41');
+  await expect(completed).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
   await chooseScope('run_to_completion');
   await run();
   await expect(basis).toHaveValue('cutoff');
   await expect(basis.locator('option[value=completion]')).toBeEnabled();
-  await expect(completed).toHaveText('A 43 → B 41');
+  await expect(completed).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
   await chooseBasis('completion');
   await run();
   await expect(basis).toHaveValue('completion');
@@ -99,7 +99,7 @@ for (const outcome of ['cutoff', 'full', 'cancel'] as const) {
     if (outcome === 'cutoff') {
       await expect(basis).toHaveValue('cutoff');
       await expect(basis.locator('option[value=completion]')).toBeDisabled();
-      await expect(snapshot).toHaveText('A 43 → B 41');
+      await expect(snapshot).toHaveText(`${t.compare.a} 43 → ${t.compare.b} 41`);
       await expect(page.locator('.report-stale')).toHaveCount(0);
     } else {
       await expect(basis).toHaveValue('completion');

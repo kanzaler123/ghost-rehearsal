@@ -59,7 +59,7 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await expect(page.getByRole('tab', { name: t.modes.Compare, exact: true })).toHaveAttribute('aria-selected', 'true');
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   expect(workers.some(url => /\/assets\/worker-[^/]+\.js$/.test(url))).toBe(true);
   await expect.poll(() => storedProject(page, 'draft')).not.toBeNull();
   const project = JSON.parse((await storedProject(page, 'draft'))!) as ProjectDocument;
@@ -112,7 +112,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await expect(page.getByRole('tab', { name: t.modes.Compare, exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
   expect(await storedProject(page, 'draft')).toBe(before);
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.fileReadFailed);
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.imported);

@@ -82,7 +82,7 @@ async function compareBaseline(page: Page, t: Messages, info: TestInfo) {
   await dialog.getByLabel(t.comparePicker.right, { exact: true }).selectOption('alternative');
   await dialog.getByLabel(t.run.scope, { exact: true }).selectOption('cutoff');
   await activate(dialog.getByRole('button', { name: t.comparePicker.apply, exact: true }), info);
-  await expect(page.locator('.people-stats b')).toHaveText(['12', '9', '279']);
+  await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);
 }
 
 test('create an event, edit shared parameters, save and reopen', async ({ page }, info) => {

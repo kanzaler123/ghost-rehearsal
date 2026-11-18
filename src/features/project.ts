@@ -15,6 +15,21 @@ export function initialDocument(): ProjectDocument {
   return projectDocumentSchema.parse(example);
 }
 
+export function plansInSourceOrder(plans: Plan[]): Plan[] {
+  const byId = new Map(plans.map(plan => [plan.id, plan]));
+  const seen = new Set<string>(), ordered: Plan[] = [];
+  for (const plan of plans) {
+    const chain: Plan[] = [];
+    let current: Plan | undefined = plan;
+    while (current && current.scenarioId === plan.scenarioId && !seen.has(current.id)) {
+      seen.add(current.id); chain.push(current);
+      current = current.sourcePlanId ? byId.get(current.sourcePlanId) : undefined;
+    }
+    ordered.push(...chain.reverse());
+  }
+  return ordered;
+}
+
 export function readProject(text: string, lang: Lang = 'zh'): { document?: ProjectDocument; error?: string; issues: ValidationIssue[] } {
   const result = parseDocument(text);
   if (!result.document) return { issues: result.issues, error: result.issues.map(issue => `${issue.path.join('.') || '$'}: ${issueText(issue, lang)}`).join('\n') };
@@ -137,13 +152,16 @@ export function addPlanFromTemplate(project: ProjectDocument, template: ProjectD
 }
 
 export function addEvent(project: ProjectDocument, event: ProjectDocument): ProjectDocument {
-  const next = addPlanFromTemplate(project, event, event.plans[0].name);
+  const originals = plansInSourceOrder(event.plans);
+  const next = addPlanFromTemplate(project, { ...event, plans: originals }, originals[0].name);
+  const copies = new Map([[originals[0].id, next.plans.at(-1)!.id]]);
   const scenarioId = next.plans.at(-1)!.scenarioId;
-  for (const original of event.plans.slice(1)) {
+  for (const original of originals.slice(1)) {
     const plan = structuredClone(original);
     plan.id = newId('plan', next.plans.map(item => item.id)); plan.scenarioId = scenarioId;
-    delete plan.sourcePlanId;
-    next.plans.push(plan);
+    if (plan.sourcePlanId && copies.has(plan.sourcePlanId)) plan.sourcePlanId = copies.get(plan.sourcePlanId);
+    else delete plan.sourcePlanId;
+    copies.set(original.id, plan.id); next.plans.push(plan);
   }
   return next;
 }
@@ -210,7 +228,8 @@ function addSubflowFromTemplate(plan: Plan, scenario: Scenario, template: SavedT
   const source = template.document.plans[0], originals = subflowMembers(template), ids = new Set(originals.map(node => node.id));
   const resolved: Record<keyof TemplateBindings, Map<string, string>> = { nodes: new Map(), streams: new Map(), attributes: new Map(), incoming: new Map(), outgoing: new Map() };
   for (const dependency of subflowDependencies(plan, scenario, template)) {
-    const id = bindings[dependency.kind]?.[dependency.id] ?? (dependency.kind === 'incoming' || dependency.kind === 'outgoing' ? '' : dependency.id);
+    const choices = bindings[dependency.kind];
+    const id = choices && Object.hasOwn(choices, dependency.id) ? choices[dependency.id] : (dependency.kind === 'incoming' || dependency.kind === 'outgoing' ? '' : dependency.id);
     if (!dependency.options.some(option => option.id === id)) throw new Error(`Choose a compatible ${dependency.kind} binding: ${dependency.name}`);
     if (dependency.kind === 'streams' && [...resolved.streams.values()].includes(id)) throw new Error(`Arrival stream already bound: ${id}`);
     if (dependency.kind === 'incoming' && [...resolved.incoming.values()].includes(id)) throw new Error(`Route already bound: ${id}`);
@@ -492,15 +511,15 @@ export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun 
   if (!a || !b || !left || !right || !people) return t.report.noRun;
   const costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups, bins = threshold ? t.evidence.bins : t.evidence.anyBins;
-  return [`## ${t.evidence.comparison}`, '', `A: ${a.request.plan.name} (${a.request.plan.id})`, `B: ${b.request.plan.name} (${b.request.plan.id})`,
+  return [`## ${t.evidence.comparison}`, '', `${t.compare.a}: ${a.request.plan.name} (${a.request.plan.id})`, `${t.compare.b}: ${b.request.plan.name} (${b.request.plan.id})`,
     t.report.scenario(a.request.scenario.name ?? a.request.scenario.id, a.request.scenario.id),
     t.report.seed(a.request.scenario.seed), t.report.window(a.request.scenario.observationCutoff, a.request.scenario.horizon),
     `${t.review.basis}: ${t.review[basis]}`, `${t.evidence.threshold}: ${threshold ? t.evidence.minute : t.evidence.any}`, t.evidence.rule,
-    t.evidence.population, t.evidence.paired(people.total),
+    t.evidence.population, t.evidence.paired(people.total), t.evidence.excluded(people.excluded),
     ...[left, right].flatMap((stats, index) => {
       const completed = completedWaiting(stats), run = index ? b : a;
-      return [`${index ? 'B' : 'A'} · ${t.run.scope}: ${run.request.runMode === 'cutoff' ? t.run.cutoff : t.run.completion}`,
-        `${index ? 'B' : 'A'}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
+      return [`${index ? t.compare.b : t.compare.a} · ${t.run.scope}: ${run.request.runMode === 'cutoff' ? t.run.cutoff : t.run.completion}`,
+        `${index ? t.compare.b : t.compare.a}: ${t.evidence.side(formatTime(stats.until), stats.arrived, stats.outcomes.not_arrived, stats.arrived - people.total)}`,
         t.report.model(run.modelVersion, run.request.scenario.id, t.review[basis]), `Input SHA-256: ${run.inputKey}`, `Scenario SHA-256: ${run.scenarioKey}`,
         t.report.counts(stats.arrived, Object.entries(stats.outcomes).map(([outcome, count]) => `${t.outcomes[outcome]}: ${count}`).join('; ')),
         t.report.waits(t.formatWait(stats.averageWaiting), t.formatWait(stats.p90Waiting)),

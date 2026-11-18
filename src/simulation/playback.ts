@@ -4,7 +4,11 @@ import type { PlaybackState, SimulationEvent } from './types';
 const stateField = (type: string): 'queued' | 'blocked' | 'holding' | 'serving' | null => ({ QUEUE_ENTER: 'queued', QUEUE_BLOCKED: 'blocked', HOLD_ENTER: 'holding', SERVICE_START: 'serving' }[type] as 'queued' | 'blocked' | 'holding' | 'serving' | undefined) ?? null;
 export const nodeTypesOf = (plan: Plan) => new Map(plan.graph.nodes.map(node => [node.id, node.type]));
 type NodeTypes = ReturnType<typeof nodeTypesOf>;
-const emptyState = (nodeTypes: NodeTypes): PlaybackState => ({ visitors: {}, nodes: Object.fromEntries([...nodeTypes.keys()].map(id => [id, { queued: [], blocked: [], holding: [], serving: [], completed: 0 }])) });
+function emptyState(nodeTypes: NodeTypes): PlaybackState {
+  const nodes: PlaybackState['nodes'] = Object.create(null);
+  for (const id of nodeTypes.keys()) nodes[id] = { queued: [], blocked: [], holding: [], serving: [], completed: 0 };
+  return { visitors: Object.create(null), nodes };
+}
 
 export function applyEvent(view: PlaybackState, event: SimulationEvent, nodeTypes: ReadonlyMap<string, Plan['graph']['nodes'][number]['type']>) {
   if (!event.participantId || event.type === 'RUN_WARNING') return;
@@ -46,16 +50,16 @@ interface Cursor { position: number; view: PlaybackState; latest: Map<string, nu
 interface Checkpoint { latest: Uint32Array; completed: Float64Array }
 
 function snapshot(view: PlaybackState): PlaybackState {
-  return {
-    nodes: Object.fromEntries(Object.entries(view.nodes).map(([id, node]) => [id, {
-      ...node, queued: [...node.queued], blocked: [...node.blocked], holding: [...node.holding], serving: [...node.serving],
-    }])),
-    visitors: Object.fromEntries(Object.entries(view.visitors).map(([id, event]) => [id, {
-      ...event,
-      ...(event.resourceUnitIds ? { resourceUnitIds: [...event.resourceUnitIds] } : {}),
-      ...(event.details ? { details: Object.fromEntries(Object.entries(event.details).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) } : {}),
-    }])),
+  const nodes: PlaybackState['nodes'] = Object.create(null), visitors: PlaybackState['visitors'] = Object.create(null);
+  for (const [id, node] of Object.entries(view.nodes)) nodes[id] = {
+    ...node, queued: [...node.queued], blocked: [...node.blocked], holding: [...node.holding], serving: [...node.serving],
   };
+  for (const [id, event] of Object.entries(view.visitors)) visitors[id] = {
+    ...event,
+    ...(event.resourceUnitIds ? { resourceUnitIds: [...event.resourceUnitIds] } : {}),
+    ...(event.details ? { details: Object.fromEntries(Object.entries(event.details).map(([key, value]) => [key, Array.isArray(value) ? [...value] : value])) } : {}),
+  };
+  return { nodes, visitors };
 }
 
 /** Events are a time-ordered, immutable run log until update() replaces it. */

@@ -27,7 +27,7 @@ import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Res
 import { comparisonContext, compatibleRuns, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
 import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, readProject, serializeTemplate, serializeTemplates, subflowDependencies, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, plansInSourceOrder, readProject, serializeTemplate, serializeTemplates, subflowDependencies, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate, TemplateBindings, TemplateDependency } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
@@ -155,8 +155,7 @@ export function App() {
     projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.reset(); setBusy(false); setLastRun(null);
     setProject(document); setPast([]); setFuture([]); setRuns(createRunResults());
-    setPlanId(document.plans[0].id); setSecondId(document.plans[1]?.id ?? '');
-    setSelection({ id: '', kind: 'node', owner: document.plans[0].id });
+    selectInitialPlans(document.plans);
     setPlaying(false); setTime(0); setMode('Build'); setDialog(null);
     say(tr => tr.review.draftRestored);
   });
@@ -221,6 +220,13 @@ export function App() {
   const picks = useMemo(() => !run || !needsPicks ? [] : comparing ? comparison.picks()
     : rehearsePicks(run, view, time, 3, selectedStats), [run, comparing, comparison, view, time, selectedStats, needsPicks]);
 
+  function selectInitialPlans(plans: Plan[]) {
+    const [first, ...others] = plansInSourceOrder(plans);
+    setPlanId(first.id);
+    setSecondId((others.find(item => item.scenarioId === first.scenarioId && item.sourcePlanId === first.id)
+      ?? others.find(item => item.scenarioId === first.scenarioId))?.id ?? '');
+    setSelection({ id: '', kind: 'node', owner: first.id });
+  }
   function commit(next: ProjectDocument, previous = project) {
     if (JSON.stringify(next) === JSON.stringify(previous)) return;
     setPast(items => [...items, previous].slice(-100)); setFuture([]); setProject(next);
@@ -247,9 +253,7 @@ export function App() {
       setLastRun(null);
       persistence.replace();
       commit(result.document, currentProject.current);
-      setPlanId(result.document.plans[0].id);
-      setSelection({ id: '', kind: 'node', owner: result.document.plans[0].id });
-      setSecondId(result.document.plans[1]?.id ?? ''); setRuns(createRunResults()); setMode('Build');
+      selectInitialPlans(result.document.plans); setRuns(createRunResults()); setMode('Build');
       setPlaying(false); setTime(0);
       // Editors hold drafts of the replaced document, even when its IDs match.
       // Keep only dialogs independent of that document; an owned entry still closes.
@@ -310,7 +314,7 @@ export function App() {
         if (dependencies.length) {
           const values: TemplateBindings = {};
           for (const item of dependencies) if (item.kind !== 'incoming' && item.kind !== 'outgoing' && item.options.some(option => option.id === item.id)) {
-            values[item.kind] = { ...values[item.kind], [item.id]: item.id };
+            (values[item.kind] ??= Object.create(null))[item.id] = item.id;
           }
           setConnections({ template, dependencies, values }); setTemplateError(''); setDialog('template-bindings'); return;
         }
@@ -337,7 +341,7 @@ export function App() {
     const stageKeys = [...new Set(ids.flatMap(id => plans.flatMap(target => { const node = target.graph.nodes.find(item => item.id === id); return node?.type === 'service' ? [node.stageKey] : []; })))];
     const stages = [...new Set(ids.flatMap(id => indexes.flatMap(index => { const top = index.top.get(id); return top ? [top] : index.stages.includes(id) ? [id] : []; })))];
     if (canvasView === 'stages') setExpanded(stages);
-    requestView({ ids, stageKeys, stages, byPlan });
+    requestView({ ids, stageKeys, stages, byPlan: byPlan && Object.assign(Object.create(null), byPlan) });
   }
   function toggleStage(id: string, open: boolean) {
     if (open) { setExpanded([id]); requestView({ ids: [id], stages: [id] }); }
@@ -524,9 +528,9 @@ export function App() {
     projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.cancel();
     const next = dialog === 'welcome' ? event : addEvent(project, event);
-    const first = next.plans[dialog === 'welcome' ? 0 : project.plans.length];
-    commit(next); setPlanId(first.id); setSecondId(next.plans.find(item => item.id !== first.id && item.scenarioId === first.scenarioId)?.id ?? ''); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
-    setSelection({ id: '', kind: 'node', owner: first.id }); setDialog(null);
+    selectInitialPlans(dialog === 'welcome' ? event.plans : next.plans.slice(project.plans.length));
+    commit(next); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
+    setDialog(null);
   }
   useEffect(() => {
     if (!playing) return;
@@ -682,9 +686,9 @@ export function App() {
       onExportProject={exportGuideProject} onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
     {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
-      <div className="comparison-identities"><span>A · {plan.name}</span><span>B · {second?.name}</span></div>
+      <div className="comparison-identities"><span>{t.compare.a} · {plan.name}</span><span>{t.compare.b} · {second?.name}</span></div>
       <button type="button" className="btn small" disabled={busy} onClick={() => setDialog('comparison-plans')}>{t.comparePicker.title}</button>
-      <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · A {selectedStats ? formatTime(selectedStats.until) : '—'} / B {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
+      <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · {t.sidebar.currentBadge} {selectedStats ? formatTime(selectedStats.until) : '—'} / {t.sidebar.secondBadge} {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
       <label>{t.evidence.threshold}<select ref={thresholdInput} aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
       <small>{t.review.completionHint}</small>
@@ -692,9 +696,9 @@ export function App() {
       <button type="button" className="text-btn" aria-expanded={liveExpanded} aria-controls="comparison-live" onClick={() => setLiveExpanded(value => !value)}>{t.live.title} · {formatTime(time)}<ChevronDown size={14} aria-hidden="true" /></button>
     </div>}
     {comparing && <div id="comparison-live" hidden={!liveExpanded} className="metrics-strip two-clocks comparison-live">
-          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} planName={`A · ${plan.name}`}
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} planName={`${t.compare.a} · ${plan.name}`}
             queues={longestQueues(run?.request.plan ?? plan, view, previousView).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} />
-          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics.map(item => ({ ...item, value: String(liveSummary(secondView)[item.key === 'flow' ? 'inFlow' : item.key === 'wait' ? 'waiting' : item.key === 'serve' ? 'serving' : 'completed']) }))} available={!!secondRun} planName={`B · ${second?.name ?? ''}`}
+          <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics.map(item => ({ ...item, value: String(liveSummary(secondView)[item.key === 'flow' ? 'inFlow' : item.key === 'wait' ? 'waiting' : item.key === 'serve' ? 'serving' : 'completed']) }))} available={!!secondRun} planName={`${t.compare.b} · ${second?.name ?? ''}`}
             queues={longestQueues(secondRun?.request.plan ?? second ?? plan, secondView, secondPrevious).map(item => ({ id: item.node.id, name: item.node.name, waiting: item.waiting }))} onQueue={id => { setSelection({ id, kind: 'node', owner: second!.id }); focusNodes([id]); }} />
         </div>}
     {comparing && <nav className="mobile-compare-nav" aria-label={t.workspace.focus}>
@@ -705,19 +709,19 @@ export function App() {
     </nav>}
     <div className="workspace" ref={workspaceRef}>
       {!fullSidebar && mode === 'Rehearse' && <aside className="sidebar is-rail" aria-label={t.navigator.title}>
-        <div className="plan-rail-badges"><button type="button" className="plan-badge is-a" title={plan.name} aria-label={`A · ${plan.name} · ${t.studioUi.currentPlan}`} onClick={() => setRailExpanded(true)}>A<StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{second && <button type="button" className="plan-badge is-b" title={second.name} aria-label={`B · ${second.name}`} onClick={() => setRailExpanded(true)}>B</button>}</div>
+        <div className="plan-rail-badges"><button type="button" className="plan-badge is-a" title={plan.name} aria-label={`${t.compare.a} · ${plan.name} · ${t.studioUi.currentPlan}`} onClick={() => setRailExpanded(true)}>{t.sidebar.currentBadge}<StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{second && <button type="button" className="plan-badge is-b" title={second.name} aria-label={`${t.compare.b} · ${second.name}`} onClick={() => setRailExpanded(true)}>{t.sidebar.secondBadge}</button>}</div>
         <FlowNavigator plan={plan} index={indexA} view={view} previous={previousView} expanded={expandedSet} selected={selection.id} time={time}
           onStage={id => toggleStage(id, !(expandedSet === 'all' || expandedSet.has(id)) || canvasView === 'full')} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onExpandSidebar={() => setRailExpanded(true)} />
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
-        <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">A · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}<button type="button" className="text-btn robustness-trigger" aria-label={robustnessLabels[lang].title} title={robustnessLabels[lang].title} disabled={busy} onClick={event => { event.currentTarget.focus(); setPlaying(false); setDialog('robustness'); }}><FlaskConical size={15} aria-hidden="true" /></button></div>
+        <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">{t.compare.a} · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}<button type="button" className="text-btn robustness-trigger" aria-label={robustnessLabels[lang].title} title={robustnessLabels[lang].title} disabled={busy} onClick={event => { event.currentTarget.focus(); setPlaying(false); setDialog('robustness'); }}><FlaskConical size={15} aria-hidden="true" /></button></div>
         <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
       {fullSidebar && <PlanNavigator project={project} scenario={scenario} plan={plan} second={second} busy={busy} editing={!readOnly} collapsed={mode === 'Build' && navigatorCollapsed} selection={selection} search={search}
         onCollapse={() => mode === 'Build' ? setNavigatorCollapsed(value => !value) : setRailExpanded(false)}
-        onScenario={id => { const target = project.plans.find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { if (id !== secondId && launchContext.current?.destination === 'Compare') launchContext.current.presentResult = false; setSecondId(id); setPlaying(false); }}
+        onScenario={id => { const target = plansInSourceOrder(project.plans).find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { if (id !== secondId && launchContext.current?.destination === 'Compare') launchContext.current.presentResult = false; setSecondId(id); setPlaying(false); }}
         onNew={() => setDialog('new')} onSettings={() => enterBuild(plan.id, 'scenario')} onGuests={() => enterBuild(plan.id, 'scenario')} onResources={() => enterBuild(plan.id, 'resources')}
         onRename={() => { setPlanName(plan.name); setDialog('rename-plan'); }} onDuplicate={copyPlan} onDelete={() => { const remaining = project.plans.filter(item => item.id !== plan.id); setRuns(previous => removeRunResults(previous, [plan.id])); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}
         onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
@@ -782,7 +786,7 @@ export function App() {
             </button>)}
             <span className="dock-spacer" />
             {run && <details className="legend"><summary>{t.legend.label}</summary><div role="note">{LEGEND.map(key => <span key={key} className={`lg-${key}`}><i aria-hidden="true" />{t.legend[key]}</span>)}</div></details>}
-            {(stale || (mode === 'Compare' && secondStale)) && <span role="status">{t.metrics.stale}{mode === 'Compare' ? ` · ${[stale && 'A', secondStale && 'B'].filter(Boolean).join(', ')}` : ''}</span>}
+            {(stale || (mode === 'Compare' && secondStale)) && <span role="status">{t.metrics.stale}{mode === 'Compare' ? ` · ${[stale && t.compare.a, secondStale && t.compare.b].filter(Boolean).join(', ')}` : ''}</span>}
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => { if (comparing && compareFocus === 'person' && dockOpen) showOverview(); else setDockOpen(value => !value); }}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
           </div>
@@ -916,10 +920,10 @@ export function App() {
       <form onSubmit={event => { event.preventDefault(); useNodeTemplate(connections.template, connections.values); }}>
         <div className="modal-body"><p>{t.templates.connectHint}</p>{connections.dependencies.map(item => <label className="field" key={`${item.kind}:${item.id}`}><span>{t.templates.bindingKinds[item.kind]} · {item.name}</span>
           <select required value={connections.values[item.kind]?.[item.id] ?? ''} onChange={event => {
-            const value = event.target.value, values = { ...connections.values, [item.kind]: { ...connections.values[item.kind], [item.id]: value } };
+            const value = event.target.value, values = { ...connections.values, [item.kind]: Object.assign(Object.create(null), connections.values[item.kind], { [item.id]: value }) };
             const exits = connections.dependencies.filter(port => port.kind === 'outgoing');
             if (item.kind === 'incoming' && connections.dependencies.filter(port => port.kind === 'incoming').length === 1 && exits.length === 1) {
-              values.outgoing = { [exits[0].id]: plan.graph.edges.find(edge => edge.id === value)?.target ?? '' };
+              values.outgoing = Object.assign(Object.create(null), { [exits[0].id]: plan.graph.edges.find(edge => edge.id === value)?.target ?? '' });
             }
             setConnections({ ...connections, values }); setTemplateError('');
           }}><option value="">{t.templates.chooseConnection}</option>{item.options.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select>
@@ -941,7 +945,7 @@ export function App() {
       <p className="subtle">{lang === 'zh' ? PRODUCT_STATEMENT.en : PRODUCT_STATEMENT.zh}</p>
       <p>{t.dialogs.about3}</p>
     </div></Modal>}
-    {dialog === 'comparison-plans' && <ComparisonPlanPicker plans={project.plans.filter(item => item.scenarioId === scenario.id)} left={plan.id} right={second?.id ?? ''} scope={runMode} guided={!!guide} onClose={() => setDialog(null)} onCompare={comparePlans} />}
+    {dialog === 'comparison-plans' && <ComparisonPlanPicker plans={plansInSourceOrder(project.plans.filter(item => item.scenarioId === scenario.id))} left={plan.id} right={second?.id ?? ''} scope={runMode} guided={!!guide} onClose={() => setDialog(null)} onCompare={comparePlans} />}
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>

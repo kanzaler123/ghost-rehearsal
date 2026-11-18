@@ -20,7 +20,7 @@ export function calculateStatistics(population: Participant[], events: Simulatio
     const ending = list.find(event => event.type === 'VISITOR_COMPLETE' || event.type === 'VISITOR_LEAVE');
     const outcome: Outcome = ending?.type === 'VISITOR_COMPLETE' ? 'completed' : ending?.details?.outcome as Outcome ?? (list.length ? 'unfinished' : 'not_arrived');
     const result: VisitorMetrics = { id: person.id, outcome, completedAt: ending?.type === 'VISITOR_COMPLETE' ? ending.time : null,
-      waiting: 0, queueWaiting: 0, blockedWaiting: 0, holdWaiting: 0, nodeWaiting: {} };
+      waiting: 0, queueWaiting: 0, blockedWaiting: 0, holdWaiting: 0, nodeWaiting: Object.create(null) };
     list.forEach((event, index) => {
       if (!waitingTypes.has(event.type)) return;
       const duration = Math.max(0, (list[index + 1]?.time ?? until) - event.time);

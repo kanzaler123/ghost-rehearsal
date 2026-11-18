@@ -20,8 +20,8 @@ describe('comparison report run context', () => {
       expect(text).toContain(t.report.seed(173));
       expect(text).toContain(t.report.window(900, 3600));
       expect(text).toContain(`${t.review.basis}: ${t.review.cutoff}`);
-      expect(text).toContain(`A · ${t.run.scope}: ${t.run.cutoff}`);
-      expect(text).toContain(`B · ${t.run.scope}: ${t.run.cutoff}`);
+      expect(text).toContain(`${t.compare.a} · ${t.run.scope}: ${t.run.cutoff}`);
+      expect(text).toContain(`${t.compare.b} · ${t.run.scope}: ${t.run.cutoff}`);
       expect(text).toContain(`Input SHA-256: ${cutoff.inputKey}`);
       expect(text).toContain(`Input SHA-256: ${cutoffB.inputKey}`);
     });
@@ -29,8 +29,8 @@ describe('comparison report run context', () => {
       for (const basis of ['cutoff', 'completion'] as const) {
         const text = comparisonReport(fullA, fullB, true, t, basis, 0);
         expect(text).toContain(`${t.review.basis}: ${t.review[basis]}`);
-        expect(text).toContain(`A · ${t.run.scope}: ${t.run.completion}`);
-        expect(text).toContain(`B · ${t.run.scope}: ${t.run.completion}`);
+        expect(text).toContain(`${t.compare.a} · ${t.run.scope}: ${t.run.completion}`);
+        expect(text).toContain(`${t.compare.b} · ${t.run.scope}: ${t.run.completion}`);
         expect(text).toContain(t.report.seed(173));
         expect(text).toContain(t.report.window(900, 3600));
       }

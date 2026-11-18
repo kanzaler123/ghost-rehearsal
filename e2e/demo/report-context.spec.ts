@@ -23,7 +23,7 @@ test('downloaded comparison records actual run scope independently of view and n
   expect(full).toContain(t.report.seed(scenario.seed));
   expect(full).toContain(t.report.window(scenario.observationCutoff, scenario.horizon));
   expect(full).toContain(`${t.review.basis}: ${t.review.cutoff}`);
-  for (const side of ['A', 'B']) expect(full).toContain(`${side} · ${t.run.scope}: ${t.run.completion}`);
+  for (const side of [t.compare.a, t.compare.b]) expect(full).toContain(`${side} · ${t.run.scope}: ${t.run.completion}`);
   await page.locator('.workspace-menu > summary').click();
   await page.getByLabel(t.run.scope, { exact: true }).selectOption('cutoff');
   await page.locator('.workspace-menu > summary').click();
@@ -41,7 +41,7 @@ test('downloaded comparison records actual run scope independently of view and n
   await page.locator('.comparison-options > summary').click();
   const final = await exportText(t.evidence.comparison);
   expect(final).toContain(`${t.review.basis}: ${t.review.completion}`);
-  for (const side of ['A', 'B']) expect(final).toContain(`${side} · ${t.run.scope}: ${t.run.completion}`);
+  for (const side of [t.compare.a, t.compare.b]) expect(final).toContain(`${side} · ${t.run.scope}: ${t.run.completion}`);
   // Choose cutoff statistics before execution; this independent branch does not depend on PR26.
   await page.locator('.comparison-options > summary').click();
   await page.getByLabel(t.review.basis, { exact: true }).selectOption('cutoff');
@@ -54,7 +54,7 @@ test('downloaded comparison records actual run scope independently of view and n
   expect((await worker).url()).toMatch(/\/assets\/worker-[^/]+\.js$/);
   await expect(page.getByRole('button', { name: t.run.start, exact: true })).toBeVisible();
   const cutoff = await exportText(t.evidence.comparison);
-  for (const side of ['A', 'B']) expect(cutoff).toContain(`${side} · ${t.run.scope}: ${t.run.cutoff}`);
+  for (const side of [t.compare.a, t.compare.b]) expect(cutoff).toContain(`${side} · ${t.run.scope}: ${t.run.cutoff}`);
   expect(cutoff).toContain(t.report.seed(scenario.seed));
   expect(cutoff).toContain(t.report.window(scenario.observationCutoff, scenario.horizon));
   expect(cutoff).toContain(`${t.review.basis}: ${t.review.cutoff}`);

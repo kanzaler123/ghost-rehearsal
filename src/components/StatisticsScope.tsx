@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { comparisonContext, completedWaiting, statisticsAt, THRESHOLD } from '../features/analysis';
 import type { ResultBasis, WaitThreshold } from '../features/analysis';
 import { formatTime } from '../features/project';
@@ -7,8 +8,9 @@ import type { SimulationRun } from '../simulation/types';
 export function StatisticsScope({ runs, basis, threshold = THRESHOLD }: { runs: SimulationRun[]; basis: ResultBasis; threshold?: WaitThreshold }) {
   const { t } = useI18n();
   const stats = runs.map(run => statisticsAt(run, basis));
+  const [left, right] = runs;
+  const context = useMemo(() => right ? comparisonContext(left, right, basis, threshold) : undefined, [left, right, basis, threshold]);
   if (!stats.length || stats.some(item => !item)) return <p className="report-note" role="status">{t.evidence.missing}</p>;
-  const context = runs.length === 2 ? comparisonContext(runs[0], runs[1], basis, threshold) : undefined;
   if (context && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   const paired = context?.sampleSize;
   return <div className="statistics-scope">
