@@ -60,7 +60,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   await expect(page.locator('.status-notice')).not.toHaveText(t.notices.fileReadFailed);
 });
 
-test('visible run checks and queue lengths share the actual population scale', async ({ page }, info) => {
+test('visible run checks and queue gauges share one recorded queue scale', async ({ page }, info) => {
   const lang = info.project.name.endsWith('zh') ? 'zh' : 'en', t = MESSAGES[lang];
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), lang);
@@ -75,9 +75,13 @@ test('visible run checks and queue lengths share the actual population scale', a
     await page.getByLabel(t.dock.timeline, { exact: true }).fill(time);
     const queues = await page.locator('.stage-card').evaluateAll(cards => cards.map(card => ({
       waiting: Number(card.querySelector('.stage-queue b')!.textContent),
+      scale: Number(card.querySelector('.queue-load')!.getAttribute('data-scale')),
       width: parseFloat((card.querySelector('.queue-load > span') as HTMLElement).style.width),
     })));
     expect(queues.length).toBeGreaterThan(0);
-    for (const queue of queues) expect(queue.width).toBeCloseTo(queue.waiting / 300 * 100, 3);
+    // Both futures read their queues on one ruler: the larger of 10 and the highest recorded node queue.
+    expect(new Set(queues.map(queue => queue.scale)).size).toBe(1);
+    expect(queues[0].scale).toBeGreaterThanOrEqual(10);
+    for (const queue of queues) expect(queue.width).toBeCloseTo(Math.min(100, queue.waiting / queue.scale * 100), 3);
   }
 });

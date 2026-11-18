@@ -68,8 +68,45 @@ export function HauntedBackdrop({ quiet = false }: { quiet?: boolean }) {
       <path d="M0 0v172M0 0l55 165M0 0l112 133M0 0l155 80M0 0l178 25M0 40q7-9 13-1 6-11 13-8 6-12 10-12 5-14 9-13M0 80q14-16 26-2 13-23 26-16 12-25 20-24 10-28 19-25M0 120q22-24 39-3 19-34 39-24 18-38 30-36 15-42 29-38M0 160q28-32 52-4 26-46 52-32 24-50 40-48 20-56 38-50" />
     </svg>
     <div className="haunt-pumpkins"><Pumpkin size={76} /><Pumpkin size={48} /></div>
-    <div className="haunt-fog fog-a" />
-    <div className="haunt-fog fog-b" />
     <div className="haunt-vignette" />
   </div>;
+}
+
+const GHOST_PATH = 'M3 11.5C3 6.2 7 2 12 2s9 4.2 9 9.5v13.3c0 1.4-1.6 2.1-2.6 1.2l-1.5-1.3a1.6 1.6 0 0 0-2.1 0l-1.4 1.2a2 2 0 0 1-2.8 0l-1.4-1.2a1.6 1.6 0 0 0-2.1 0L5.6 26C4.6 26.9 3 26.2 3 24.8Z';
+function SceneGhost({ className, x, y, scale }: { className: string; x: number; y: number; scale: number }) {
+  return <g transform={`translate(${x} ${y}) scale(${scale})`}><g className={className}>
+    <path fill="currentColor" d={GHOST_PATH} />
+    <ellipse style={eye} cx="9" cy="11.6" rx="1.7" ry="2.3" /><ellipse style={eye} cx="15" cy="11.6" rx="1.7" ry="2.3" />
+    <ellipse style={eye} cx="12" cy="16.4" rx="0.95" ry="1.15" />
+  </g></g>;
+}
+
+/** Welcome art: one ghost under the moon and a jack-o'-lantern splits into the mint future A and the violet future B. */
+export function RiftScene() {
+  const portal = (side: 'a' | 'b', x: number) => <g className={`rift-portal portal-${side}`}>
+    <path className="portal-glow" d={`M${x - 6} 184V98a41 41 0 0 1 82 0v86Z`} />
+    <path className="portal-door" d={`M${x} 184V100a35 35 0 0 1 70 0v84Z`} fill={`url(#rift-door-${side})`} />
+    <text className="portal-label" x={x + 35} y={152} textAnchor="middle">{side.toUpperCase()}</text>
+  </g>;
+  return <svg className="rift-scene" viewBox="0 0 320 200" aria-hidden="true">
+    <defs>
+      <radialGradient id="rift-door-a" cx="50%" cy="38%" r="70%"><stop offset="0" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0.55 }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0.04 }} /></radialGradient>
+      <radialGradient id="rift-door-b" cx="50%" cy="38%" r="70%"><stop offset="0" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0.55 }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0.04 }} /></radialGradient>
+      <linearGradient id="rift-seam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0 }} /><stop offset="0.5" style={{ stopColor: 'var(--fx-moon)' }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0 }} /></linearGradient>
+    </defs>
+    <circle className="rift-moon-halo" cx="262" cy="40" r="42" />
+    <circle className="rift-moon" cx="262" cy="40" r="17" />
+    <circle className="rift-moon-bite" cx="270" cy="34" r="15" />
+    <ellipse className="rift-floor" cx="160" cy="188" rx="150" ry="14" />
+    {portal('a', 28)}{portal('b', 222)}
+    <rect className="rift-line" x="158.5" y="54" width="3" height="128" fill="url(#rift-seam)" />
+    <SceneGhost className="rift-ghost ghost-a" x={140} y={78} scale={1.7} />
+    <SceneGhost className="rift-ghost ghost-b" x={140} y={78} scale={1.7} />
+    <SceneGhost className="rift-ghost ghost-main" x={136} y={70} scale={2} />
+    <g className="rift-lantern" transform="translate(138 150) scale(0.7)">
+      <path d="M31 17c-3-7 1-12 8-13l2 5c-6 0-8 4-7 8" fill="#a1a86c" />
+      <path d="M32 17C8 6-3 30 9 49c5 8 14 10 23 7 9 3 18 1 23-7C67 30 56 6 32 17Z" fill="currentColor" />
+      <path className="lantern-face" d="m16 30 11 4-9 5Zm32 0-11 4 9 5ZM18 44l8 3 2-4 6 1 1 4 11-4c-4 11-22 12-28 0Z" />
+    </g>
+  </svg>;
 }

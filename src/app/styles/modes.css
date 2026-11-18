@@ -48,11 +48,33 @@
 .dock-tabs > button[role=tab].is-hero { color: var(--candle); }
 .dock-tabs > button[role=tab].is-hero svg { color: var(--candle); --ghost-eye: var(--primary-ink); }
 .dock.tab-journey .dock-body { height: clamp(var(--dock-tab-journey-dock-body-height), 32vh, var(--dock-tab-journey-dock-body-height-2)); }
-.mode-compare.focus-person .canvas-area { display: none; }
+.dock { container: dock / inline-size; }
+.dock-head { display: flex; align-items: center; flex-shrink: 0; min-height: var(--dock-head-h); border-bottom: var(--stroke) solid var(--line); background: linear-gradient(180deg, color-mix(in srgb, var(--fx-velvet) 30%, var(--surface-1)), var(--surface-1)); }
+.dock-head > .timeline { flex: 1 1 auto; min-width: 0; height: var(--dock-head-h); border-bottom: 0; }
+.dock-head > .dock-tabs { flex: 0 1 auto; min-width: 0; height: var(--dock-head-h); }
 .mode-compare.focus-person .stage-head .view-switch, .mode-compare.focus-person .stage-tools > .btn.small, .mode-compare.focus-person .inspector { display: none; }
 .mode-compare.focus-person .dock { flex: 1; min-height: 0; }
 .mode-compare.focus-person .dock .dock-body { height: auto; flex: 1; min-height: 0; }
 .mode-compare.focus-person .ghost-journey { grid-template-columns: var(--stage-w) minmax(0, 1fr); }
+@media (min-width: 981px) {
+  /* Following a ghost keeps both futures on screen as a short strip above the journey. */
+  .mode-compare.focus-person .canvas-area.split { flex: none; flex-direction: row; min-height: 0; height: clamp(var(--person-stage-min), calc(100dvh - var(--person-stage-reserve)), var(--person-stage-max)); }
+  .mode-compare.focus-person .canvas-area.split .canvas-pane { min-height: 0; }
+  /* The journey header already offers the way back; the strip keeps the HUD's height for the two stages. */
+  .mode-compare.focus-person .stage-head { display: none; }
+  .mode-compare.focus-person .canvas-area { padding-top: 0; }
+  .mode-compare.focus-person .canvas-area.rows .canvas-pane + .canvas-pane { border-top: 0; border-left: var(--stroke) solid color-mix(in srgb, var(--fx-rune) 30%, var(--line)); }
+  .mode-compare.focus-person .dock-body { padding-top: 0; }
+  .mode-compare.focus-person .ghost-journey { gap: var(--space-2) var(--space-5); padding-top: 0; }
+  .mode-compare.focus-person .journey-header { padding-bottom: var(--space-1); }
+  .mode-compare.focus-person .ghost-detail { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'card diff' 'futures diff' 'lanes lanes'; align-items: start; gap: var(--space-2) var(--space-4); }
+  .mode-compare.focus-person .ghost-detail > * { grid-column: 1 / -1; }
+  .mode-compare.focus-person .ghost-detail > .ghost-card { grid-area: card; }
+  .mode-compare.focus-person .ghost-detail > .ghost-futures { grid-area: futures; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mode-compare.focus-person .ghost-detail > .diff-note { grid-area: diff; }
+  .mode-compare.focus-person .ghost-detail > .lanes { grid-area: lanes; }
+  .mode-compare.focus-person .future-row { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); padding: var(--space-1) var(--space-3); }
+}
 .mode-compare.focus-person .people-list { max-height: min(var(--mode-compare-focus-person-people-list-max-height), 48vh); }
 .sidebar.is-rail { width: var(--sidebar-is-rail-width); }
 .sidebar.is-report { width: var(--report-w); }
@@ -190,12 +212,16 @@
 .lane-end { position: absolute; top: var(--lane-end-top); bottom: var(--lane-end-bottom); width: var(--space-2); margin-left: calc(var(--space-1) * -1); border-radius: var(--radius-sm); background: var(--st-done); box-shadow: none; }
 .lane-end.leave { background: var(--tone-left); box-shadow: none; }
 .lane-ghost { position: absolute; top: 50%; translate: -50% -58%; z-index: 2; color: var(--st-track); filter: drop-shadow(0 0 var(--lane-ghost-filter) var(--ring, var(--candle))); --ghost-eye: var(--surface-2); pointer-events: none; }
-.lane-diff { position: absolute; top: var(--lane-diff-top); bottom: var(--lane-diff-bottom); width: 0; border-left: var(--focus-w) dashed var(--tone-diff); pointer-events: none; }
+.lane-diff { position: absolute; top: var(--lane-diff-top); bottom: var(--lane-diff-bottom); width: 0; border-left: var(--focus-w) dashed var(--tone-diff); pointer-events: none; z-index: 1; }
+/* Divergence rift: a mint-to-violet beam where the two futures first part. */
+.lane-diff::before { content: ''; position: absolute; top: calc(var(--space-2) * -1); bottom: calc(var(--space-2) * -1); left: calc(var(--rift-w) / -2 - var(--stroke)); width: var(--rift-w); border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, transparent, var(--fx-rift-a) 25%, var(--fx-rift-b) 75%, transparent); opacity: 0.5; animation: rift-shimmer var(--dur-rift) var(--ease-standard) infinite; }
+.lane-diff::after { content: ''; position: absolute; top: 0; bottom: 0; left: calc(var(--rift-core-w) / -2 - var(--stroke)); width: var(--rift-core-w); background: linear-gradient(180deg, var(--fx-rift-a), var(--fx-moon), var(--fx-rift-b)); }
 .lane-cutoff { position: absolute; right: 0; top: var(--fs-xl); bottom: var(--lane-cutoff-bottom); border-right: var(--stroke) dashed var(--text-2); pointer-events: none; }
 .lane-legend { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); padding-left: var(--lane-label); font-size: var(--fs-sm); color: var(--text-2); }
 .lane-legend span { display: inline-flex; align-items: center; gap: var(--space-2); }
 .lane-legend i { width: var(--fs-md); height: var(--space-3); border-radius: var(--radius-sm); }
-.diff-note { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: var(--stroke) solid color-mix(in srgb, var(--tone-diff) 30%, transparent); background: color-mix(in srgb, var(--tone-diff) 6%, transparent); font-size: var(--fs-sm); color: var(--text-1); }
+.diff-note { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); border: var(--stroke) solid color-mix(in srgb, var(--tone-diff) 30%, transparent); background: linear-gradient(110deg, color-mix(in srgb, var(--fx-rift-a) 7%, transparent), color-mix(in srgb, var(--fx-rift-b) 9%, transparent)); font-size: var(--fs-sm); color: var(--text-1); }
 .diff-note b { color: var(--tone-wait); }
 .divergence-heading, .divergence-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
 .divergence-heading { justify-content: space-between; }

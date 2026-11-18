@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, EdgeLabelRenderer, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
 import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, ChevronsDownUp, Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
@@ -11,6 +11,8 @@ import type { Box, Display } from '../features/stages';
 import { createViewportPlacement } from '../features/viewport';
 import { motionDuration } from '../features/motion';
 import { layoutGhosts } from './ghostRow';
+import { QUEUE_SCALE_FLOOR, queueFill } from './queueScale';
+import { labelAnchor } from './routeLabel';
 import { StatusMarker } from './shell/StatusMarker';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
@@ -20,11 +22,11 @@ import { Ghost, HauntedBackdrop, NodeIcon } from './Icons';
 type NodeState = PlaybackState['nodes'][string];
 type GhostKind = 'working' | 'waiting' | 'blocked';
 type Tracked = { id: string; name: string };
-type Shared = { running: boolean; population: number; tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string };
-type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; connected: boolean; exits: number };
+type Shared = { running: boolean; queueScale: number; tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string };
+type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; connected: boolean; exits: number; beacon: boolean };
 type StageData = Shared & {
   id: string; name: string; issues: number; changed: boolean;
-  waiting: number; serving: number; blocked: number; trend: number; exits: number; hasExit: boolean;
+  waiting: number; serving: number; blocked: number; trend: number; exits: number; hasExit: boolean; beacon: boolean;
   ghosts: [string, GhostKind][]; onOpen: () => void;
 };
 type FrameData = { id: string; name: string; steps: number; depth: number; waiting: number; running: boolean; changed: boolean; selected: boolean; onCollapse?: () => void; onSelect?: () => void };
@@ -95,6 +97,19 @@ function stateClass(waiting: number, serving: number, blocked: number, trend: nu
   return cls(serving > 0 && 'st-serving', waiting > 0 && 'st-waiting', waiting > 10 && 'st-crowded', trend > 0 && waiting > 0 && 'st-growing', blocked > 0 && 'st-blocked');
 }
 
+/** Liquid queue gauge. Every card on both canvases shares one scale, exposed for inspection as `data-scale`. */
+function Gauge({ waiting, scale, trend }: { waiting: number; scale: number; trend: number }) {
+  return <div className="queue-gauge">
+    <div className="queue-load" aria-hidden="true" data-scale={scale}><span style={{ width: `${queueFill(waiting, scale)}%` }} /></div>
+    <Trend value={trend} />
+  </div>;
+}
+
+/** Decorative ghost-fire on overloaded stations; only shown when the recorded queue is crowded or blocked. */
+function Flames({ blocked }: { blocked: boolean }) {
+  return <span className={cls('haunt-flames', blocked && 'is-blocked')} aria-hidden="true"><i /><i /><i /></span>;
+}
+
 function FlowCard({ data, selected }: NodeProps<CardNode>) {
   const { t } = useI18n();
   const detail = useStore(store => detailAt(store.transform[2]));
@@ -106,8 +121,11 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
   const trackedHere = !!data.tracked && ghosts.some(([id]) => id === data.tracked!.id);
   const live = data.running && !!state;
   const isExit = node.type === 'exit';
+  const overloaded = live && !isExit && (waiting > 10 || blocked > 0);
   return <div className={cls('flow-card', `type-${node.type}`, `lod-${detail}`, selected && 'selected', data.connected && 'is-connected', data.changed && 'changed', live && 'running',
-    live && stateClass(waiting, serving, blocked, data.trend), live && isExit && data.exits > 0 && 'st-done', trackedHere && 'has-tracked')}>
+    live && stateClass(waiting, serving, blocked, data.trend), live && isExit && data.exits > 0 && 'st-done', trackedHere && 'has-tracked', live && data.beacon && 'is-beacon')}>
+    {trackedHere && <span className="tracked-spotlight" aria-hidden="true" />}
+    {overloaded && <Flames blocked={blocked > 0} />}
     {node.type !== 'entrance' && node.type !== 'subflow' && <Handle type="target" position={Position.Left} />}
     <div className="card-head">
       <span className="card-icon"><NodeIcon type={node.type} size={detail === 'near' ? 15 : 22} /></span>
@@ -121,15 +139,15 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
     <strong className="card-name" title={node.name} aria-label={node.name}>{node.name}</strong>
     <div className="card-detail">{detailOf(node, t)}</div>
     {live && (isExit
-      ? <div className="card-live"><span className="is-done"><b>{data.exits}</b><small><StatusMarker id={node.countsAsCompleted === false ? 'left' : 'finished'} label={node.countsAsCompleted === false ? t.canvas.left : t.canvas.finished} /></small></span></div>
+      ? <div className="card-live is-exit"><span className="live-cell is-done"><span className="live-value"><StatusMarker id={node.countsAsCompleted === false ? 'left' : 'finished'} compact label={node.countsAsCompleted === false ? t.canvas.left : t.canvas.finished} /><b>{data.exits}</b></span><small>{node.countsAsCompleted === false ? t.canvas.left : t.canvas.finished}</small></span></div>
       : <div className="card-live">
-        <span className={cls('is-wait', waiting > 0 && 'is-on')}><b>{waiting}</b><Trend value={data.trend} /><small><StatusMarker id="queue" label={t.canvas.waiting} /></small></span>
-        <span className={cls('is-serve', serving > 0 && 'is-on')}><b>{serving}</b><small><StatusMarker id="serve" label={t.canvas.serving} /></small></span>
-        {blocked > 0 ? <span className="is-block is-on"><b>{blocked}</b><small><StatusMarker id="blocked" label={t.canvas.blocked} /></small></span>
-          : <span className="is-pass"><b>{state.completed}</b><small>{t.canvas.passed}</small></span>}
+        <span className={cls('live-cell is-wait', waiting > 0 && 'is-on')}><span className="live-value"><StatusMarker id="queue" compact label={t.canvas.waiting} /><b>{waiting}</b></span><small>{t.canvas.waiting}</small></span>
+        <span className={cls('live-cell is-serve', serving > 0 && 'is-on')}><span className="live-value"><StatusMarker id="serve" compact label={t.canvas.serving} /><b>{serving}</b></span><small>{t.canvas.serving}</small></span>
+        {blocked > 0 ? <span className="live-cell is-block is-on"><span className="live-value"><StatusMarker id="blocked" compact label={t.canvas.blocked} /><b>{blocked}</b></span><small>{t.canvas.blocked}</small></span>
+          : <span className="live-cell is-pass"><span className="live-value"><b>{state.completed}</b></span><small>{t.canvas.passed}</small></span>}
       </div>)}
     {live && !isExit && <GhostRow ghosts={ghosts} limit={detail === 'near' ? 8 : detail === 'mid' ? 5 : 1} data={data} />}
-    {live && !isExit && <div className="queue-load" aria-hidden="true"><span style={{ width: `${waiting / data.population * 100}%` }} /></div>}
+    {live && !isExit && <Gauge waiting={waiting} scale={data.queueScale} trend={data.trend} />}
     {live && detail === 'far' && <div className="far-crowd" aria-hidden="true"><Ghost size={20} />{isExit ? data.exits : waiting + serving}</div>}
     {node.type === 'decision'
       ? node.routing.branches.map((branch, index) => <Handle key={branch.branchKey} id={branch.branchKey} type="source" position={Position.Right} style={{ top: `${(index + 1) * 100 / (node.routing.branches.length + 1)}%` }} title={branch.branchKey} />)
@@ -142,7 +160,9 @@ function StageCard({ data, selected }: NodeProps<StageNode>) {
   const detail = useStore(store => detailAt(store.transform[2]));
   const trackedHere = !!data.tracked && data.ghosts.some(([id]) => id === data.tracked!.id);
   return <div className={cls('stage-card', `lod-${detail}`, selected && 'selected', data.changed && 'changed', data.running && 'running',
-    data.running && stateClass(data.waiting, data.serving, data.blocked, data.trend), trackedHere && 'has-tracked')}>
+    data.running && stateClass(data.waiting, data.serving, data.blocked, data.trend), trackedHere && 'has-tracked', data.running && data.beacon && 'is-beacon')}>
+    {trackedHere && <span className="tracked-spotlight" aria-hidden="true" />}
+    {data.running && (data.waiting > 10 || data.blocked > 0) && <Flames blocked={data.blocked > 0} />}
     <Handle type="target" position={Position.Left} />
     <div className="card-head">
       <span className="card-icon"><Boxes size={detail === 'near' ? 15 : 22} aria-hidden="true" /></span>
@@ -153,13 +173,14 @@ function StageCard({ data, selected }: NodeProps<StageNode>) {
     </div>
     <strong className="card-name" title={data.name} aria-label={data.name}>{data.name}</strong>
     {data.running && <div className="stage-summary">
-      <div className={cls('stage-queue', data.waiting > 0 && 'is-on')}><b>{data.waiting}</b><span>{t.canvas.waiting}</span><Trend value={data.trend} /></div>
+      <div className={cls('stage-queue', data.waiting > 0 && 'is-on')}><b>{data.waiting}</b><span>{t.canvas.waiting}</span></div>
       <div className="stage-secondary"><span className="is-serve"><b>{data.serving}</b> {t.canvas.serving}</span>
+        {data.blocked > 0 && <span className="is-block"><b>{data.blocked}</b> {t.canvas.blocked}</span>}
         {data.hasExit && <span className="is-done"><b>{data.exits}</b> {t.canvas.finished}</span>}
       </div>
     </div>}
     {data.running && <GhostRow ghosts={data.ghosts} limit={detail === 'near' ? 5 : detail === 'mid' ? 3 : 1} data={data} />}
-    {data.running && <div className="queue-load" aria-hidden="true"><span style={{ width: `${data.waiting / data.population * 100}%` }} /></div>}
+    {data.running && <Gauge waiting={data.waiting} scale={data.queueScale} trend={data.trend} />}
     <button type="button" className="stage-open nodrag" aria-label={t.canvas.openStage(data.name)} title={t.canvas.openStage(data.name)} onClick={event => { event.stopPropagation(); data.onOpen(); }}><ChevronRight size={16} /></button>
     <Handle type="source" position={Position.Right} />
   </div>;
@@ -183,7 +204,7 @@ function sameCard(a: NodeProps<CardNode>, b: NodeProps<CardNode>) {
   if (a.selected !== b.selected) return false;
   const x = a.data, y = b.data;
   if (x === y) return true;
-  if (x.node !== y.node || x.running !== y.running || x.population !== y.population || x.tracked !== y.tracked || x.chooseVisitor !== y.chooseVisitor || x.visitorName !== y.visitorName
+  if (x.node !== y.node || x.running !== y.running || x.queueScale !== y.queueScale || x.beacon !== y.beacon || x.tracked !== y.tracked || x.chooseVisitor !== y.chooseVisitor || x.visitorName !== y.visitorName
     || x.trend !== y.trend || x.issues !== y.issues || x.changed !== y.changed || x.connected !== y.connected || x.exits !== y.exits) return false;
   const s = x.state, t = y.state;
   return s === t || (!!s && !!t && s.completed === t.completed && sameIds(s.serving, t.serving) && sameIds(s.queued, t.queued)
@@ -204,16 +225,32 @@ const frameId = (id: string) => `frame:${id}`;
 /** `byPlan` overrides `ids` and `stageKeys` for a specific plan, for example when one ghost stands at different nodes in A and B. */
 export type ViewTarget = 'default' | 'all' | { ids: string[]; stageKeys?: string[]; stages?: string[]; byPlan?: Record<string, string[]> };
 export interface ViewRequest { token: number; target: ViewTarget }
-type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void };
+type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void; flowing: boolean; gradient: string };
+/** Lagging trail positions are drawn behind each recorded traveller; they never move it ahead of its real progress. */
+const TRAIL = [0.075, 0.05, 0.025];
 function RouteEdge(props: EdgeProps<FlowEdge<RouteData>>) {
   const { t } = useI18n();
   const [path, labelX, labelY] = getBezierPath({ ...props, curvature: 0.4 });
+  const data = props.data;
+  const along = (progress: number): CSSProperties => ({ offsetPath: `path('${path}')`, offsetDistance: `${Math.min(1, Math.max(0, progress)) * 100}%` });
+  const [runeX, runeY] = props.label ? labelAnchor(path, [labelX, labelY]) : [labelX, labelY];
   return <>
-    <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} label={props.label} labelX={labelX} labelY={labelY}
-      labelStyle={props.labelStyle} labelBgStyle={props.labelBgStyle} labelBgPadding={props.labelBgPadding} labelBgBorderRadius={props.labelBgBorderRadius} />
-    {props.data?.travelers.map(visitor => <circle key={visitor.id} r={visitor.selected ? 7 : 5} fill={visitor.selected ? 'var(--tone-track)' : 'var(--tone-neutral)'} stroke="var(--surface-0)" strokeWidth={2}
-      role="button" tabIndex={0} aria-label={t.canvas.follow(visitor.id)} style={{ offsetPath: `path('${path}')`, offsetDistance: `${visitor.progress * 100}%`, cursor: 'pointer' }}
-      onClick={event => { event.stopPropagation(); props.data?.chooseVisitor(visitor.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); props.data?.chooseVisitor(visitor.id); } }}><title>{visitor.id}</title></circle>)}
+    {data?.flowing && <path className="route-aura" d={path} />}
+    <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} />
+    {data?.flowing && <>
+      <defs><linearGradient id={data.gradient} gradientUnits="userSpaceOnUse" x1={props.sourceX} y1={props.sourceY} x2={props.targetX} y2={props.targetY}>
+        <stop offset="0" style={{ stopColor: 'var(--fx-wisp-mint)' }} /><stop offset="0.55" style={{ stopColor: 'var(--fx-wisp-violet)' }} /><stop offset="1" style={{ stopColor: 'var(--fx-ember)' }} />
+      </linearGradient></defs>
+      <path className="route-flow" d={path} stroke={`url(#${data.gradient})`} />
+    </>}
+    {props.label && <EdgeLabelRenderer><span className="route-rune" style={{ transform: `translate(-50%, calc(-100% + var(--rune-label-lift))) translate(${runeX}px, ${runeY}px)` }}>{props.label}</span></EdgeLabelRenderer>}
+    {data?.travelers.map(visitor => <g key={visitor.id} className={cls('route-orb', visitor.selected && 'is-tracked')}>
+      {TRAIL.filter(lag => visitor.progress - lag > 0).map(lag => <circle key={lag} className="orb-trail" r={visitor.selected ? 4 : 3} style={along(visitor.progress - lag)} />)}
+      <circle className="orb-halo" r={visitor.selected ? 15 : 10} style={along(visitor.progress)} />
+      <circle className="orb-core" r={visitor.selected ? 7 : 5} fill={visitor.selected ? 'var(--tone-track)' : 'var(--tone-neutral)'} stroke="var(--surface-0)" strokeWidth={2}
+        role="button" tabIndex={0} aria-label={t.canvas.follow(visitor.id)} style={{ ...along(visitor.progress), cursor: 'pointer' }}
+        onClick={event => { event.stopPropagation(); data?.chooseVisitor(visitor.id); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); data?.chooseVisitor(visitor.id); } }}><title>{visitor.id}</title></circle>
+    </g>)}
   </>;
 }
 const edgeTypes = { route: RouteEdge };
@@ -227,10 +264,18 @@ interface Props {
   request: ViewRequest; stageView: boolean; expanded: Set<string> | 'all'; onStage: (id: string, open: boolean) => void;
   label?: { badge: 'A' | 'B'; name: string; note?: string; status?: string };
   compact?: boolean; reducedMotion?: boolean; onManual?: () => void;
+  /** Shared queue gauge scale for every canvas on screen. */
+  queueScale?: number;
+  /** Stations to light up after a focus action (for example the first difference). */
+  beacon?: string[];
+  /** Short strip above the journey: tighter fit padding and no zoom controls. */
+  dense?: boolean;
 }
 
-const PADDING = { left: 40, right: 40, top: 64, bottom: 28 };
-const PADDING_LABELLED = { left: 36, right: 64, top: 48, bottom: 10 };
+/** Fit padding keeps cards clear of the floating HUD (top) and the zoom controls (bottom). */
+const PADDING = { left: 40, right: 40, top: 64, bottom: 56 };
+const PADDING_LABELLED = { left: 28, right: 48, top: 20, bottom: 44 };
+const PADDING_DENSE = { left: 16, right: 24, top: 14, bottom: 10 };
 
 function CanvasInner(props: Props) {
   const { plan, view, previous } = props;
@@ -263,8 +308,11 @@ function CanvasInner(props: Props) {
   const draggable = props.editable && !display.derived && !panMode;
   const summary = useMemo(() => liveSummary(view), [view]);
   const issueCount = (id: string) => props.issues.filter(issue => issue.entityIds.includes(id)).length;
+  const beaconKey = props.beacon?.join('\n') ?? '';
+  const queueScaleValue = props.queueScale ?? QUEUE_SCALE_FLOOR;
   const mapped = useMemo<AnyNode[]>(() => {
-    const shared: Shared = { running, population: Math.max(props.run?.population.length ?? 0, 1), tracked: props.tracked, chooseVisitor, visitorName: props.visitorName };
+    const beacon = new Set(beaconKey ? beaconKey.split('\n') : []);
+    const shared: Shared = { running, queueScale: queueScaleValue, tracked: props.tracked, chooseVisitor, visitorName: props.visitorName };
     const trendOf = (id: string) => previous ? waitingAt(view, id) - waitingAt(previous, id) : 0;
     const frames: FrameNode[] = [...display.frames.entries()].sort((a, b) => a[1].depth - b[1].depth).map(([id, box]) => {
       const subflow = index.subflows.get(id)!;
@@ -287,16 +335,17 @@ function CanvasInner(props: Props) {
           waiting: members.reduce((sum, member) => sum + waitingAt(view, member.id), 0), serving: states.reduce((sum, state) => sum + (state?.serving.length ?? 0), 0),
           blocked: states.reduce((sum, state) => sum + (state?.blocked.length ?? 0), 0), trend: members.reduce((sum, member) => sum + trendOf(member.id), 0),
           exits: members.reduce((sum, member) => sum + (member.type === 'exit' ? view.nodes[member.id]?.completed ?? 0 : 0), 0), hasExit: members.some(member => member.type === 'exit'),
+          beacon: beacon.has(id) || members.some(member => beacon.has(member.id)),
           ghosts: states.flatMap(state => ghostsOf(state)), onOpen: () => openStage(id, true) } };
     });
     const cards: CardNode[] = plan.graph.nodes.flatMap(node => {
       const position = node.type === 'subflow' ? display.placeholders.get(node.id) : display.positions.get(node.id);
       if (!position) return [];
       return [{ id: node.id, type: 'workflow' as const, position, selected: props.selected === node.id, draggable,
-        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0 } }];
+        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0, beacon: beacon.has(node.id) } }];
     });
     return [...frames, ...stages, ...cards];
-  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, props.run?.population.length, running, draggable]);
+  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, queueScaleValue, beaconKey, running, draggable]);
   const [flowNodes, setFlowNodes] = useState(mapped);
   const detail = detailAt(zoom);
   const measurement = useRef({ plan, detail, lang: t.lang });
@@ -321,7 +370,7 @@ function CanvasInner(props: Props) {
   useEffect(() => { setMenu(null); }, [plan.id, props.editable]);
 
   // ---------- Viewport ----------
-  const padding = props.label ? PADDING_LABELLED : PADDING;
+  const padding = props.dense ? PADDING_DENSE : props.label ? PADDING_LABELLED : PADDING;
   /** Visible elements standing for a focus target in this plan. */
   function resolve(target: Exclude<ViewTarget, 'default' | 'all'>): string[] {
     const own = target.byPlan?.[plan.id];
@@ -394,14 +443,14 @@ function CanvasInner(props: Props) {
       const isSelected = props.selected === edge.id || edge.source === props.selected || edge.target === props.selected;
       const changed = edge.ids.some(id => props.changed?.has(id));
       const color = isSelected ? 'var(--text-primary)' : changed ? 'var(--tone-diff)' : active ? 'var(--tone-serve)' : 'var(--text-muted)';
-      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', data: { travelers, chooseVisitor }, label: edge.label,
+      return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', label: edge.label,
+        data: { travelers, chooseVisitor, flowing: running && active, gradient: `route-flow-${plan.id}-${edge.id}`.replace(/[^\w-]/g, '_') },
         selected: props.selected === edge.id, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
         markerEnd: { type: MarkerType.ArrowClosed, color, width: isSelected ? 20 : 16, height: isSelected ? 20 : 16 },
         style: { stroke: color, strokeWidth: isSelected ? 3 : active || changed ? 2 : 1.6 },
-        labelStyle: { fill: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }, labelBgStyle: { fill: '#1d1833', stroke: '#3d3460' }, labelBgPadding: [7, 4] as [number, number], labelBgBorderRadius: 7,
       };
     });
-  }, [plan.graph.edges, display, view, running, props.time, props.tracked, chooseVisitor, props.selected, props.changed]);
+  }, [plan.id, plan.graph.edges, display, view, running, props.time, props.tracked, chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
     placement.userMove();
@@ -415,7 +464,7 @@ function CanvasInner(props: Props) {
     if (menu && props.editable) { props.onAdd(type, menu.position); setMenu(null); }
   }
   const isRealNode = (id: string) => plan.graph.nodes.some(node => node.id === id);
-  return <div ref={shell} style={{ '--canvas-zoom': zoom } as CSSProperties} className={cls('canvas-shell', props.compact && 'compact-canvas', running && 'is-running')}
+  return <div ref={shell} style={{ '--canvas-zoom': zoom } as CSSProperties} className={cls('canvas-shell', props.compact && 'compact-canvas', props.dense && 'dense-canvas', running && 'is-running')}
     onWheelCapture={userMove} onKeyDownCapture={event => { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', '+', '-'].includes(event.key) && !(event.target as HTMLElement).closest('input, select, textarea')) userMove(); }}
     onPointerDownCapture={event => { if ((event.target as Element).closest('.react-flow__minimap, .react-flow__controls')) userMove(); }}
     onDoubleClick={event => {
@@ -449,7 +498,7 @@ function CanvasInner(props: Props) {
       panOnDrag={panMode || !props.editable ? [0, 1] : [1]} panActivationKeyCode={props.editable ? 'Space' : null}
       selectionOnDrag={!panMode && props.editable} selectionKeyCode={panMode ? null : 'Shift'} multiSelectionKeyCode={['Control', 'Meta', 'Shift']}>
       <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} color="color-mix(in srgb, var(--line-2) 22%, transparent)" />
-      <Controls showInteractive={false} showFitView={false} onZoomIn={userMove} onZoomOut={userMove} position={props.compact ? 'bottom-right' : 'bottom-left'} orientation={props.compact ? 'horizontal' : 'vertical'} />
+      <Controls showInteractive={false} showFitView={false} onZoomIn={userMove} onZoomOut={userMove} position={props.compact ? 'bottom-right' : 'bottom-left'} orientation="horizontal" />
       {!props.compact && plan.graph.nodes.length > 0 && <MiniMap position="bottom-right" pannable zoomable nodeBorderRadius={6}
         nodeColor={node => `color-mix(in srgb, ${node.type === 'frame' || node.type === 'stage' ? 'var(--tone-neutral)' : TYPE_COLORS[(node.data as CardData).node.type]} 25%, transparent)`}
         nodeStrokeColor={node => node.type === 'frame' || node.type === 'stage' ? 'var(--line-2)' : TYPE_COLORS[(node.data as CardData).node.type]} nodeStrokeWidth={2} maskColor="color-mix(in srgb, var(--surface-0) 72%, transparent)" />}

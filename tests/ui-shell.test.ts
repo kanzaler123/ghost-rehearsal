@@ -22,7 +22,7 @@ describe('shell labels and keyboard menus', () => {
   it.each(['en', 'zh'] as const)('keeps mode text, names and action descriptions in %s', lang => {
     const t = MESSAGES[lang]; context.current = { t, lang, setLang() {} };
     const noop = () => {};
-    const props: TopBarProps = { mode: 'Build', busy: false, canUndo: false, canRedo: false, unsaved: true, draftSaved: true, activityName: 'An activity', planName: 'A named plan', planChecks: [t.redesign.planChecks('A named plan', 0, 0)], compareUnavailable: t.topbar.compareUnavailable, runMode: 'cutoff', lang, onMode: noop, onUndo: noop, onRedo: noop, onRun: noop, onStop: noop, onSave: noop, onImport: noop, onExport: noop, onPlanJson: noop, onScenarioJson: noop, onAbout: noop, onRunMode: noop, onLang: noop };
+    const props: TopBarProps = { mode: 'Build', busy: false, canUndo: false, canRedo: false, unsaved: true, draftSaved: true, activityName: 'An activity', planName: 'A named plan', compareUnavailable: t.topbar.compareUnavailable, runMode: 'cutoff', lang, onMode: noop, onUndo: noop, onRedo: noop, onRun: noop, onStop: noop, onSave: noop, onImport: noop, onExport: noop, onPlanJson: noop, onScenarioJson: noop, onAbout: noop, onRunMode: noop, onLang: noop };
     const tree = flatten(TopBar(props));
     const tabs = tree.filter(item => item.props.role === 'tab');
     expect(tabs.map(text)).toEqual([t.modes.Build, t.modes.Rehearse, t.modes.Compare]);

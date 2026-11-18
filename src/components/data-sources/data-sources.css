@@ -1,35 +1,38 @@
-.ds-editor, .ds-provenance { box-sizing: border-box; min-width: 0; color: var(--hover-bg); }
-.ds-editor { padding: var(--space-5); border: var(--stroke) solid var(--text-secondary); border-radius: var(--radius-lg); background: var(--text-primary); font: 400 var(--ds-editor-font)/1.5 system-ui, sans-serif; }
-.ds-editor h2 { margin: 0 0 var(--space-3); font-size: var(--fs-xl); }
-.ds-editor h3 { font-size: var(--fs-md); }
-.ds-editor p, .ds-provenance p { overflow-wrap: anywhere; }
-.ds-editor code { overflow-wrap: anywhere; }
+/* Dark "ledger" panels for measured inputs; every colour comes from the shared tokens. */
+.ds-editor, .ds-provenance { box-sizing: border-box; min-width: 0; color: var(--text-primary); }
+.ds-editor { padding: var(--space-5); border: var(--stroke) solid color-mix(in srgb, var(--fx-rune) 26%, var(--line)); border-radius: var(--radius-lg); background: linear-gradient(170deg, color-mix(in srgb, var(--fx-velvet) 30%, var(--surface-2)), var(--surface-2)); box-shadow: var(--glow-capsule); font: 400 var(--ds-editor-font)/1.5 var(--font-ui); }
+.ds-editor h2 { margin: 0 0 var(--space-3); font-size: var(--fs-xl); color: var(--text-primary); }
+.ds-editor h3 { font-size: var(--fs-md); color: var(--fx-rune); }
+.ds-editor p, .ds-provenance p { overflow-wrap: anywhere; color: var(--text-secondary); }
+.ds-editor code { overflow-wrap: anywhere; color: var(--text-secondary); }
 .ds-input, .ds-provenance { display: grid; gap: var(--space-4); }
-.ds-editor label, .ds-provenance label { display: grid; gap: var(--space-2); font-weight: 600; }
-.ds-editor input, .ds-editor textarea, .ds-editor select, .ds-provenance input, .ds-provenance textarea, .ds-provenance select { box-sizing: border-box; width: 100%; min-width: 0; padding: var(--space-3); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-sm); background: white; color: var(--hover-bg); font: inherit; font-weight: 400; }
+.ds-editor label, .ds-provenance label { display: grid; gap: var(--space-2); font-weight: 600; color: var(--text-secondary); }
+.ds-editor input, .ds-editor textarea, .ds-editor select, .ds-provenance input, .ds-provenance textarea, .ds-provenance select { box-sizing: border-box; width: 100%; min-width: 0; padding: var(--space-3); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-sm); background-color: var(--field-bg); color: var(--text-primary); font: inherit; font-weight: 400; }
 .ds-editor input, .ds-editor select, .ds-provenance input, .ds-provenance select { height: auto; }
 .ds-editor textarea, .ds-provenance textarea { resize: vertical; }
-.ds-editor .ds-csv { white-space: pre; font: var(--ds-editor-ds-csv-font)/1.5 ui-monospace, monospace; }
-.ds-editor button { min-height: var(--ds-editor-button-min-height); padding: var(--space-3) var(--space-4); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-sm); background: var(--text-primary); color: var(--hover-bg); font: inherit; font-weight: 600; cursor: pointer; }
+.ds-editor option, .ds-provenance option { background: var(--surface-1); color: var(--text-primary); }
+.ds-editor .ds-csv { white-space: pre; font: var(--ds-editor-ds-csv-font)/1.5 var(--font-mono); }
+.ds-editor button { min-height: var(--ds-editor-button-min-height); padding: var(--space-3) var(--space-4); border: var(--stroke) solid var(--line-2); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--text-primary); font: inherit; font-weight: 600; cursor: pointer; }
+.ds-editor button:hover:not(:disabled) { border-color: var(--fx-rune); background: var(--hover-bg); }
 .ds-editor button:disabled, .ds-provenance select:disabled { cursor: default; opacity: 0.6; }
-.ds-editor :focus-visible, .ds-provenance :focus-visible { outline: var(--ds-editor-outline) solid var(--line); outline-offset: var(--focus-w); }
-.ds-hint { font-size: var(--fs-xs); color: var(--line); margin: var(--space-2) 0; }
-.ds-template { color: var(--line); overflow-wrap: anywhere; }
-.ds-provenance { margin: var(--space-4) 0; padding: var(--space-4); border: var(--stroke) solid var(--text-secondary); border-radius: var(--radius-md); }
-.ds-provenance legend { padding: 0 var(--space-2); font-weight: 600; }
+.ds-editor :focus-visible, .ds-provenance :focus-visible { outline: var(--ds-editor-outline) solid var(--focus-ring); outline-offset: var(--focus-w); }
+.ds-hint { font-size: var(--fs-xs); color: var(--text-muted); margin: var(--space-2) 0; }
+.ds-template { color: var(--text-muted); overflow-wrap: anywhere; }
+.ds-provenance { margin: var(--space-4) 0; padding: var(--space-4); border: var(--stroke) solid var(--line); border-radius: var(--radius-md); background: var(--surface-1); }
+.ds-provenance legend { padding: 0 var(--space-2); font-weight: 600; color: var(--fx-rune); }
 .ds-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
-.ds-preview { margin: var(--space-4) 0; padding: var(--space-4); border-radius: var(--radius-md); background: var(--text-primary); }
+.ds-preview { margin: var(--space-4) 0; padding: var(--space-4); border-radius: var(--radius-md); border: var(--stroke) solid var(--line); background: var(--surface-1); }
 .ds-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--ds-summary-grid-template-columns), 1fr)); gap: var(--space-4); }
-.ds-summary dt { color: var(--line); font-size: var(--fs-xs); }
-.ds-summary dd { margin: 0; font-size: var(--fs-lg); overflow-wrap: anywhere; }
+.ds-summary dt { color: var(--text-muted); font-size: var(--fs-xs); }
+.ds-summary dd { margin: 0; font-size: var(--fs-lg); overflow-wrap: anywhere; color: var(--text-primary); }
 .ds-table-scroll { max-width: 100%; overflow: auto; }
 .ds-editor table { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); }
-.ds-editor caption { text-align: left; font-weight: 600; padding: var(--space-3) 0; }
-.ds-editor td, .ds-editor th { padding: var(--space-3); text-align: left; border-bottom: var(--stroke) solid var(--text-secondary); overflow-wrap: anywhere; }
-.ds-error, .ds-errors { color: inherit; }
-.ds-provenance [aria-invalid="true"] { border-color: var(--line); }
+.ds-editor caption { text-align: left; font-weight: 600; padding: var(--space-3) 0; color: var(--text-secondary); }
+.ds-editor td, .ds-editor th { padding: var(--space-3); text-align: left; border-bottom: var(--stroke) solid var(--line); overflow-wrap: anywhere; }
+.ds-error, .ds-errors { color: var(--tone-block); }
+.ds-provenance [aria-invalid="true"] { border-color: var(--tone-block); }
 .ds-details { min-width: 0; margin: var(--space-4) 0; }
-.ds-details > summary { cursor: pointer; margin-bottom: var(--space-3); }
+.ds-details > summary { cursor: pointer; margin-bottom: var(--space-3); color: var(--text-secondary); }
 @media (max-width: 480px) {
   .ds-editor { padding: var(--space-4); }
   .ds-preview, .ds-provenance { padding: var(--space-4); }

@@ -16,7 +16,7 @@ import { ArrivalDataEditor } from './data-sources/ArrivalDataEditor';
 import { ProvenanceFields } from './data-sources/ProvenanceFields';
 import { dataSourceText } from './data-sources/text';
 import './forms/forms.css';
-import { Ghost } from './Icons';
+import { RiftScene } from './Icons';
 
 export function Modal({ title, children, onClose, wide = false, icon }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; icon?: ReactNode }) {
   const { t } = useI18n();
@@ -80,7 +80,7 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelI
           <h1>{t.redesign.headline}</h1><p>{t.redesign.introduction}</p>
           <button type="button" className={`btn ${name.trim() ? '' : 'primary'} welcome-start`} aria-describedby={guideHintId} onClick={onGuide}>{t.redesign.begin}<span aria-hidden="true">↗</span></button>
           <small id={guideHintId}>{t.redesign.guideHint}</small>
-          <figure className="welcome-illustration"><div aria-hidden="true"><span className="welcome-ghost"><Ghost size={60} /></span><span className="welcome-path path-a">A</span><span className="welcome-path path-b">B</span></div><figcaption>{t.redesign.illustration}</figcaption></figure>
+          <figure className="welcome-illustration"><div aria-hidden="true"><RiftScene /></div><figcaption>{t.redesign.illustration}</figcaption></figure>
           <div className="lang-switch" role="group" aria-label={t.language.label}>{(['en', 'zh'] as const).map(item => <button type="button" key={item} aria-pressed={lang === item} className={lang === item ? 'active' : ''} onClick={() => onLang(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}</div>
         </section>}
         <div className="event-setup">

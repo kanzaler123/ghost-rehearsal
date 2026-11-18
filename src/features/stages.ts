@@ -11,8 +11,8 @@ export interface Size { w: number; h: number }
 export interface Box extends Point, Size {}
 
 /** Layout estimates. Card CSS keeps real sizes close to these values. */
-export const NODE_SIZE = { build: { w: 200, h: 118 }, run: { w: 200, h: 196 } } as const;
-export const STAGE_SIZE: Size = { w: 236, h: 196 };
+export const NODE_SIZE = { build: { w: 200, h: 118 }, run: { w: 232, h: 220 } } as const;
+export const STAGE_SIZE: Size = { w: 248, h: 220 };
 export const FRAME_PAD = { side: 24, top: 52, bottom: 24 } as const;
 const GAP_X = 64;
 const GAP_Y = 30;
@@ -245,7 +245,12 @@ export function displayBounds(display: Display, node: Size): Box | undefined {
  * a block in the parent flow. Subflow layouts are set to their frame's top-left corner.
  * Spacing uses the taller live card so the same layout also works during replay.
  */
-export function arrangeLayout(plan: Plan, node: Size = NODE_SIZE.run): Map<string, Point> {
+/**
+ * Pitch of the stored tidy layout (the example document uses it): 264×226 between card origins.
+ * Run cards (232×220) still fit that pitch, so Arrange keeps saved layouts stable.
+ */
+export const ARRANGE_CELL: Size = { w: 200, h: 196 };
+export function arrangeLayout(plan: Plan, node: Size = ARRANGE_CELL): Map<string, Point> {
   const index = stageIndex(plan);
   const result = new Map<string, Point>();
   const rankOf = new Map(plan.graph.nodes.map((item, order) => [item.id, item.layout.x * 1000 + order]));

@@ -3,9 +3,40 @@
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--scene-transform)); } }
 @keyframes ghost-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--scene-transform-2)); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+/* Overloaded stations breathe; colours come from the recorded crowded/blocked state classes. */
 @keyframes haunt-pulse {
-  0%, 100% { box-shadow: var(--elev-1); }
-  50% { box-shadow: var(--elev-1); }
+  0%, 100% { box-shadow: var(--glow-crowd-0); }
+  50% { box-shadow: var(--glow-crowd-1); }
+}
+@keyframes haunt-pulse-block {
+  0%, 100% { box-shadow: var(--glow-block-0); }
+  50% { box-shadow: var(--glow-block-1); }
+}
+@keyframes beacon-pulse {
+  0%, 100% { box-shadow: var(--glow-beacon-0); }
+  50% { box-shadow: var(--glow-beacon-1); }
+}
+@keyframes flame-rise {
+  0% { transform: translateY(0) scale(0.7, 0.7); opacity: 0; }
+  30% { opacity: 0.95; }
+  100% { transform: translateY(var(--flame-rise)) scale(0.35, 1.1); opacity: 0; }
+}
+@keyframes spirit-flow { to { stroke-dashoffset: calc(var(--fx-route-period) * -1); } }
+@keyframes rune-spin { to { transform: rotate(360deg); } }
+@keyframes rift-shimmer { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes portal-glow { 0%, 100% { opacity: 0.25; } 50% { opacity: 0.65; } }
+@keyframes lantern-flicker { 0%, 100% { opacity: 1; } 40% { opacity: 0.7; } 60% { opacity: 0.92; } 80% { opacity: 0.78; } }
+@keyframes ghost-split-a {
+  0%, 12% { transform: translateX(0); opacity: 0; }
+  30% { opacity: 0.85; }
+  78% { transform: translateX(calc(var(--ghost-drift) * -1)); opacity: 0.85; }
+  100% { transform: translateX(calc(var(--ghost-drift) * -1)) translateY(var(--ghost-float)); opacity: 0; }
+}
+@keyframes ghost-split-b {
+  0%, 12% { transform: translateX(0); opacity: 0; }
+  30% { opacity: 0.85; }
+  78% { transform: translateX(var(--ghost-drift)); opacity: 0.85; }
+  100% { transform: translateX(var(--ghost-drift)) translateY(var(--ghost-float)); opacity: 0; }
 }
 @keyframes fog-drift { from { transform: translateX(-7%); } to { transform: translateX(7%); } }
 @keyframes bat-drift { 0%, 100% { transform: translate(0, 0); } 33% { transform: translate(var(--scene-transform-4)

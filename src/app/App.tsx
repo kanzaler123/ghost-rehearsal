@@ -21,6 +21,9 @@ import { ImportDiagnostics } from '../components/ImportDiagnostics';
 import { Inspector } from '../components/Inspector';
 import { EventCreator, JsonEditor, Modal, ResourcesEditor, ScenarioEditor } from '../components/Dialogs';
 import { Ghost, HauntedBackdrop, NodeIcon, Pumpkin } from '../components/Icons';
+import { SpectralStageBackdrop } from '../components/SpectralStageBackdrop';
+import { tempoOf } from '../components/spectral';
+import { queueScale } from '../components/queueScale';
 import { describeStatus, GhostJourney } from '../components/Journey';
 import { FlowNavigator, keyEventText, NowPanel } from '../components/Rehearse';
 import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Results';
@@ -117,6 +120,8 @@ export function App() {
   const [peopleGroup, setPeopleGroup] = useState<AffectedFilter>();
   const [mobilePanel, setMobilePanel] = useState<'report' | 'canvas' | 'person' | 'evidence'>('report');
   const [viewRequest, setViewRequest] = useState<ViewRequest>({ token: 0, target: 'default' });
+  /** Stations lit up in each plan after the latest focus action, so both futures point at the same moment. */
+  const [beacons, setBeacons] = useState<ReadonlyMap<string, string[]>>(() => new Map());
   const [dockOpen, setDockOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -186,8 +191,10 @@ export function App() {
   const issues = useMemo(() => [...validateScenario(scenario), ...validatePlan(plan), ...validateGraph(scenario, plan)], [scenario, plan]);
   const runPlanChecks = useMemo(() => (busy ? project.plans.filter(target => runningPlans.current.includes(target.id)) : mode === 'Compare' && second ? [plan, second] : [plan]).map(target => {
     const checks = target === plan ? issues : [...validateScenario(scenario), ...validatePlan(target), ...validateGraph(scenario, target)];
-    return t.redesign.planChecks(target.name, checks.filter(issue => issue.severity === 'error').length, checks.filter(issue => issue.severity !== 'error').length);
+    const errors = checks.filter(issue => issue.severity === 'error').length, warnings = checks.length - errors;
+    return { errors, warnings, text: t.redesign.planChecks(target.name, errors, warnings) };
   }), [busy, project.plans, mode, second, plan, issues, scenario, t]);
+  const checkTotals = runPlanChecks.reduce((sum, check) => ({ errors: sum.errors + check.errors, warnings: sum.warnings + check.warnings }), { errors: 0, warnings: 0 });
   const ownerIssues = useMemo(() => owner.id === plan.id ? issues : [...validatePlan(owner), ...validateGraph(ownerScenario, owner)], [owner, plan.id, issues, ownerScenario]);
   const errorCount = issues.filter(issue => issue.severity === 'error').length;
   const checksPlan = project.plans.find(item => item.id === checksPlanId) ?? plan;
@@ -341,6 +348,9 @@ export function App() {
     const stageKeys = [...new Set(ids.flatMap(id => plans.flatMap(target => { const node = target.graph.nodes.find(item => item.id === id); return node?.type === 'service' ? [node.stageKey] : []; })))];
     const stages = [...new Set(ids.flatMap(id => indexes.flatMap(index => { const top = index.top.get(id); return top ? [top] : index.stages.includes(id) ? [id] : []; })))];
     if (canvasView === 'stages') setExpanded(stages);
+    // Same matching as the canvas focus: explicit per-plan IDs, otherwise shared IDs and service stage keys.
+    if (mode !== 'Build') setBeacons(new Map(plans.map(target => [target.id, (byPlan && Object.hasOwn(byPlan, target.id) ? byPlan[target.id] : undefined)
+      ?? target.graph.nodes.filter(node => ids.includes(node.id) || (node.type === 'service' && stageKeys.includes(node.stageKey))).map(node => node.id)])));
     requestView({ ids, stageKeys, stages, byPlan: byPlan && Object.assign(Object.create(null), byPlan) });
   }
   function toggleStage(id: string, open: boolean) {
@@ -547,6 +557,7 @@ export function App() {
     else setReportCollapsed(false);
     if (mode === 'Build') { setGuide(null); setEvidenceTarget(undefined); }
     if (mode !== 'Build') setInspectorOpen(false);
+    setBeacons(new Map());
     requestView('default');
   }, [mode]);
   useEffect(() => {
@@ -643,6 +654,13 @@ export function App() {
   const runState = deriveRunState({ busy, hasRun: !!run, runFailed: run?.status === 'failed', stale: stale || (mode === 'Compare' && secondStale), lastRun, planId: plan.id });
   const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second);
   const cutoffLabel = formatTime(stats?.until ?? scenario.observationCutoff);
+  /** One gauge scale for every card on screen, so A and B queues read on the same ruler. */
+  const sharedQueueScale = useMemo(() => queueScale(mode === 'Build' ? [] : comparing ? [run, secondRun] : [run]), [mode, comparing, run, secondRun]);
+  /** On desktop, following a ghost keeps both futures visible as a short strip above the journey. */
+  const personStrip = comparing && compareFocus === 'person' && !narrowScreen;
+  const tempo = tempoOf(playing, speed);
+  const showRunBanner = busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || (mode !== 'Build' && runState.kind !== 'complete');
+  const showCompleteChip = mode !== 'Build' && runState.kind === 'complete' && (!comparing || comparison.status === 'ready');
 
   type Metric = { key: string; label: string; icon: ReactNode; value: string; hint?: string };
   /** Rehearse shows two clocks side by side: the replay moment and the final results at cutoff. */
@@ -667,7 +685,8 @@ export function App() {
       onConnect: connect, onDelete: (nodes: string[], edges: string[]) => deleteElements(nodes, edges, target.id), onAdd: addNode, editable: !readOnly, issues: target.id === plan.id ? issues : secondIssues, view: targetView,
       previous: mode === 'Build' ? undefined : targetPrevious, run: mode === 'Build' ? undefined : targetRun, time, stale: outdated, tracked: mode === 'Build' ? undefined : tracked,
       chooseVisitor, visitorName: nameOf, changed: comparing ? changedIds : undefined,
-      request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage, reducedMotion, onManual: () => setViewMark(null) };
+      request: viewRequest, stageView, expanded: expandedSet, onStage: toggleStage, reducedMotion, onManual: () => setViewMark(null),
+      queueScale: sharedQueueScale, beacon: mode === 'Build' ? undefined : beacons.get(target.id), dense: personStrip };
   }
 
   const stageTitle = mode === 'Build' ? plan.name : mode === 'Compare' ? t.stage.compare : t.stage.rehearse;
@@ -676,8 +695,8 @@ export function App() {
 
   if (!persistence.ready) return <p role="status">{t.persistence.loading}</p>;
   return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
-    {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><HauntedBackdrop /></div>}
-    <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name} planChecks={runPlanChecks}
+    {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><SpectralStageBackdrop tempo={0.7} reducedMotion={reducedMotion} /><HauntedBackdrop /></div>}
+    <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
       compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
       onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
       onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} />
@@ -727,34 +746,36 @@ export function App() {
         onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
 
       <main className="stage">
-        <div className="stage-head">
-          <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small>{comparing && comparison.status === 'ready' && runState.kind === 'complete' && <span className="run-state-card is-compact" data-state="complete"><StatusMarker id="finished" label={t.runState.complete.label} /></span>}</div>
-          <ModeActions unavailable={busy ? t.runState.computing.description : !second ? t.topbar.compareUnavailable : undefined}>
-            {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
-            {comparing && compareFocus === 'overview' && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
-            {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
-              <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
-              <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
-            </div>}
-            {(mode === 'Build' || errorCount > 0) && <button ref={checksTrigger} type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
-              {errorCount ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}{errorCount ? t.stage.toFix(errorCount) : issues.length ? t.stage.notices(issues.length) : t.stage.passed}
-            </button>}
-            {mode !== 'Build' && hasStages && <div className="view-switch" role="group" aria-label={t.stage.views.label} title={t.stage.viewsHint}>
-              <button type="button" aria-label={t.stage.views.stages} title={t.stage.views.stages} aria-pressed={canvasView === 'stages'} className={cls(canvasView === 'stages' && 'active')} onClick={() => { setCanvasView('stages'); setExpanded([]); }}><Boxes size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.stages}</span></button>
-              <button type="button" aria-label={t.stage.views.full} title={t.stage.views.full} aria-pressed={canvasView === 'full'} className={cls(canvasView === 'full' && 'active')} onClick={() => setCanvasView('full')}><Workflow size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.full}</span></button>
-            </div>}
-            {mode === 'Build' && <button type="button" className="btn ghost small" title={t.stage.arrange} onClick={arrange} disabled={busy}><WandSparkles size={14} aria-hidden="true" /><span className="btn-label">{t.stage.arrange}</span></button>}
-            <button type="button" className="btn ghost small" title={t.stage.fit} aria-pressed={viewMark === 'default'} onClick={() => requestView('default')}><LocateFixed size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
-            <button type="button" className="btn ghost small" title={t.stage.overview} aria-pressed={viewMark === 'all'} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
-          </ModeActions>
-        </div>
-        {(busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || mode !== 'Build') && !(comparing && runState.kind === 'complete') && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
+        {showRunBanner && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
         {mode === 'Rehearse' && <div className="metrics-strip two-clocks">
           <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} />
           <SummaryStrip title={t.review[basis]} time={cutoffLabel} metrics={finalMetrics} stale={stale} />
         </div>}
 
-        <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)}>
+        <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)} style={{ '--fx-tempo': tempo } as CSSProperties}>
+          <SpectralStageBackdrop tempo={tempo} reducedMotion={reducedMotion} moon={comparing} quiet={mode === 'Build'} paused={!!dialog} />
+          <div className="stage-head">
+            <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small>{showCompleteChip && <span className="run-state-card is-compact" data-state="complete"><StatusMarker id="finished" label={t.runState.complete.label} /></span>}</div>
+            <ModeActions unavailable={busy ? t.runState.computing.description : !second ? t.topbar.compareUnavailable : undefined}>
+              {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
+              {comparing && compareFocus === 'overview' && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
+              {comparing && <div className="comparison-focus" role="group" aria-label={t.workspace.focus}>
+                <button type="button" aria-pressed={compareFocus === 'overview'} onClick={showOverview}>{t.workspace.overview}</button>
+                <button type="button" aria-pressed={compareFocus === 'person'} onClick={() => showJourney(peopleGroup)}><Ghost size={14} />{t.workspace.person}</button>
+              </div>}
+              {mode !== 'Build' && errorCount === 0 && <span className={cls('run-plan-checks', checkTotals.errors ? 'bad' : checkTotals.warnings ? 'warn' : 'ok')} title={runPlanChecks.map(check => check.text).join('\n')}>{checkTotals.errors ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}<b aria-hidden="true">{checkTotals.errors ? t.stage.toFix(checkTotals.errors) : checkTotals.warnings ? t.stage.notices(checkTotals.warnings) : t.stage.passed}</b>{runPlanChecks.map((check, index) => <span key={index} className="sr-only">{check.text}</span>)}</span>}
+              {(mode === 'Build' || errorCount > 0) && <button ref={checksTrigger} type="button" className={cls('check-chip', errorCount ? 'bad' : issues.length ? 'warn' : 'ok')} aria-expanded={showIssues} onClick={() => { setChecksPlanId(plan.id); setShowIssues(value => !value); }}>
+                {errorCount ? <TriangleAlert size={14} aria-hidden="true" /> : <CircleCheck size={14} aria-hidden="true" />}{errorCount ? t.stage.toFix(errorCount) : issues.length ? t.stage.notices(issues.length) : t.stage.passed}
+              </button>}
+              {mode !== 'Build' && hasStages && <div className="view-switch" role="group" aria-label={t.stage.views.label} title={t.stage.viewsHint}>
+                <button type="button" aria-label={t.stage.views.stages} title={t.stage.views.stages} aria-pressed={canvasView === 'stages'} className={cls(canvasView === 'stages' && 'active')} onClick={() => { setCanvasView('stages'); setExpanded([]); }}><Boxes size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.stages}</span></button>
+                <button type="button" aria-label={t.stage.views.full} title={t.stage.views.full} aria-pressed={canvasView === 'full'} className={cls(canvasView === 'full' && 'active')} onClick={() => setCanvasView('full')}><Workflow size={14} aria-hidden="true" /><span className="btn-label">{t.stage.views.full}</span></button>
+              </div>}
+              {mode === 'Build' && <button type="button" className="btn ghost small" title={t.stage.arrange} onClick={arrange} disabled={busy}><WandSparkles size={14} aria-hidden="true" /><span className="btn-label">{t.stage.arrange}</span></button>}
+              <button type="button" className="btn ghost small" title={t.stage.fit} aria-pressed={viewMark === 'default'} onClick={() => requestView('default')}><LocateFixed size={14} aria-hidden="true" /><span className="btn-label">{t.stage.fit}</span></button>
+              <button type="button" className="btn ghost small" title={t.stage.overview} aria-pressed={viewMark === 'all'} onClick={() => requestView('all')}><Maximize size={14} aria-hidden="true" /><span className="btn-label">{t.stage.overview}</span></button>
+            </ModeActions>
+          </div>
         {showIssues && <div className="checks-drawer" role="region" aria-label={t.stage.checksTitle} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); setShowIssues(false); checksTrigger.current?.focus(); } }}>
           <div className="section-heading"><b>{t.stage.checksTitle}</b><button type="button" autoFocus className="icon-btn" aria-label={t.stage.closeChecks} onClick={() => { setShowIssues(false); checksTrigger.current?.focus(); }}>×</button></div>
           <p className="checks-plan">{t.workspace.checkingPlan(checksPlan.name)}</p>
@@ -767,6 +788,7 @@ export function App() {
           {comparing && second && <div className="canvas-pane"><Canvas {...canvasProps(second, secondRun, secondView, secondPrevious, secondStale)} label={{ badge: 'B', name: second.name, note: t.canvas.changes(reportChanges.length), status: tracked && trackedStatus[1] ? `${tracked.name} · ${trackedStatus[1]}` : undefined }} compact /></div>}
         </div>
         {mode !== 'Build' && <section className={cls('dock', dockOpen && 'open', `tab-${bottomTab}`)}>
+          <div className="dock-head">
           <div className="timeline">
             <button type="button" className="play-btn" aria-label={playing ? t.dock.pause : t.dock.play} disabled={!run} onClick={() => { if (time >= endTime) setTime(0); setPlaying(value => !value); }}>{playing ? <Pause size={16} /> : <Play size={16} />}</button>
             <button type="button" className="icon-btn" aria-label={t.dock.reset} disabled={!run} onClick={() => { setTime(0); setPlaying(false); }}><RotateCcw size={16} /></button>
@@ -789,6 +811,7 @@ export function App() {
             {(stale || (mode === 'Compare' && secondStale)) && <span role="status">{t.metrics.stale}{mode === 'Compare' ? ` · ${[stale && t.compare.a, secondStale && t.compare.b].filter(Boolean).join(', ')}` : ''}</span>}
             {mode === 'Compare' && <button type="button" className="btn small accent" onClick={() => { setPlaying(false); setDialog('stress'); }}><Flame size={14} aria-hidden="true" />{t.dock.stress}</button>}
             <button type="button" className="icon-btn" aria-label={dockOpen ? t.dock.collapse : t.dock.expand} aria-expanded={dockOpen} title={dockOpen ? t.dock.collapse : t.dock.expand} onClick={() => { if (comparing && compareFocus === 'person' && dockOpen) showOverview(); else setDockOpen(value => !value); }}>{dockOpen ? <ChevronDown size={16} /> : <ChevronUp size={16} />}</button>
+          </div>
           </div>
           {!comparing && !dockOpen && run && <p className="dock-summary">{t.studioUi.dockSummary(bottomTab === 'events' ? activeEvents.length : bottomTab === 'journey' ? picks.reduce((sum, group) => sum + group.items.length, 0) : moments.filter(item => item.time <= time).length, tracked ? `${tracked.name} · ${trackedStatus[0]}` : moments.filter(item => item.time <= time).at(-1) ? keyEventText(moments.filter(item => item.time <= time).at(-1)!, run.request.plan, nameOf, t) : '')}</p>}
           {dockOpen && <div className="dock-body">

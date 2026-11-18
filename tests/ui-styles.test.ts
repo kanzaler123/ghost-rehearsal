@@ -40,7 +40,7 @@ describe('workbench style contract', () => {
   });
 
   it('keeps the Ghostlight surface palette and exactly three elevation levels', () => {
-    expect([0, 1, 2].map(level => resolve(tokens.get(`--surface-${level}`)!))).toEqual(['#0d0d0d', '#151515', '#202020']);
+    expect([0, 1, 2].map(level => resolve(tokens.get(`--surface-${level}`)!))).toEqual(['#0e0b14', '#15111e', '#1f1a2b']);
     expect([...tokens.keys()].filter(name => /^--surface-\d+$/.test(name))).toHaveLength(3);
     expect(tokens.get('--elev-0')).toBe('none');
     expect(new Set([0, 1, 2].map(level => tokens.get(`--elev-${level}`))).size).toBe(3);
@@ -136,7 +136,7 @@ describe('workbench style contract', () => {
   });
 
   it('keeps card geometry synchronized with the placement constants', () => {
-    for (const [name, size] of Object.entries({ '--card-w': NODE_SIZE.build.w, '--card-build-h': NODE_SIZE.build.h, '--card-run-h': NODE_SIZE.run.h, '--stage-w': STAGE_SIZE.w, '--stage-h': STAGE_SIZE.h })) {
+    for (const [name, size] of Object.entries({ '--card-w': NODE_SIZE.build.w, '--card-build-h': NODE_SIZE.build.h, '--card-run-w': NODE_SIZE.run.w, '--card-run-h': NODE_SIZE.run.h, '--stage-w': STAGE_SIZE.w, '--stage-h': STAGE_SIZE.h })) {
       expect(resolve(tokens.get(name)!), name).toBe(`${size}px`);
     }
     expect(resolve(tokens.get('--touch-min')!)).toBe('44px');
