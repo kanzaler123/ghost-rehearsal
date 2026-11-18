@@ -44,6 +44,8 @@ async function open(page: Page, info: TestInfo) {
     document.addEventListener('touchstart', event => target.releaseTouches.push(event.isTrusted), true);
   });
   await page.goto('./');
+  await activate(page.getByRole('button', { name: t.redesign.enter, exact: true }), info);
+  await activate(page.getByRole('button', { name: t.redesign.setup, exact: true }), info);
   return t;
 }
 

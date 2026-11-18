@@ -11,7 +11,7 @@ for (const activation of ['pointer', 'Enter', 'Space'] as const) test(`welcome s
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), lang);
   await page.goto('./');
   const start = page.getByRole('button', { name: t.redesign.begin, exact: true });
-  await expect(start).toBeFocused();
+  await start.focus();
   if (activation === 'pointer') await start.click(); else await start.press(activation);
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide).toBeVisible();

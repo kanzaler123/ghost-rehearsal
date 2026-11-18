@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
-import { selectPacking } from './studio';
+import { openEventSetup, selectPacking } from './studio';
 
 test('capture matching UI review states', async ({ page }, info) => {
   test.skip(!process.env.CAPTURE, 'Set CAPTURE=before or CAPTURE=after to record review images.');
@@ -16,8 +16,9 @@ test('capture matching UI review states', async ({ page }, info) => {
   };
   await page.addInitScript(value => localStorage.setItem('ghost-rehearsal.lang', value), lang);
   await page.goto('./');
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.locator('.opening-page')).toBeVisible();
   await capture('welcome');
+  await openEventSetup(page, t);
   await page.getByRole('dialog').getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   await selectPacking(page, t);
   await expect(page.locator('.inspector:not(.collapsed)')).toBeVisible();

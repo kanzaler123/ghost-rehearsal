@@ -6,7 +6,6 @@ import { deviceUnitIds, validatePlan, validateScenario } from '../schemas';
 import type { Plan, ProjectDocument, Scenario } from '../schemas';
 import { emptyProject, halloweenProject, newId } from '../features/project';
 import { issueText, useI18n } from '../i18n';
-import type { Lang } from '../i18n';
 import { Field, MinuteInput, NumberInput } from './Inspector';
 import { NumericInput } from './forms/NumericInput';
 import { minutesToSeconds, secondsToMinutes } from './forms/numberDraft';
@@ -16,8 +15,6 @@ import { ArrivalDataEditor } from './data-sources/ArrivalDataEditor';
 import { ProvenanceFields } from './data-sources/ProvenanceFields';
 import { dataSourceText } from './data-sources/text';
 import './forms/forms.css';
-import { RiftScene } from './Icons';
-import { FeatureTour } from './GuidedDemo';
 
 export function Modal({ title, children, onClose, wide = false, icon }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; icon?: ReactNode }) {
   const { t } = useI18n();
@@ -54,18 +51,14 @@ export function JsonEditor({ title, value, onApply, onClose, readOnly = false }:
   </Modal>;
 }
 
-export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelImport, onClose, importError, onLang }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onGuide?: () => void; onImport: () => void; onCancelImport?: () => void; onClose: () => void; onLang: (lang: Lang) => void }) {
+export function EventCreator({ onCreate, onExample, onImport, onCancelImport, onClose, importError }: { importError?: string; onCreate: (document: ProjectDocument) => void; onExample: () => void; onImport: () => void; onCancelImport?: () => void; onClose: () => void }) {
   const { t, lang } = useI18n();
   const [name, setName] = useState('');
   const [guests, setGuests] = useState(100);
   const [duration, setDuration] = useState(30);
   const [arrivalWindow, setArrivalWindow] = useState(10);
   const [preset, setPreset] = useState<'blank' | 'haunted' | 'candy'>('blank');
-  const [tourStep, setTourStep] = useState<number | null>(null);
-  const tourTrigger = useRef<HTMLButtonElement>(null);
-  function closeTour() { setTourStep(null); tourTrigger.current?.focus(); }
   const importErrorId = useId();
-  const guideHintId = useId();
   const [error, setError] = useState('');
   return <Modal title={t.eventSetup.title} icon={<CalendarDays size={19} />} onClose={onClose}>
     <form onSubmit={event => {
@@ -78,20 +71,8 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelI
       if (errors.length) { setError(errors.map(issue => issueText(issue, lang)).join('\n')); return; }
       onCreate(document);
     }}>
-      <div className={onGuide ? 'modal-body welcome-layout' : 'modal-body'}>
-        {onGuide && <section className="welcome-story">
-          <span className="eyebrow">{t.redesign.eyebrow}</span>
-          <h1>{t.redesign.headline}</h1><p>{t.redesign.introduction}</p>
-          <button type="button" className={`btn ${name.trim() ? '' : 'primary'} welcome-start`} aria-describedby={guideHintId} onClick={onGuide}>{t.redesign.begin}<span aria-hidden="true">↗</span></button>
-          <small id={guideHintId}>{t.redesign.guideHint}</small>
-          <button type="button" ref={tourTrigger} className="text-btn" aria-expanded={tourStep !== null} onClick={() => tourStep === null ? setTourStep(0) : closeTour()}>{t.tour.title}</button>
-          {tourStep === null
-            ? <figure className="welcome-illustration"><div aria-hidden="true"><RiftScene /></div><figcaption>{t.redesign.illustration}</figcaption></figure>
-            : <FeatureTour step={tourStep} onStep={setTourStep} onClose={closeTour} />}
-          <div className="lang-switch" role="group" aria-label={t.language.label}>{(['en', 'zh'] as const).map(item => <button type="button" key={item} aria-pressed={lang === item} className={lang === item ? 'active' : ''} onClick={() => onLang(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}</div>
-        </section>}
+      <div className="modal-body">
         <div className="event-setup">
-        {onGuide && <h3>{t.redesign.create}</h3>}
         <span className="eyebrow">{t.eventSetup.steps}</span><p>{t.eventSetup.subtitle}</p>
         <Field label={t.dialogs.eventName}><input aria-label={t.dialogs.eventName} value={name} maxLength={100} required placeholder={t.eventSetup.namePlaceholder} onChange={event => setName(event.target.value)} /></Field>
         <div className="form-row">
@@ -108,7 +89,7 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelI
         {onCancelImport && <p role="status">{t.imports.busy}<button type="button" onClick={onCancelImport}>{t.common.cancel}</button></p>}
         </div>
       </div>
-      <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className={`btn ${!onGuide || name.trim() ? 'primary' : ''}`} disabled={!name.trim()}>{t.eventSetup.create}</button></div>
+      <div className="modal-footer"><button type="button" className="btn ghost" onClick={onClose}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!name.trim()}>{t.eventSetup.create}</button></div>
     </form>
   </Modal>;
 }

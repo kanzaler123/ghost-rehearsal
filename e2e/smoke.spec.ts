@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../src/i18n/messages';
+import { openEventSetup } from './ui/studio';
 
 test('production subpath loads the workbench and runs the actual Worker', async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
@@ -11,6 +12,7 @@ test('production subpath loads the workbench and runs the actual Worker', async 
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   await expect(page).toHaveURL(info.project.use.baseURL!);
+  await openEventSetup(page, t);
   await page.getByRole('dialog').getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   await expect(page.locator('.people-stats b')).toHaveText(['9', '9', '276']);

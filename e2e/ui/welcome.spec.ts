@@ -12,41 +12,69 @@ test.beforeEach(({ page }) => {
 });
 test.afterEach(() => expect(errors).toEqual([]));
 
-test('first launch exposes example, blank setup and import without changing saved projects', async ({ page }, info) => {
+test('first launch tours six workspace regions and a saved activity can replay the opening', async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
-  const dialog = page.getByRole('dialog');
-  await expect(dialog.getByRole('button', { name: t.redesign.begin, exact: true })).toBeVisible();
-  await expect(dialog.getByRole('button', { name: t.eventSetup.demo, exact: true })).toBeVisible();
-  await expect(dialog.locator('input').first()).toBeVisible();
-  await expect(dialog.getByRole('button', { name: t.eventSetup.import, exact: true })).toBeVisible();
-  const name = dialog.getByLabel(t.dialogs.eventName, { exact: true });
-  await name.fill('Open house');
-  const tourButton = dialog.getByRole('button', { name: t.tour.title, exact: true });
-  await tourButton.click();
-  const tour = dialog.getByRole('region', { name: t.tour.title });
-  for (const mode of ['Build', 'Rehearse', 'Compare'] as const) {
-    await expect(tour).toContainText(t.tour.steps[mode]);
-    await tour.getByRole('button', { name: mode === 'Compare' ? t.tour.done : t.tour.next, exact: true }).click();
-  }
-  await expect(tourButton).toBeFocused();
-  await expect(name).toHaveValue('Open house');
+  const opening = page.locator('.opening-page');
+  const other = MESSAGES[t.lang === 'zh' ? 'en' : 'zh'];
+  await opening.getByRole('button', { name: t.language[other.lang], exact: true }).click();
+  await expect(opening.getByRole('heading', { level: 1 })).toContainText(other.redesign.highlight);
+  await opening.getByRole('button', { name: t.language[t.lang], exact: true }).click();
+  await expect(opening.locator('.people-stats b')).toHaveText(['9', '9', '276']);
+  await expect(opening).toContainText(t.evidence.excluded(6));
+  await opening.getByRole('slider').fill('655');
+  await expect(opening.locator('.opening-tracked')).toContainText(t.markers.finished);
+  await opening.getByRole('button', { name: t.redesign.create, exact: true }).click();
+  const choice = page.getByRole('dialog', { name: t.redesign.choose });
+  await expect(choice.getByRole('button', { name: t.redesign.modules, exact: true })).toBeFocused();
+  await expect(choice.getByRole('button', { name: t.redesign.follow, exact: true })).toBeVisible();
+  await expect(choice.getByRole('button', { name: t.redesign.setup, exact: true })).toBeVisible();
   expect(await storedProject(page, 'draft')).toBeNull();
-  await dialog.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
+  await choice.getByRole('button', { name: t.redesign.modules, exact: true }).press('Enter');
+  const tour = page.getByRole('dialog', { name: t.tour.title });
+  for (const [i, [title, description]] of t.tour.steps.entries()) {
+    await expect(tour.getByRole('heading')).toHaveText(title);
+    await expect(tour).toContainText(description);
+    await expect(tour.locator('.spotlight-window')).toBeInViewport();
+    if (i === 1 && info.project.name.startsWith('mobile')) {
+      const portrait = page.viewportSize()!;
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await page.setViewportSize({ width: 720, height: 360 });
+      await expect.poll(async () => {
+        const box = await tour.locator('.spotlight-window').boundingBox();
+        return !!box && box.width > 600 && box.height > 30;
+      }).toBe(true);
+      await page.setViewportSize(portrait);
+    }
+    await expect(tour.getByRole('button', { name: t.tour.skip })).toBeInViewport({ ratio: 1 });
+    await tour.getByRole('button', { name: i === 5 ? t.tour.done : t.tour.next, exact: true }).click();
+  }
+  await expect(page.locator('.workspace-menu > summary')).toBeFocused();
+  await expect(page.getByRole('tab', { name: t.modes.Build, exact: true })).toHaveAttribute('aria-selected', 'true');
   await page.getByTitle(t.header.saveTitle, { exact: true }).click();
   await expect(page.locator('.save-state')).toHaveText(t.header.saved);
   const saved = await storedProject(page, 'saved');
   expect(saved).not.toBeNull();
   await page.reload();
+  await expect(page.locator('.save-state')).toHaveText(t.header.saved);
+  await expect(opening).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.locator('.workspace-menu > summary').click();
+  await page.getByRole('button', { name: t.redesign.replay, exact: true }).click();
+  await opening.getByRole('button', { name: t.redesign.enter, exact: true }).click();
+  await expect(choice.getByRole('button', { name: t.redesign.modules, exact: true })).toHaveAccessibleDescription(t.redesign.currentHint);
+  await choice.getByRole('button', { name: t.redesign.modules, exact: true }).click();
+  await tour.getByRole('button', { name: t.tour.next, exact: true }).click();
+  await tour.getByRole('button', { name: t.tour.previous, exact: true }).click();
+  await expect(tour.getByRole('heading')).toHaveText(t.tour.steps[0][0]);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.workspace-menu > summary')).toBeFocused();
+  await page.locator('.workspace-menu > summary').click();
   await page.getByRole('button', { name: t.tour.title, exact: true }).click();
-  await expect(page.locator('.mode-switch .tour-target')).toHaveText(t.modes.Build);
-  await page.getByRole('button', { name: t.tour.next, exact: true }).click();
-  await expect(page.locator('.mode-switch .tour-target')).toHaveText(t.modes.Rehearse);
-  await page.getByRole('button', { name: t.tour.skip, exact: true }).click();
+  await tour.getByRole('button', { name: t.tour.skip, exact: true }).click();
   expect(await storedProject(page, 'saved')).toEqual(saved);
+  expect(await storedProject(page, 'draft')).toEqual(saved);
 });
 
 test('welcome starts a real A/B guide by keyboard or touch without filling setup', async ({ page }, info) => {
@@ -58,20 +86,17 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   const dialog = page.getByRole('dialog');
-  const start = dialog.getByRole('button', { name: t.redesign.begin, exact: true });
-  await expect(start).toBeFocused();
-  await expect(start).toBeInViewport({ ratio: 1 });
+  const start = page.getByRole('button', { name: t.redesign.begin, exact: true });
   await expect(start).toHaveAccessibleDescription(t.redesign.guideHint);
-  await expect(dialog.getByLabel(t.dialogs.eventName, { exact: true })).toHaveValue('');
-  await expect(dialog.getByRole('button', { name: t.eventSetup.create, exact: true })).toBeDisabled();
-  // The existing dialog entrance scales its descendants for 220ms. Measure the
-  // settled touch target, as native pointer actionability does, without reducing motion.
-  await dialog.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
+  await expect(dialog).toHaveCount(0);
   const box = await start.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath('welcome-guide.png'), fullPage: true });
-  if (mobile) await start.tap();
+  if (mobile) {
+    await page.getByRole('button', { name: t.redesign.enter, exact: true }).tap();
+    await dialog.getByRole('button', { name: t.redesign.follow, exact: true }).tap();
+  }
   else await start.press('Enter');
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('tab', { name: t.modes.Compare, exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -121,7 +146,7 @@ for (const outcome of ['success', 'failure'] as const) test(`starting the welcom
   const older = JSON.parse(readFileSync(new URL('../../examples/open-house.json', import.meta.url), 'utf8')) as ProjectDocument;
   older.plans.forEach(plan => { plan.name = 'Older imported plan'; });
   await page.locator('input[type=file]').first().setInputFiles({ name: 'older.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(older)) });
-  await page.getByRole('dialog').getByRole('button', { name: t.redesign.begin, exact: true }).click();
+  await page.getByRole('button', { name: t.redesign.begin, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   await expect.poll(() => storedProject(page, 'draft')).not.toBeNull();

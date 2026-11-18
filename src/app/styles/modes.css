@@ -306,7 +306,7 @@
 .outcome-table td { font-size: var(--fs-sm); line-height: 1.5; font-family: var(--font-mono); color: var(--text-0); }
 .outcome-table td small { display: block; font-family: var(--font-ui); font-size: var(--fs-xs); }
 .people-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-.people-stats > button { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-height: var(--people-stats-button-min-height); padding: var(--space-3) var(--space-3); border-radius: var(--radius-md); border: var(--stroke) solid var(--line-2); background: var(--bg-2); font-size: var(--fs-sm); line-height: 1.5; color: var(--text-1); text-align: left; transition: background var(--dur-base), border-color var(--dur-base); }
+.people-stats > button, .opening-report .people-stats > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); min-height: var(--people-stats-button-min-height); padding: var(--space-3) var(--space-3); border-radius: var(--radius-md); border: var(--stroke) solid var(--line-2); background: var(--bg-2); font-size: var(--fs-sm); line-height: 1.5; color: var(--text-1); text-align: left; transition: background var(--dur-base), border-color var(--dur-base); }
 .people-stats > button:hover:not(:disabled) { background: var(--bg-3); border-color: var(--tone-serve); }
 .people-stats > button:disabled { opacity: 0.5; }
 .people-stats b { font-family: var(--font-mono); font-size: var(--fs-2xl); color: var(--text-0); }

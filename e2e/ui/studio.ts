@@ -3,12 +3,18 @@ import type { Page, TestInfo } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
 import type { Messages } from '../../src/i18n/messages';
 
+export async function openEventSetup(page: Page, t: Messages) {
+  await page.getByRole('button', { name: t.redesign.enter, exact: true }).click();
+  await page.getByRole('button', { name: t.redesign.setup, exact: true }).click();
+}
+
 export async function openExample(page: Page, info: TestInfo) {
   const lang = info.project.name.endsWith('zh') ? 'zh' : 'en';
   const t = MESSAGES[lang];
   await page.setViewportSize(info.project.name.startsWith('mobile') ? { width: 390, height: 844 } : { width: 1366, height: 768 });
   await page.addInitScript(value => localStorage.setItem('ghost-rehearsal.lang', value), lang);
   await page.goto('./');
+  await openEventSetup(page, t);
   await page.getByRole('dialog').getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   return t;
 }

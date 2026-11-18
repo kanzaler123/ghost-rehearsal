@@ -61,6 +61,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   page.on('worker', worker => workers.push(worker.url()));
   await page.addInitScript(value => localStorage.setItem('ghost-rehearsal.lang', value), lang);
   await page.goto('./');
+  await page.getByRole('button', { name: t.redesign.enter, exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: t.common.closeDialog, exact: true }).click();
   const originalProject = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
   await page.getByRole('button', { name: t.guide.start, exact: true }).click();

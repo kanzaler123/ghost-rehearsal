@@ -1,26 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { useI18n } from '../i18n';
-import { MODES } from './shell/ModeNav';
 
 export interface DemoProgress { step: number; a: string; b: string; c?: string; visitor?: string; exported?: boolean }
-
-export function FeatureTour({ step, onStep, onClose }: { step: number; onStep: (step: number) => void; onClose: () => void }) {
-  const { t } = useI18n();
-  const { mode, icon: Icon } = MODES[step];
-  const panel = useRef<HTMLElement>(null);
-  useEffect(() => { panel.current?.focus(); }, []);
-  return <section ref={panel} tabIndex={-1} className="guided-demo" aria-label={t.tour.title}
-    onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); } }}>
-    <div className="guide-heading" aria-live="polite"><strong>{step + 1}/{MODES.length} · <Icon size={14} aria-hidden="true" /> {t.modes[mode]}</strong><p>{t.tour.steps[mode]}</p></div>
-    <div className="guide-actions">
-      <button type="button" className="text-btn" disabled={step === 0} onClick={() => onStep(step - 1)}>{t.tour.previous}</button>
-      {step < MODES.length - 1
-        ? <button type="button" className="btn accent small" onClick={() => onStep(step + 1)}>{t.tour.next}</button>
-        : <button type="button" className="btn accent small" onClick={onClose}>{t.tour.done}</button>}
-      <button type="button" className="text-btn" onClick={onClose}>{t.tour.skip}</button>
-    </div>
-  </section>;
-}
 
 export function GuidedDemo({ progress, showPlanMapping, ready, busy, onNext, onReset, onRerun, onExit, onPacking, onResources, onExportProject }: {
   progress: DemoProgress; showPlanMapping: boolean; ready: boolean; busy: boolean; onNext: () => void; onReset: () => void; onRerun: () => void; onExit: () => void;

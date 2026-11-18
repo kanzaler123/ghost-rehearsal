@@ -4,7 +4,7 @@ import type { SavedTemplate } from '../features/project';
 import { newProjectId, openPersistence } from '../features/persistence';
 import type { Persistence, PersistenceError, Revision, StoredRevision, TemplateSnapshot } from '../features/persistence';
 
-export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null) => void) {
+export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null, needsRecovery?: boolean) => void) {
   const store = useRef<Persistence | null>(null);
   const editor = useRef({ id: newProjectId(), parents: [] as StoredRevision[], confirmed: '' });
   const queue = useRef(Promise.resolve());
@@ -62,7 +62,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
       if (retry && active) { /* Keep the editor and its original parents when reconnecting. */ }
       else if (saved?.status === 'ready' && (!drafts.length || drafts.every(item => item.projectId === saved.projectId))) accept(saved.current);
       else if (!saved && heads.length === 1 && heads[0].status === 'ready') accept(heads[0]);
-      else { setRecoveryOptions(heads); setChooseRecovery(heads.length > 0); load.current(null); }
+      else { setRecoveryOptions(heads); setChooseRecovery(heads.length > 0); load.current(null, heads.length > 0); }
       setReady(true);
       unsubscribe = instance.subscribe(reason => {
         if (reason === 'local') return;

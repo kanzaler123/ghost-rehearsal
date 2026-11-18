@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import type { ProjectDocument } from '../../src/schemas';
 import { MESSAGES } from '../../src/i18n/messages';
-import { openExample } from '../ui/studio';
+import { openEventSetup, openExample } from '../ui/studio';
 
 const example = JSON.parse(readFileSync(new URL('../../examples/open-house.json', import.meta.url), 'utf8')) as ProjectDocument;
 
@@ -18,6 +18,7 @@ for (const action of ['cancel', 'close'] as const) test(`welcome ${action} cance
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
+  await openEventSetup(page, t);
   await page.evaluate(() => {
     const read = File.prototype.text;
     File.prototype.text = function () {
@@ -150,6 +151,7 @@ test('choosing a new example supersedes an unfinished import', async ({ page }, 
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
+  await openEventSetup(page, t);
   await page.evaluate(() => {
     const read = File.prototype.text;
     File.prototype.text = function () {
@@ -182,6 +184,7 @@ for (const entry of ['welcome', 'new-event'] as const) test(`${entry} dialog ann
   } else {
     await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
     await page.goto('./');
+    await openEventSetup(page, t);
   }
   const dialog = page.getByRole('dialog', { name: t.eventSetup.title, exact: true });
   await dialog.getByLabel(t.dialogs.eventName, { exact: true }).fill('Unsaved event draft');

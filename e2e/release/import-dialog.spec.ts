@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { MESSAGES, type Messages } from '../../src/i18n/messages';
 import { parseDocument } from '../../src/schemas';
 import type { ProjectDocument } from '../../src/schemas';
-import { openExample } from '../ui/studio';
+import { openEventSetup, openExample } from '../ui/studio';
 
 const test = base.extend<{ runtimeCheck: void }>({
   runtimeCheck: [async ({ page }, use, info) => {
@@ -150,6 +150,7 @@ for (const entry of ['welcome', 'new-event'] as const) {
     else {
       await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
       await page.goto('./');
+      await openEventSetup(page, t);
     }
     const dialog = page.getByRole('dialog', { name: t.eventSetup.title, exact: true });
     await expect(dialog).toBeVisible();

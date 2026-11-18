@@ -120,8 +120,9 @@
   --tracking-label: 0.12em;
   --tracking-body: 0.01em;
   --tracking-display: -0.02em;
-  --welcome-width: 1040px;
-  --welcome-art-size: 200px;
+  --opening-width: 1280px;
+  --opening-title: 84px;
+  --tour-mask: 0 0 0 150vmax color-mix(in srgb, var(--bg-0) 82%, transparent);
   --queue-track-height: 4px;
   --select-background-position: 10px;
   --select-pill-select-max-width: 220px;

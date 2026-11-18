@@ -5,7 +5,7 @@ import type { ProjectDocument } from '../../src/schemas';
 const example = JSON.parse(readFileSync(new URL('../../examples/open-house.json', import.meta.url), 'utf8')) as ProjectDocument;
 import { MESSAGES } from '../../src/i18n/messages';
 import type { Messages } from '../../src/i18n/messages';
-import { openExample } from '../ui/studio';
+import { openEventSetup, openExample } from '../ui/studio';
 import { storedProject } from './browser';
 
 async function renameEvent(page: Page, t: Messages, name: string) {
@@ -62,6 +62,7 @@ test('constructor plan IDs work through import, real Worker and reload', async (
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
+  await openEventSetup(page, t);
   const document = structuredClone(example); document.plans = [document.plans[0]]; document.plans[0].id = 'constructor';
   const chooser = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: t.eventSetup.import, exact: true }).click();
@@ -243,6 +244,7 @@ test('unreadable template storage retains its original and requires explicit rep
     localStorage.setItem('ghost-rehearsal.templates.v1', '{broken originals');
   }, t.lang);
   await page.goto('./');
+  await openEventSetup(page, t);
   await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
   if (await expand.isVisible()) await expand.click();

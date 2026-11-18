@@ -21,6 +21,7 @@ test('guide exports only its reproducible A/B/C experiment and preserves existin
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
+  await page.getByRole('button', { name: t.redesign.enter, exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: t.common.closeDialog, exact: true }).click();
   const original = JSON.parse(await fullProject(page, t)) as ProjectDocument;
   await page.getByRole('button', { name: t.guide.start, exact: true }).click();

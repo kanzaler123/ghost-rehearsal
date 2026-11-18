@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
+import { openEventSetup } from '../ui/studio';
 
 for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }, { width: 1280, height: 720 }]) {
   test.describe(`${viewport.width}x${viewport.height}`, () => {
@@ -10,8 +11,10 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       errors = [];
       page.on('pageerror', error => errors.push(error.message));
       page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-      await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), info.project.name.endsWith('zh') ? 'zh' : 'en');
+      const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
+      await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
       await page.goto('./');
+      await openEventSetup(page, t);
     });
     test.afterEach(() => expect(errors).toEqual([]));
 

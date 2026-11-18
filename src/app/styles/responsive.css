@@ -1,12 +1,6 @@
 
 @container (max-height: 330px) { .react-flow__minimap { display: none; } }
 @media (max-width: 760px) {
-  .welcome-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); padding: var(--space-5); }
-  .welcome-story { gap: var(--space-4); }
-  .welcome-story h1 { font-size: var(--fs-3xl); line-height: 1.2; }
-  .welcome-story > p { font-size: var(--fs-md); }
-  .welcome-illustration { display: none; }
-  .welcome-layout .event-setup { border-left: 0; border-top: var(--stroke) solid var(--line); padding: var(--space-5) 0 0; }
   .legend summary { min-height: var(--touch-min); display: flex; align-items: center; }
 }
 @container (max-width: 620px) { .react-flow__minimap { display: none; } }
@@ -242,4 +236,34 @@
 @container dock (max-width: 1180px) {
   .dock-head { display: grid; grid-template-columns: minmax(0, 1fr); }
   .dock-head > .timeline { border-bottom: var(--stroke) solid var(--line); }
+}
+@media (max-width: 980px) {
+  .opening-topbar { flex-wrap: nowrap; padding-inline: var(--opening-gutter); }
+  .opening-topbar .brand-text small { display: block; }
+}
+@media (max-width: 760px) {
+  .opening-hero-inner, .opening-act { grid-template-columns: minmax(0, 1fr); gap: var(--space-7); }
+  .opening-hero-inner { padding-block: var(--space-9) var(--space-7); }
+  .opening-copy h1 { font-size: clamp(var(--fs-4xl), 10vw, var(--fs-display)); }
+  .opening-window { width: min(100%, var(--modal-width)); justify-self: center; }
+  .opening-actions { margin-top: var(--space-5); }
+  .opening-act { padding-block: var(--space-9); }
+  .opening-hero .haunt-pumpkins { bottom: var(--space-11); }
+  .opening-hero .haunt-moon { top: 46%; right: 2%; opacity: 0.4; }
+  .opening-hero .haunt-bat { top: 45%; right: 8%; }
+  .opening-hero .haunt-bat.bat-2 { top: 49%; right: 14%; }
+  .opening-hero .haunt-bat.bat-3 { top: 52%; right: 5%; }
+  .opening-flow .flow-card { flex-direction: column; text-align: center; padding: var(--space-3); }
+}
+@media (max-width: 540px) {
+  .opening-topbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); }
+  .opening-topbar .brand { grid-row: 1 / 3; gap: var(--space-2); }
+  .opening-topbar .brand-mark { width: auto; }
+  .opening-topbar .brand-text small { font-size: var(--fs-xs); letter-spacing: 0; }
+  .opening-topbar .lang-switch { grid-column: 2; grid-row: 1; justify-self: end; }
+  .opening-topbar .btn.run { grid-column: 2; grid-row: 2; justify-self: end; padding-inline: var(--space-3); font-size: var(--fs-sm); }
+  .opening-window, .act-preview { padding: var(--space-4); }
+  .opening-stations { gap: var(--space-2); }
+  .opening-uses { padding-block: var(--space-3); }
+  .opening-acts { scroll-margin-top: calc(var(--topbar-h) + var(--space-10)); }
 }

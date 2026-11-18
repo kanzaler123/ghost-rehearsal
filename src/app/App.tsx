@@ -15,8 +15,9 @@ import { CompareReport } from '../components/CompareReport';
 import { LazyRobustnessPanel } from '../experiments/robustness/LazyRobustnessPanel';
 import { labels as robustnessLabels } from '../experiments/robustness/labels';
 import { ComparisonPlanPicker } from '../components/ComparisonPlanPicker';
-import { FeatureTour, GuidedDemo } from '../components/GuidedDemo';
-import { MODES } from '../components/shell/ModeNav';
+import { GuidedDemo } from '../components/GuidedDemo';
+import { OpeningPage, TutorialChoice } from '../components/OpeningPage';
+import { SpotlightTour } from '../components/SpotlightTour';
 import type { DemoProgress } from '../components/GuidedDemo';
 import { ImportDiagnostics } from '../components/ImportDiagnostics';
 import { Inspector } from '../components/Inspector';
@@ -63,11 +64,11 @@ import { SummaryStrip } from '../components/shell/SummaryStrip';
 import { StatusMarker } from '../components/shell/StatusMarker';
 import { longestQueues } from '../components/shell/navigation';
 import { autoplayAfterRun } from '../features/motion';
-import { loadArrangement, saveArrangement } from './preferences';
+import { hasSeenOpening, loadArrangement, rememberOpening, saveArrangement } from './preferences';
 import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
+type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'opening' | 'tutorial' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]> = {
@@ -100,7 +101,7 @@ export function App() {
   const [threshold, setThreshold] = useState<WaitThreshold>(THRESHOLD);
   const [guide, setGuide] = useState<DemoProgress | null>(null);
   const [tourStep, setTourStep] = useState<number | null>(null);
-  const tourMode = tourStep === null ? undefined : MODES[tourStep].mode;
+  const [hasWorkspace, setHasWorkspace] = useState(false);
   const [evidenceReveal, setEvidenceReveal] = useState(0);
   const [evidenceTarget, setEvidenceTarget] = useState<{ id: string; owner: string }>();
   const [planName, setPlanName] = useState('');
@@ -157,8 +158,15 @@ export function App() {
   const worker = useRef<SimulationClient | null>(null);
   const launchContext = useRef<{ requestId: number; destination: Mode; scope: RunRequest['runMode']; planIds: string[]; presentResult: boolean } | null>(null);
   const say = (next: Notice) => setNoticeState(next ? { en: next(MESSAGES.en), zh: next(MESSAGES.zh) } : null);
-  const persistence = useProjectPersistence(project, dialog !== 'welcome', document => {
-    if (!document) { setDialog('welcome'); return; }
+  function activateWorkspace() { setHasWorkspace(true); rememberOpening(); }
+  const persistence = useProjectPersistence(project, hasWorkspace, (document, needsRecovery) => {
+    if (!document) {
+      if (needsRecovery) setDialog('welcome');
+      else if (hasSeenOpening()) { setHasWorkspace(true); setDialog(null); }
+      else setDialog('opening');
+      return;
+    }
+    activateWorkspace(); setTourStep(null);
     projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.reset(); setBusy(false); setLastRun(null);
     setProject(document); setPast([]); setFuture([]); setRuns(createRunResults());
@@ -263,6 +271,7 @@ export function App() {
       worker.current?.reset(); setBusy(false);
       setLastRun(null);
       persistence.replace();
+      activateWorkspace(); setTourStep(null);
       commit(result.document, currentProject.current);
       selectInitialPlans(result.document.plans); setRuns(createRunResults()); setMode('Build');
       setPlaying(false); setTime(0);
@@ -456,6 +465,7 @@ export function App() {
     launch([second, target], 'Compare', next);
   }
   function startGuide() {
+    activateWorkspace();
     projectRead.current += 1; projectImporter.current?.cancel();
     setTourStep(null);
     setProjectReadFailed(false); setDocumentIssues([]);
@@ -550,8 +560,9 @@ export function App() {
   function startNew(event: ProjectDocument) {
     projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.cancel();
-    const next = dialog === 'welcome' ? event : addEvent(project, event);
-    selectInitialPlans(dialog === 'welcome' ? event.plans : next.plans.slice(project.plans.length));
+    const next = hasWorkspace ? addEvent(project, event) : event;
+    selectInitialPlans(hasWorkspace ? next.plans.slice(project.plans.length) : event.plans);
+    activateWorkspace();
     commit(next); setMode('Build'); setPlaying(false); setTime(0); setVisitorId(''); setSearch(''); setInspectorOpen(false); setDockOpen(false);
     setDialog(null);
   }
@@ -646,7 +657,7 @@ export function App() {
   }, [dialog]);
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
-      if (dialog || event.defaultPrevented) return;
+      if (dialog || tourStep !== null || event.defaultPrevented) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); return; }
       if (event.target instanceof HTMLElement && event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
@@ -668,7 +679,7 @@ export function App() {
   const scenarioNameOf = (target: Plan) => project.scenarios.find(item => item.id === target.scenarioId)?.name ?? target.scenarioId;
   const live = liveSummary(view);
   const runState = deriveRunState({ busy, hasRun: !!run, runFailed: run?.status === 'failed', stale: stale || (mode === 'Compare' && secondStale), lastRun, planId: plan.id });
-  const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second);
+  const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second) || tourStep === 1;
   const cutoffLabel = formatTime(stats?.until ?? scenario.observationCutoff);
   const comparisonCutoff = selectedStats?.until === selectedSecondStats?.until
     ? selectedStats ? formatTime(selectedStats.until) : '—'
@@ -714,19 +725,22 @@ export function App() {
 
   function closeTour() {
     setTourStep(null);
-    document.querySelector<HTMLElement>('.mode-switch [aria-selected="true"]')?.focus();
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.workspace-menu > summary')?.focus());
   }
 
   if (!persistence.ready) return <p role="status">{t.persistence.loading}</p>;
-  return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
+  const opening = dialog === 'opening' && !persistence.chooseRecovery;
+  const visiblePanel = tourStep === 1 ? 'report' : tourStep === 2 || tourStep === 3 ? 'canvas' : mobilePanel;
+  return <>{opening && <OpeningPage reducedMotion={reducedMotion} onEnter={() => setDialog('tutorial')} onGuide={startGuide} onLang={switchLanguage} />}
+  <div hidden={opening} className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${tourStep === null ? compareFocus : 'overview'}`, comparing && `mobile-${visiblePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
     {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><SpectralStageBackdrop tempo={0.7} reducedMotion={reducedMotion} /><HauntedBackdrop /></div>}
     <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
       compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
       onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
-      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} tourMode={tourMode} onTour={() => setTourStep(0)} />
+      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} onTour={() => { setPlaying(false); setTourStep(0); }} onOpening={() => { setPlaying(false); setDialog('opening'); }} />
 
-    {tourStep !== null && <FeatureTour step={tourStep} onStep={setTourStep} onClose={closeTour} />}
-    {!tourMode && guide && <GuidedDemo progress={guide} showPlanMapping={comparing && plan.id === guide.b && second?.id === guide.c} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
+    {tourStep !== null && <SpotlightTour key={mode} step={tourStep} onStep={setTourStep} onClose={closeTour} />}
+    {tourStep === null && guide && <GuidedDemo progress={guide} showPlanMapping={comparing && plan.id === guide.b && second?.id === guide.c} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onExportProject={exportGuideProject} onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
     {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
@@ -763,7 +777,7 @@ export function App() {
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
-      {fullSidebar && <PlanNavigator project={project} scenario={scenario} plan={plan} second={second} busy={busy} editing={!readOnly} collapsed={mode === 'Build' && navigatorCollapsed} selection={selection} search={search}
+      {fullSidebar && <PlanNavigator project={project} scenario={scenario} plan={plan} second={second} busy={busy} editing={!readOnly} collapsed={mode === 'Build' && navigatorCollapsed && tourStep !== 1} selection={selection} search={search}
         onCollapse={() => mode === 'Build' ? setNavigatorCollapsed(value => !value) : setRailExpanded(false)}
         onScenario={id => { const target = plansInSourceOrder(project.plans).find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { if (id !== secondId && launchContext.current?.destination === 'Compare') launchContext.current.presentResult = false; setSecondId(id); setPlaying(false); }}
         onNew={() => setDialog('new')} onSettings={() => enterBuild(plan.id, 'scenario')} onGuests={() => enterBuild(plan.id, 'scenario')} onResources={() => enterBuild(plan.id, 'resources')}
@@ -1002,6 +1016,10 @@ export function App() {
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}
-    {!persistence.chooseRecovery && (dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? `${t.notices.fileReadFailed}${projectImportState?.failure?.code.endsWith('_limit') ? ` ${projectImportState.failure.message}` : ''}` : undefined} onCancelImport={projectImportBusy ? () => { projectRead.current += 1; projectImporter.current?.cancel(); } : undefined} onClose={() => { projectRead.current += 1; projectImporter.current?.cancel(); setDialog(null); }} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onGuide={dialog === 'welcome' ? startGuide : undefined} onImport={() => fileInput.current?.click()} onLang={switchLanguage} />}
-  </div>;
+    {dialog === 'tutorial' && <><div className="opening-curtain" aria-hidden="true" /><TutorialChoice currentActivity={hasWorkspace} onTour={() => {
+      if (!hasWorkspace) startNew(localizeDocument(initialDocument(), 'zh', lang));
+      setDialog(null); setTourStep(0);
+    }} onGuide={startGuide} onSetup={() => setDialog(hasWorkspace ? 'new' : 'welcome')} onClose={() => { activateWorkspace(); setDialog(null); }} /></>}
+    {!persistence.chooseRecovery && (dialog === 'welcome' || dialog === 'new') && <EventCreator importError={projectReadFailed ? `${t.notices.fileReadFailed}${projectImportState?.failure?.code.endsWith('_limit') ? ` ${projectImportState.failure.message}` : ''}` : undefined} onCancelImport={projectImportBusy ? () => { projectRead.current += 1; projectImporter.current?.cancel(); } : undefined} onClose={() => { projectRead.current += 1; projectImporter.current?.cancel(); activateWorkspace(); setDialog(null); }} onCreate={startNew} onExample={() => { startNew(localizeDocument(initialDocument(), 'zh', lang)); say(tr => tr.studioUi.exampleLoaded); }} onImport={() => fileInput.current?.click()} />}
+  </div></>;
 }

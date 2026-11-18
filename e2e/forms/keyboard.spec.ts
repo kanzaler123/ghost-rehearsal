@@ -1,4 +1,5 @@
 import { storedProject } from '../persistence/browser';
+import { openEventSetup } from '../ui/studio';
 import { expect, test } from '@playwright/test';
 import { MESSAGES } from '../../src/i18n/messages';
 
@@ -9,6 +10,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
       await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
       await page.goto('./');
+      await openEventSetup(page, t);
       await page.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
       await page.getByRole('tab', { name: t.modes.Build, exact: true }).click();
       if (await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).isVisible()) await page.getByRole('button', { name: t.studioUi.expandPlans, exact: true }).click();

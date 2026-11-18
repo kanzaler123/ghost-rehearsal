@@ -1,14 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { comparisonContext, completedWaiting } from '../../src/features/analysis';
+import { comparisonContext, completedWaiting, firstDifference, journeyOf, waitingAt } from '../../src/features/analysis';
+import { openingPreview } from '../../src/components/OpeningPage';
+import { queueScale } from '../../src/components/queueScale';
 import { comparisonReport, createPackingExperiment, initialDocument } from '../../src/features/project';
 import { MESSAGES } from '../../src/i18n/messages';
 import type { RunRequest } from '../../src/schemas';
 import { simulate } from '../../src/simulation/engine';
+import { playbackAt } from '../../src/simulation/playback';
 
 const project = initialDocument();
 const [a, b] = project.plans.map(plan => simulate({ schemaVersion: 1, plan, scenario: project.scenarios[0], runMode: 'run_to_completion' }));
 
 describe('comparison context', () => {
+  it('matches the opening display to recorded open-house queues, journeys and cutoff outcomes', () => {
+    const runs = [a, b], preview = openingPreview;
+    const journeys = runs.map(run => journeyOf(run, preview.visitor, run.statistics!.until));
+    expect(firstDifference(journeys[0], journeys[1], a.request.plan, b.request.plan)?.time).toBe(preview.divergence);
+    expect(journeys.map(journey => journey.segments.filter(segment => segment.end > segment.start).map(segment => [segment.kind, segment.start, segment.end, segment.nodeId]))).toEqual(preview.lanes);
+    expect(runs.map(run => waitingAt(playbackAt(run.events, run.request.plan, preview.divergence), 'checkin'))).toEqual(preview.queue);
+    expect(queueScale(runs.map(run => ({ ...run, completion: null })))).toBe(preview.queueScale);
+    expect(runs.map(run => run.statistics!.outcomes.completed)).toEqual(preview.completed);
+    const { better, worse, same, excluded } = comparisonContext(a, b, 'cutoff').counts!;
+    expect([better, worse, same]).toEqual(preview.groups);
+    expect(excluded).toBe(preview.excluded);
+  });
   it('carries identities, rule, population and actual boundaries through the shared selectors', () => {
     const context = comparisonContext(a, b, 'cutoff');
     expect(context).toMatchObject({ status: 'ready', basis: 'cutoff', rule: 'at-least-one-minute', population: 'paired-arrived', sampleSize: 300 });
