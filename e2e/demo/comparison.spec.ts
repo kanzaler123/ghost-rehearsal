@@ -21,6 +21,11 @@ async function selectComparisonOption(page: Page, label: string, value: string) 
   await page.locator('.comparison-options > summary').click();
 }
 
+async function openReportStep(page: Page, title: string) {
+  const summary = page.locator('.report-step > summary').filter({ hasText: title });
+  if (await summary.locator('..').getAttribute('open') === null) await summary.click();
+}
+
 test('Open House keeps its baseline and comparison on first open, draft recovery and canonical re-import', async ({ page }, info) => {
   const t = await openExample(page, info);
   async function checkPair() {
@@ -61,6 +66,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await page.getByRole('button', { name: t.guide.start, exact: true }).click();
   const guide = page.getByRole('region', { name: t.guide.title, exact: true });
   const outcome = (key: keyof Messages['compare']['rows']) => page.locator('.outcome-table').getByRole('row').filter({ has: page.getByRole('rowheader', { name: t.compare.rows[key], exact: true }) });
+  await openReportStep(page, t.compare.steps.outcomes);
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   await expect(outcome('completed').locator('td').nth(1)).toHaveText('41');
   await expect(outcome('unfinished').locator('td').nth(1)).toHaveText('253');
@@ -81,6 +87,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   expect(workers).toHaveLength(initialWorkerCount);
 
+  await openReportStep(page, t.compare.steps.people);
   await page.locator('.people-stats button').first().click();
   await expect(page.locator('.people-count')).toContainText('63');
   await expect(page.locator('.people-list .people-result')).toHaveCount(20);
@@ -93,6 +100,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   expect(report).toContain(`${t.evidence.anyGroups.less}: 63`);
   expect(report).toContain(`${t.evidence.completed}: n=43`);
   await selectComparisonOption(page, t.evidence.threshold, '60');
+  await openReportStep(page, t.compare.steps.people);
   await page.locator('.people-stats button').first().click();
   await expect(page.locator('.ghost-id code')).toHaveText('main-stream:20');
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
@@ -119,6 +127,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await guide.getByRole('button', { name: t.guide.packing, exact: true }).click();
   await expect(page.locator('.evidence-card')).toContainText('pack-staff');
   await guide.getByRole('button', { name: t.guide.actions[3], exact: true }).click();
+  await openReportStep(page, t.compare.steps.outcomes);
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('41');
   await expect(outcome('completed').locator('td').nth(1)).toHaveText('72');
   await expect(outcome('unfinished').locator('td').nth(1)).toHaveText('218');
@@ -164,6 +173,7 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
 
   await guide.locator('.guide-options > summary').click();
   await guide.getByRole('button', { name: t.guide.reset, exact: true }).click();
+  await openReportStep(page, t.compare.steps.outcomes);
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   const beforeRerun = workers.length;
   await guide.locator('.guide-options > summary').click();
@@ -171,12 +181,14 @@ test('real Worker: guided A/B/C, scopes, bilingual evidence and project round tr
   await expect(guide.getByRole('button', { name: t.guide.actions[0], exact: true })).toBeEnabled();
   expect(workers.length).toBeGreaterThan(beforeRerun);
   for (const step of [0, 1, 2, 3]) await guide.getByRole('button', { name: t.guide.actions[step], exact: true }).click();
+  await openReportStep(page, t.compare.steps.outcomes);
   await expect(outcome('completed').locator('td').nth(1)).toHaveText('72');
   const repeated = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
   expect(repeated.plans).toHaveLength(4);
   await guide.getByRole('button', { name: t.guide.exit, exact: true }).click();
   await expect(guide).toHaveCount(0);
   await page.locator('.is-report').getByRole('button', { name: t.guide.start, exact: true }).click();
+  await openReportStep(page, t.compare.steps.outcomes);
   await expect(outcome('completed').locator('td').nth(0)).toHaveText('43');
   const restarted = JSON.parse(await exportFromMenu(page, t, t.dialogs.exportProject)) as ProjectDocument;
   expect(restarted.plans.slice(0, repeated.plans.length)).toEqual(repeated.plans);
@@ -232,6 +244,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await expect(scope.locator('details')).toContainText(`${t.evidence.sample}=0`);
   await expect(scope.locator('details')).toContainText(`${t.compare.rows.average}: —`);
   await expect(page.locator('.people-stats b')).toHaveText(['0', '0', '2']);
+  await openReportStep(page, t.compare.steps.people);
   await page.locator('.people-stats button').last().click();
   await expect(page.locator('.people-list .people-result')).toHaveCount(2);
   await expect(page.locator('.people-list')).not.toContainText('p2');
@@ -258,6 +271,7 @@ test('real Worker: not-arrived guests, empty completed sample, stale and missing
   await selectComparisonOption(page, t.review.basis, 'completion');
   await expect(scope).toContainText(t.evidence.side('00:25', 2, 1, 0));
   await expect(scope).toContainText(t.evidence.limit);
+  await openReportStep(page, t.compare.steps.people);
   await page.locator('.people-stats button').first().click();
   await expect(page.locator('.ghost-id code')).toHaveText('guests:p1');
   await selectComparisonOption(page, t.evidence.threshold, '60');

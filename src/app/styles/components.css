@@ -323,7 +323,7 @@ fieldset:disabled { opacity: 0.82; }
   display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
   font-size: var(--fs-sm); position: relative; top: auto; left: auto; order: 0; flex-shrink: 0; max-width: 100%; width: 100%; min-height: var(--control-lg); border-radius: 0; border: 0; border-bottom: var(--stroke) solid var(--line); background: var(--surface-1); backdrop-filter: none; pointer-events: auto;
 }
-.pane-label > span { width: var(--pane-label-span-width); height: var(--pane-label-span-height); flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 800; color: var(--surface-1); background: var(--ecto); box-shadow: none; }
+.pane-label > span { min-width: var(--pane-label-span-width); height: var(--pane-label-span-height); padding-inline: var(--space-2); flex-shrink: 0; display: grid; place-items: center; border-radius: var(--radius-pill); font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 800; color: var(--surface-1); background: var(--ecto); box-shadow: none; }
 .mode-compare .pane-label { min-height: var(--control-sm); padding-top: var(--space-1); padding-bottom: var(--space-1); }
 .pane-label.alt > span { color: var(--surface-2); background: var(--hex); box-shadow: none; }
 .pane-label b { color: var(--text-0); font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
@@ -546,7 +546,7 @@ fieldset:disabled { opacity: 0.82; }
 .journey-column { padding: var(--space-4) var(--space-4); border-radius: var(--radius-lg); border: var(--stroke) solid var(--line); background: color-mix(in srgb, var(--highlight-ink) 1.8%, transparent); }
 .journey-heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
 .journey-heading b { font-size: var(--fs-sm); font-weight: 680; color: var(--text-0); }
-.ab-badge { width: var(--fs-xl); height: var(--fs-xl); display: grid; place-items: center; border-radius: 50%; font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 800; color: var(--surface-1); background: var(--plan-a); }
+.ab-badge { min-width: var(--fs-xl); height: var(--fs-xl); padding-inline: var(--space-2); display: grid; place-items: center; border-radius: var(--radius-pill); font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 800; color: var(--surface-1); background: var(--plan-a); }
 .ab-badge.alt { color: var(--surface-2); background: var(--plan-b); }
 .journey-events { list-style: none; margin: 0; padding: 0; }
 .journey-events button {

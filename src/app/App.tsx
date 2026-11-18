@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import type { CSSProperties, ReactNode } from 'react';
 import type { Connection } from '@xyflow/react';
 import {
-  BookOpen, BookmarkPlus, Boxes, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Columns2, Copy, Download, FileText, Flame, FlaskConical, Gauge, Hammer,
+  BookOpen, BookmarkPlus, Boxes, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Copy, Download, FileText, Flame, FlaskConical, Gauge,
   Hourglass, LayoutGrid, LocateFixed, Maximize, Pause, Play, Redo2, RotateCcw, Save, ScrollText, Search, Sparkles, Square, Timer, TriangleAlert,
   MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Radio, Settings2, Trash2, Undo2, Upload, Users, WandSparkles, Workflow,
 } from 'lucide-react';
@@ -15,7 +15,8 @@ import { CompareReport } from '../components/CompareReport';
 import { LazyRobustnessPanel } from '../experiments/robustness/LazyRobustnessPanel';
 import { labels as robustnessLabels } from '../experiments/robustness/labels';
 import { ComparisonPlanPicker } from '../components/ComparisonPlanPicker';
-import { GuidedDemo } from '../components/GuidedDemo';
+import { FeatureTour, GuidedDemo } from '../components/GuidedDemo';
+import { MODES } from '../components/shell/ModeNav';
 import type { DemoProgress } from '../components/GuidedDemo';
 import { ImportDiagnostics } from '../components/ImportDiagnostics';
 import { Inspector } from '../components/Inspector';
@@ -69,7 +70,6 @@ type Mode = 'Build' | 'Rehearse' | 'Compare';
 type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
-const MODES: { mode: Mode; icon: typeof Hammer }[] = [{ mode: 'Build', icon: Hammer }, { mode: 'Rehearse', icon: Play }, { mode: 'Compare', icon: Columns2 }];
 const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]> = {
   Rehearse: [{ tab: 'now', icon: Radio }, { tab: 'journey', icon: Users }, { tab: 'insights', icon: Sparkles }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
   Compare: [{ tab: 'journey', icon: Users }, { tab: 'insights', icon: Sparkles }, { tab: 'resources', icon: Gauge }, { tab: 'events', icon: ScrollText }],
@@ -99,6 +99,8 @@ export function App() {
   const [basis, setBasis] = useState<ResultBasis>('cutoff');
   const [threshold, setThreshold] = useState<WaitThreshold>(THRESHOLD);
   const [guide, setGuide] = useState<DemoProgress | null>(null);
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const tourMode = tourStep === null ? undefined : MODES[tourStep].mode;
   const [evidenceReveal, setEvidenceReveal] = useState(0);
   const [evidenceTarget, setEvidenceTarget] = useState<{ id: string; owner: string }>();
   const [planName, setPlanName] = useState('');
@@ -455,6 +457,7 @@ export function App() {
   }
   function startGuide() {
     projectRead.current += 1; projectImporter.current?.cancel();
+    setTourStep(null);
     setProjectReadFailed(false); setDocumentIssues([]);
     const next = addEvent(project, localizeDocument(initialDocument(), 'zh', lang));
     const [a, b] = next.plans.slice(-2);
@@ -667,6 +670,9 @@ export function App() {
   const runState = deriveRunState({ busy, hasRun: !!run, runFailed: run?.status === 'failed', stale: stale || (mode === 'Compare' && secondStale), lastRun, planId: plan.id });
   const fullSidebar = mode === 'Build' || railExpanded || (mode === 'Compare' && !second);
   const cutoffLabel = formatTime(stats?.until ?? scenario.observationCutoff);
+  const comparisonCutoff = selectedStats?.until === selectedSecondStats?.until
+    ? selectedStats ? formatTime(selectedStats.until) : '—'
+    : `${t.compare.a} ${selectedStats ? formatTime(selectedStats.until) : '—'} / ${t.compare.b} ${selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}`;
   /** One gauge scale for every card on screen, so A and B queues read on the same ruler. */
   const sharedQueueScale = useMemo(() => queueScale(mode === 'Build' ? [] : comparing ? [run, secondRun] : [run]), [mode, comparing, run, secondRun]);
   /** On desktop, following a ghost keeps both futures visible as a short strip above the journey. */
@@ -706,21 +712,27 @@ export function App() {
   const stageSub = mode === 'Build' ? t.stage.counts(plan.graph.nodes.length, plan.graph.edges.length) : `${t.live.clock(formatTime(time))} / ${formatTime(endTime)}`;
   const exampleCounts = useMemo(() => { const example = initialDocument().plans[0]; return t.stage.counts(example.graph.nodes.length, example.graph.edges.length); }, [t]);
 
+  function closeTour() {
+    setTourStep(null);
+    document.querySelector<HTMLElement>('.mode-switch [aria-selected="true"]')?.focus();
+  }
+
   if (!persistence.ready) return <p role="status">{t.persistence.loading}</p>;
   return <div className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${compareFocus}`, comparing && `mobile-${mobilePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
     {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><SpectralStageBackdrop tempo={0.7} reducedMotion={reducedMotion} /><HauntedBackdrop /></div>}
     <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
       compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
       onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
-      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} />
+      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} tourMode={tourMode} onTour={() => setTourStep(0)} />
 
-    {guide && <GuidedDemo progress={guide} showPlanMapping={comparing && plan.id === guide.b && second?.id === guide.c} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
+    {tourStep !== null && <FeatureTour step={tourStep} onStep={setTourStep} onClose={closeTour} />}
+    {!tourMode && guide && <GuidedDemo progress={guide} showPlanMapping={comparing && plan.id === guide.b && second?.id === guide.c} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
       onExportProject={exportGuideProject} onNext={advanceGuide} onReset={() => resetGuide(false)} onRerun={() => resetGuide(true)} onExit={() => { setGuide(null); setEvidenceTarget(undefined); }} onPacking={() => showGuideEvidence('packing')}
       onResources={() => { setBottomTab('resources'); setDockOpen(true); setCompareFocus('overview'); setMobilePanel('evidence'); setInspectorOpen(false); setPlaying(false); }} />}
     {comparing && <div className="comparison-settings" ref={comparisonSettingsRef}>
       <div className="comparison-identities"><span>{t.compare.a} · {plan.name}</span><span>{t.compare.b} · {second?.name}</span></div>
       <button type="button" className="btn small" disabled={busy} onClick={() => setDialog('comparison-plans')}>{t.comparePicker.title}</button>
-      <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · {t.sidebar.currentBadge} {selectedStats ? formatTime(selectedStats.until) : '—'} / {t.sidebar.secondBadge} {selectedSecondStats ? formatTime(selectedSecondStats.until) : '—'}</summary><div className="comparison-options-body">
+      <details className="comparison-options" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}><summary>{t.review[basis]} · {comparisonCutoff}</summary><div className="comparison-options-body">
       <label>{t.review.basis}<select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run?.completion || !secondRun?.completion}>{t.review.completion}</option></select></label>
       <label>{t.evidence.threshold}<select ref={thresholdInput} aria-label={t.evidence.threshold} value={threshold} onChange={event => setThreshold(Number(event.target.value) as WaitThreshold)}><option value={60}>{t.evidence.minute}</option><option value={0}>{t.evidence.any}</option></select></label>
       <small>{t.review.completionHint}</small>
@@ -747,7 +759,7 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
         <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">{t.compare.a} · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}<button type="button" className="text-btn robustness-trigger" aria-label={robustnessLabels[lang].title} title={robustnessLabels[lang].title} disabled={busy} onClick={event => { event.currentTarget.focus(); setPlaying(false); setDialog('robustness'); }}><FlaskConical size={15} aria-hidden="true" /></button></div>
-        <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { showJourney(peopleGroup); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { showJourney(peopleGroup); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}

@@ -10,6 +10,7 @@ import type { Mode } from './ModeNav';
 export interface TopBarProps {
   mode: Mode; busy: boolean; canUndo: boolean; canRedo: boolean; unsaved: boolean; draftSaved: boolean; activityName: string; planName: string; compareUnavailable?: string; runMode: RunRequest['runMode']; lang: Lang;
   onMode: (mode: Mode) => void; onUndo: () => void; onRedo: () => void; onRun: () => void; onStop: () => void; onSave: () => void; onImport: () => void; onExport: () => void; onPlanJson: () => void; onScenarioJson: () => void; onAbout: () => void; onRunMode: (mode: RunRequest['runMode']) => void; onLang: (lang: Lang) => void;
+  tourMode?: Mode; onTour?: () => void;
 }
 /** One bar for identity, modes and the run itself; the run scope sits next to the button it configures. */
 export function TopBar(props: TopBarProps) {
@@ -18,7 +19,7 @@ export function TopBar(props: TopBarProps) {
   return <header className="topbar">
     <div className="brand"><div className="brand-mark"><Ghost size={22} /></div><div className="brand-text"><strong>{t.brand.name}</strong><small>{t.brand.tagline}</small></div></div>
     <span className="context-chip" tabIndex={0} title={context} aria-label={context}>{context}</span>
-    <ModeNav mode={props.mode} busy={props.busy} compareUnavailable={props.compareUnavailable} onMode={props.onMode} />
+    <ModeNav mode={props.mode} busy={props.busy} compareUnavailable={props.compareUnavailable} tourMode={props.tourMode} onMode={props.onMode} />
     <div className="topbar-spacer" />
     <div className="command-group">
       <button type="button" className="icon-btn" title={t.header.undo} aria-label={t.header.undo} disabled={!props.canUndo || props.busy} onClick={props.onUndo}><Undo2 size={17} /></button>
@@ -35,6 +36,7 @@ export function TopBar(props: TopBarProps) {
         <button type="button" className="side-action" onClick={props.onExport}><Download size={15} aria-hidden="true" />{t.header.export}</button>
         <button type="button" className="side-action" onClick={props.onPlanJson}><Braces size={15} aria-hidden="true" />{t.sidebar.planJson}</button>
         <button type="button" className="side-action" onClick={props.onScenarioJson}><FileText size={15} aria-hidden="true" />{t.sidebar.scenarioJson}</button>
+        {props.onTour && <button type="button" className="side-action" onClick={props.onTour}><CircleHelp size={15} aria-hidden="true" />{t.tour.title}</button>}
         <button type="button" className="side-action" onClick={props.onAbout}><CircleHelp size={15} aria-hidden="true" />{t.header.about}</button>
       </ContextMenu>
     </div>

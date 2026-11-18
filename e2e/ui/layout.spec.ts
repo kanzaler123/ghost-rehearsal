@@ -30,7 +30,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
       const lastRow = await page.locator('.snapshot-item').last().boundingBox();
       expect(lastRow!.y + lastRow!.height).toBeLessThanOrEqual(report!.y + report!.height);
     }
-    for (const row of await page.locator('.snapshot-item:not(.resource-summary)').all()) {
+    for (const row of await page.locator('.snapshot-item').all()) {
       const label = await row.locator(':scope > span').boundingBox();
       const value = await row.locator(':scope > strong').boundingBox();
       expect(label!.x + label!.width).toBeLessThanOrEqual(value!.x);
@@ -56,6 +56,7 @@ for (const motion of ['no-preference', 'reduce'] as const) {
     await expect(page.locator('.evidence-card')).toContainText('check-staff');
     await check('evidence');
     await guide.getByRole('button', { name: t.guide.actions[3], exact: true }).click();
+    await page.locator('.report-step > summary').filter({ hasText: t.compare.steps.outcomes }).click();
     const completed = page.locator('.outcome-table').getByRole('row').filter({ has: page.getByRole('rowheader', { name: t.compare.rows.completed, exact: true }) });
     await expect(completed.locator('td').nth(1)).toHaveText('72');
     await guide.getByRole('button', { name: t.guide.actions[4], exact: true }).click();

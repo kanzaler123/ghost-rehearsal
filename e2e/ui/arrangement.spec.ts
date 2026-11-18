@@ -13,6 +13,7 @@ test('arrangement preference survives reload and narrow screens force rows', asy
   await expect.poll(() => page.evaluate(() => localStorage.getItem('ghost-rehearsal.arrangement.v1'))).toContain('cols');
   await page.reload();
   const welcome = page.getByRole('dialog').getByRole('button', { name: t.eventSetup.demo, exact: true });
+  await expect(welcome.or(page.getByRole('tab', { name: t.modes.Compare, exact: true, disabled: false }))).toBeVisible();
   if (await welcome.isVisible()) await welcome.click();
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
   await expect(page.locator('.people-stats b')).toHaveCount(3);

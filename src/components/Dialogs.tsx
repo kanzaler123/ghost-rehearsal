@@ -17,6 +17,7 @@ import { ProvenanceFields } from './data-sources/ProvenanceFields';
 import { dataSourceText } from './data-sources/text';
 import './forms/forms.css';
 import { RiftScene } from './Icons';
+import { FeatureTour } from './GuidedDemo';
 
 export function Modal({ title, children, onClose, wide = false, icon }: { title: string; children: ReactNode; onClose: () => void; wide?: boolean; icon?: ReactNode }) {
   const { t } = useI18n();
@@ -60,6 +61,9 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelI
   const [duration, setDuration] = useState(30);
   const [arrivalWindow, setArrivalWindow] = useState(10);
   const [preset, setPreset] = useState<'blank' | 'haunted' | 'candy'>('blank');
+  const [tourStep, setTourStep] = useState<number | null>(null);
+  const tourTrigger = useRef<HTMLButtonElement>(null);
+  function closeTour() { setTourStep(null); tourTrigger.current?.focus(); }
   const importErrorId = useId();
   const guideHintId = useId();
   const [error, setError] = useState('');
@@ -80,7 +84,10 @@ export function EventCreator({ onCreate, onExample, onGuide, onImport, onCancelI
           <h1>{t.redesign.headline}</h1><p>{t.redesign.introduction}</p>
           <button type="button" className={`btn ${name.trim() ? '' : 'primary'} welcome-start`} aria-describedby={guideHintId} onClick={onGuide}>{t.redesign.begin}<span aria-hidden="true">↗</span></button>
           <small id={guideHintId}>{t.redesign.guideHint}</small>
-          <figure className="welcome-illustration"><div aria-hidden="true"><RiftScene /></div><figcaption>{t.redesign.illustration}</figcaption></figure>
+          <button type="button" ref={tourTrigger} className="text-btn" aria-expanded={tourStep !== null} onClick={() => tourStep === null ? setTourStep(0) : closeTour()}>{t.tour.title}</button>
+          {tourStep === null
+            ? <figure className="welcome-illustration"><div aria-hidden="true"><RiftScene /></div><figcaption>{t.redesign.illustration}</figcaption></figure>
+            : <FeatureTour step={tourStep} onStep={setTourStep} onClose={closeTour} />}
           <div className="lang-switch" role="group" aria-label={t.language.label}>{(['en', 'zh'] as const).map(item => <button type="button" key={item} aria-pressed={lang === item} className={lang === item ? 'active' : ''} onClick={() => onLang(item)} lang={item === 'zh' ? 'zh-CN' : 'en'}>{t.language[item]}</button>)}</div>
         </section>}
         <div className="event-setup">

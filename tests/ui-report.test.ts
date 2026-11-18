@@ -32,10 +32,16 @@ describe('comparison presentation', () => {
     const unchanged = comparisonMetrics(a, a, { ...cost, staff: [1, 1], devices: [], staffHours: [1, 1], deviceHours: [1, 1], overtime: [0, 0] }, MESSAGES.en);
     expect(conclusionGroups(unchanged).every(group => group.metrics.length === 0)).toBe(true);
   });
-  it('shows completed, left and unfinished figures next to the waiting delta', () => {
+  it('summarizes completion, waiting and departures, with full results and costs in details', () => {
     const result = html(createElement(ComparisonSnapshot, { a, b, cost }));
-    for (const key of ['completed', 'left', 'unfinished', 'average', 'p90', 'total'] as const) expect(result).toContain(MESSAGES.en.compare.rows[key]);
-    expect(result.match(/class="snapshot-item(?: resource-summary)?"/g)).toHaveLength(7);
+    for (const key of ['completed', 'left', 'average'] as const) expect(result).toContain(MESSAGES.en.compare.rows[key]);
+    expect(result.match(/class="snapshot-item"/g)).toHaveLength(3);
+    const report = html(createElement(CompareReport, { planA: plans[0], planB: plans[1], scenario, changes: [], runA: runs[0], runB: runs[1], ready: true, visitorId: '', nameOf: id => id, onFocus: () => {}, onChoose: () => {} }));
+    expect(report).toContain(MESSAGES.en.compare.rows.p90);
+    expect(report).toContain(MESSAGES.en.compare.rows.unfinished);
+    expect(report).toContain(MESSAGES.en.compare.rows.total);
+    expect(report).toContain(MESSAGES.en.compare.costStaffHours);
+    expect(report).toContain(MESSAGES.en.compare.costDeviceHours);
   });
   it.each(['stale', 'missing', 'missing-final'] as const)('hides all comparison numbers for %s results', state => {
     const result = html(createElement(CompareReport, { planA: plans[0], planB: plans[1], scenario, changes: [],

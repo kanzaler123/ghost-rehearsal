@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { ArrowRight, CircleMinus, CirclePlus, Coins, Crosshair, PencilLine, Route, Star, Users } from 'lucide-react';
 import type { Node, Plan, Scenario } from '../schemas';
@@ -29,10 +29,9 @@ const nameIn = (plans: Plan[], id: string) => plans.flatMap(plan => plan.graph.n
 
 function list(items: string[], t: Messages) { return t.list.join(items); }
 
-function Step({ index, title, children, icon, initiallyOpen = false }: { index: number; title: string; children: ReactNode; icon: ReactNode; initiallyOpen?: boolean }) {
-  const [open, setOpen] = useState(initiallyOpen);
-  return <details className="report-step" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-    <summary><h3><span className="step-index">{index}</span>{icon}{title}</h3></summary>
+function Step({ title, children, icon }: { title: string; children: ReactNode; icon: ReactNode }) {
+  return <details className="report-step">
+    <summary><h3>{icon}{title}</h3></summary>
     <div className="report-step-body">{children}</div>
   </details>;
 }
@@ -41,7 +40,7 @@ interface Props {
   planA: Plan; planB: Plan; runA?: SimulationRun; runB?: SimulationRun; scenario: Scenario; ready: boolean; changes: ChangeItem[];
   visitorId: string; featured?: string; nameOf: (id: string) => string;
   onFocus: (nodeIds: string[]) => void; onChoose: (id: string) => void;
-  compact?: boolean; guided?: boolean; basis?: ResultBasis; threshold?: WaitThreshold;
+  compact?: boolean; basis?: ResultBasis; threshold?: WaitThreshold;
   onBrowsePeople?: (filter: AffectedFilter) => void;
   onInspect?: (nodeIds: string[], planId: string) => void;
   onMoment?: (nodeIds: string[]) => void;
@@ -50,7 +49,7 @@ interface Props {
   onChooseRule?: () => void;
 }
 
-export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, guided = false, basis = 'cutoff', threshold = THRESHOLD, onBrowsePeople, onInspect, onMoment, onRerun, runState, onEvidence, onChooseRule }: Props) {
+export function CompareReport({ planA, planB, runA, runB, scenario, ready, changes, visitorId, featured, nameOf, onFocus, onChoose, compact = false, basis = 'cutoff', threshold = THRESHOLD, onBrowsePeople, onInspect, onMoment, onRerun, runState, onEvidence, onChooseRule }: Props) {
   const { t } = useI18n();
   const c = t.compare;
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups;
@@ -89,7 +88,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
     {emptyState && <RunStateCard kind={emptyState.kind} action={emptyState.action} detail={threshold ? t.evidence.minute : t.evidence.any} onAction={() => emptyState.action === 'choose-rule' ? onChooseRule?.() : onRerun?.()} />}
     {context.status !== 'ready' && (onRerun ? <RunStateCard kind={runState ?? (context.status === 'stale' ? 'stale' : 'not-run')} action="rerun" detail={unavailable} detailClassName="report-stale" onAction={onRerun} /> : <p className="report-stale">{unavailable}</p>)}
 
-    <Step key={`changes-${compact}`} index={1} title={`${c.steps.changed} · ${changes.length}`} icon={<PencilLine size={15} aria-hidden="true" />}>
+    <Step key={`changes-${compact}`} title={`${c.steps.changed} · ${changes.length}`} icon={<PencilLine size={15} aria-hidden="true" />}>
       {!changes.length && <p className="subtle">{c.noChanges}</p>}
       <ul className="change-list">{main.map(item => <li key={`${item.kind}-${item.id}`}>
         <button type="button" className={cls('change-item', item.change)} disabled={!item.nodeIds.length} onClick={() => onFocus(item.nodeIds)}>
@@ -108,12 +107,12 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
     </Step>
 
     {data && a && b && <>
-      <Step key={`outcomes-${compact}`} index={2} title={c.steps.outcomes} initiallyOpen={guided} icon={<Crosshair size={15} aria-hidden="true" />}>
+      <Step key={`outcomes-${compact}`} title={c.steps.outcomes} icon={<Crosshair size={15} aria-hidden="true" />}>
         <Outcomes a={a} b={b} />
         <p className="report-note">{text.waitNote}</p>
       </Step>
 
-      <Step key={`people-${compact}`} index={3} title={c.steps.people} icon={<Ghost size={15} />} initiallyOpen={!compact}>
+      <Step key={`people-${compact}`} title={c.steps.people} icon={<Ghost size={15} />}>
         <p className="report-lead">{c.of(data.people.total)}</p>
         <div className="people-stats">
           <button type="button" className="good" disabled={!data.people.better} onClick={() => browse('less')} title={text.browse}><b>{data.people.better}</b>{groups.less}</button>
@@ -139,7 +138,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
         </>}
       </Step>
 
-      <Step key={`where-${compact}`} index={4} title={text.where} icon={<Route size={15} aria-hidden="true" />}>
+      <Step key={`where-${compact}`} title={text.where} icon={<Route size={15} aria-hidden="true" />}>
         {data.stations.length ? <>
           <p className="report-lead">{(() => {
             const down = data.stations.filter(row => row.waitB < row.waitA).sort((x, y) => (x.waitB - x.waitA) - (y.waitB - y.waitA))[0];
@@ -166,7 +165,7 @@ export function CompareReport({ planA, planB, runA, runB, scenario, ready, chang
         </> : <p className="subtle">{c.whyNone}</p>}
       </Step>
 
-      <Step key={`cost-${compact}`} index={5} title={c.steps.cost} initiallyOpen={guided} icon={<Coins size={15} aria-hidden="true" />}>
+      <Step key={`cost-${compact}`} title={c.steps.cost} icon={<Coins size={15} aria-hidden="true" />}>
         <dl className="cost-list">{comparisonMetrics(a, b, data.cost, t).slice(6).map(item => <div key={item.id} className={cls('cost-row', item.a !== item.b && 'changed')}>
           <dt>{item.label}</dt><dd>{c.value(metricText(item.a, item.format), metricText(item.b, item.format))} <DeltaBadge metric={item.metric} a={item.a} b={item.b} format={item.format} /></dd>
         </div>)}</dl>

@@ -21,6 +21,18 @@ test('first launch exposes example, blank setup and import without changing save
   await expect(dialog.getByRole('button', { name: t.eventSetup.demo, exact: true })).toBeVisible();
   await expect(dialog.locator('input').first()).toBeVisible();
   await expect(dialog.getByRole('button', { name: t.eventSetup.import, exact: true })).toBeVisible();
+  const name = dialog.getByLabel(t.dialogs.eventName, { exact: true });
+  await name.fill('Open house');
+  const tourButton = dialog.getByRole('button', { name: t.tour.title, exact: true });
+  await tourButton.click();
+  const tour = dialog.getByRole('region', { name: t.tour.title });
+  for (const mode of ['Build', 'Rehearse', 'Compare'] as const) {
+    await expect(tour).toContainText(t.tour.steps[mode]);
+    await tour.getByRole('button', { name: mode === 'Compare' ? t.tour.done : t.tour.next, exact: true }).click();
+  }
+  await expect(tourButton).toBeFocused();
+  await expect(name).toHaveValue('Open house');
+  expect(await storedProject(page, 'draft')).toBeNull();
   await dialog.getByRole('button', { name: t.eventSetup.demo, exact: true }).click();
   await page.getByTitle(t.header.saveTitle, { exact: true }).click();
   await expect(page.locator('.save-state')).toHaveText(t.header.saved);
@@ -28,6 +40,12 @@ test('first launch exposes example, blank setup and import without changing save
   expect(saved).not.toBeNull();
   await page.reload();
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.locator('.workspace-menu > summary').click();
+  await page.getByRole('button', { name: t.tour.title, exact: true }).click();
+  await expect(page.locator('.mode-switch .tour-target')).toHaveText(t.modes.Build);
+  await page.getByRole('button', { name: t.tour.next, exact: true }).click();
+  await expect(page.locator('.mode-switch .tour-target')).toHaveText(t.modes.Rehearse);
+  await page.getByRole('button', { name: t.tour.skip, exact: true }).click();
   expect(await storedProject(page, 'saved')).toEqual(saved);
 });
 

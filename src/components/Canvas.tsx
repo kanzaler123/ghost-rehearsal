@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, EdgeLabelRenderer, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore } from '@xyflow/react';
+import { Background, BackgroundVariant, BaseEdge, ConnectionLineType, Controls, EdgeLabelRenderer, Handle, MarkerType, MiniMap, Position, ReactFlow, ReactFlowProvider, applyNodeChanges, getBezierPath, useReactFlow, useStore, useUpdateNodeInternals } from '@xyflow/react';
 import type { Connection, Edge as FlowEdge, EdgeProps, Node as FlowNode, NodeProps, ReactFlowInstance } from '@xyflow/react';
 import { ArrowDownRight, ArrowUpRight, Boxes, ChevronRight, ChevronsDownUp, Flame, Hand, MousePointer2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import type { Node, Plan, ValidationIssue } from '../schemas';
@@ -12,7 +12,7 @@ import { createViewportPlacement } from '../features/viewport';
 import { motionDuration } from '../features/motion';
 import { layoutGhosts } from './ghostRow';
 import { QUEUE_SCALE_FLOOR, queueFill } from './queueScale';
-import { labelAnchor } from './routeLabel';
+import { LABEL_OFFSET, labelAnchor } from './routeLabel';
 import { StatusMarker } from './shell/StatusMarker';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
@@ -23,7 +23,7 @@ type NodeState = PlaybackState['nodes'][string];
 type GhostKind = 'working' | 'waiting' | 'blocked';
 type Tracked = { id: string; name: string };
 type Shared = { running: boolean; queueScale: number; tracked?: Tracked; chooseVisitor: (id: string) => void; visitorName: (id: string) => string };
-type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; connected: boolean; exits: number; beacon: boolean };
+type CardData = Shared & { node: Node; state?: NodeState; trend: number; issues: number; changed: boolean; connected: boolean; exits: number; beacon: boolean; branchOrder?: string[] };
 type StageData = Shared & {
   id: string; name: string; issues: number; changed: boolean;
   waiting: number; serving: number; blocked: number; trend: number; exits: number; hasExit: boolean; beacon: boolean;
@@ -110,10 +110,14 @@ function Flames({ blocked }: { blocked: boolean }) {
   return <span className={cls('haunt-flames', blocked && 'is-blocked')} aria-hidden="true"><i /><i /><i /></span>;
 }
 
-function FlowCard({ data, selected }: NodeProps<CardNode>) {
+function FlowCard({ id, data, selected }: NodeProps<CardNode>) {
   const { t } = useI18n();
   const detail = useStore(store => detailAt(store.transform[2]));
   const { node, state } = data;
+  const branchOrder = data.branchOrder;
+  const branches = node.type === 'decision' ? node.routing.branches : undefined;
+  const updateHandles = useUpdateNodeInternals();
+  useLayoutEffect(() => { if (branches) updateHandles(id); }, [branches, branchOrder, id, updateHandles]);
   const serving = state?.serving.length ?? 0;
   const blocked = state?.blocked.length ?? 0;
   const waiting = (state?.queued.length ?? 0) + (state?.holding.length ?? 0) + blocked;
@@ -149,8 +153,8 @@ function FlowCard({ data, selected }: NodeProps<CardNode>) {
     {live && !isExit && <GhostRow ghosts={ghosts} limit={detail === 'near' ? 8 : detail === 'mid' ? 5 : 1} data={data} />}
     {live && !isExit && <Gauge waiting={waiting} scale={data.queueScale} trend={data.trend} />}
     {live && detail === 'far' && <div className="far-crowd" aria-hidden="true"><Ghost size={20} />{isExit ? data.exits : waiting + serving}</div>}
-    {node.type === 'decision'
-      ? node.routing.branches.map((branch, index) => <Handle key={branch.branchKey} id={branch.branchKey} type="source" position={Position.Right} style={{ top: `${(index + 1) * 100 / (node.routing.branches.length + 1)}%` }} title={branch.branchKey} />)
+    {branches
+      ? (branchOrder ?? branches.map(branch => branch.branchKey)).map((key, index) => <Handle key={key} id={key} type="source" position={Position.Right} style={{ top: `${(index + 1) * 100 / (branches.length + 1)}%` }} title={key} />)
       : node.type !== 'exit' && node.type !== 'subflow' && <Handle type="source" position={Position.Right} />}
   </div>;
 }
@@ -205,7 +209,7 @@ function sameCard(a: NodeProps<CardNode>, b: NodeProps<CardNode>) {
   const x = a.data, y = b.data;
   if (x === y) return true;
   if (x.node !== y.node || x.running !== y.running || x.queueScale !== y.queueScale || x.beacon !== y.beacon || x.tracked !== y.tracked || x.chooseVisitor !== y.chooseVisitor || x.visitorName !== y.visitorName
-    || x.trend !== y.trend || x.issues !== y.issues || x.changed !== y.changed || x.connected !== y.connected || x.exits !== y.exits) return false;
+    || x.trend !== y.trend || x.issues !== y.issues || x.changed !== y.changed || x.connected !== y.connected || x.exits !== y.exits || x.branchOrder !== y.branchOrder) return false;
   const s = x.state, t = y.state;
   return s === t || (!!s && !!t && s.completed === t.completed && sameIds(s.serving, t.serving) && sameIds(s.queued, t.queued)
     && sameIds(s.holding, t.holding) && sameIds(s.blocked, t.blocked));
@@ -225,15 +229,26 @@ const frameId = (id: string) => `frame:${id}`;
 /** `byPlan` overrides `ids` and `stageKeys` for a specific plan, for example when one ghost stands at different nodes in A and B. */
 export type ViewTarget = 'default' | 'all' | { ids: string[]; stageKeys?: string[]; stages?: string[]; byPlan?: Record<string, string[]> };
 export interface ViewRequest { token: number; target: ViewTarget }
-type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void; flowing: boolean; gradient: string };
+type RouteData = { travelers: { id: string; progress: number; selected: boolean }[]; chooseVisitor: (id: string) => void; flowing: boolean; gradient: string; branchTargets?: Box[] };
 /** Lagging trail positions are drawn behind each recorded traveller; they never move it ahead of its real progress. */
 const TRAIL = [0.075, 0.05, 0.025];
 function RouteEdge(props: EdgeProps<FlowEdge<RouteData>>) {
   const { t } = useI18n();
-  const [path, labelX, labelY] = getBezierPath({ ...props, curvature: 0.4 });
-  const data = props.data;
+  const { data, sourceX, sourceY, targetX, targetY } = props;
+  const bendX = data?.branchTargets?.reduce((x, box) => {
+    const clearance = 10;
+    const right = box.x + box.w + clearance;
+    const bottom = box.y + box.h;
+    return box.x > sourceX && right < targetX && targetY >= box.y && targetY <= bottom
+      && (sourceY < box.y - clearance || sourceY > bottom + clearance) ? Math.max(x, right) : x;
+  }, sourceX) ?? sourceX;
+  const [curve, labelX, labelY] = getBezierPath({ ...props, sourceX: bendX, curvature: 0.4 });
+  const detour = bendX > sourceX;
+  const path = detour ? `M${sourceX},${sourceY} L${curve.slice(1)}` : curve;
   const along = (progress: number): CSSProperties => ({ offsetPath: `path('${path}')`, offsetDistance: `${Math.min(1, Math.max(0, progress)) * 100}%` });
-  const [runeX, runeY] = props.label ? labelAnchor(path, [labelX, labelY]) : [labelX, labelY];
+  const [runeX, runeY] = props.label
+    ? detour ? [Math.min(sourceX + LABEL_OFFSET, bendX), sourceY] : labelAnchor(path, [labelX, labelY])
+    : [labelX, labelY];
   return <>
     {data?.flowing && <path className="route-aura" d={path} />}
     <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} style={props.style} />
@@ -305,6 +320,32 @@ function CanvasInner(props: Props) {
   const nodeSize = running ? NODE_SIZE.run : NODE_SIZE.build;
   const index = useMemo(() => stageIndex(plan), [plan]);
   const display = useMemo<Display>(() => displayLayout(plan, index, { derived: props.stageView, expanded: props.expanded, node: nodeSize }), [plan, index, props.stageView, props.expanded, nodeSize]);
+  const branchLayout = useMemo(() => {
+    const destinations = new Map<string, Map<string, Box>>();
+    for (const edge of plan.graph.edges) {
+      if (!edge.branchKey || !display.positions.has(edge.source)) continue;
+      const targetId = display.visible(edge.target);
+      const target = boxOf(display, targetId, nodeSize);
+      if (!target || targetId === edge.source) continue;
+      const branches = destinations.get(edge.source) ?? new Map<string, Box>();
+      branches.set(edge.branchKey, target);
+      destinations.set(edge.source, branches);
+    }
+    const orders = new Map<string, string[]>();
+    const targetsBySource = new Map<string, Box[]>();
+    for (const node of plan.graph.nodes) {
+      const targets = destinations.get(node.id), source = display.positions.get(node.id);
+      if (node.type !== 'decision' || !source || !targets || targets.size < 2) continue;
+      const keys = node.routing.branches.map(branch => branch.branchKey);
+      const direction = (target: Box) => (target.y + target.h / 2 - source.y - nodeSize.h / 2) / Math.max(1, target.x - source.x - nodeSize.w);
+      const connected = keys.filter(key => targets.has(key)).sort((a, b) => direction(targets.get(a)!) - direction(targets.get(b)!));
+      let next = 0;
+      const order = keys.map(key => targets.has(key) ? connected[next++] : key);
+      if (order.some((key, index) => key !== keys[index])) orders.set(node.id, order);
+      targetsBySource.set(node.id, connected.map(key => targets.get(key)!));
+    }
+    return { orders, targetsBySource };
+  }, [plan.graph, display, nodeSize]);
   const draggable = props.editable && !display.derived && !panMode;
   const summary = useMemo(() => liveSummary(view), [view]);
   const issueCount = (id: string) => props.issues.filter(issue => issue.entityIds.includes(id)).length;
@@ -342,10 +383,10 @@ function CanvasInner(props: Props) {
       const position = node.type === 'subflow' ? display.placeholders.get(node.id) : display.positions.get(node.id);
       if (!position) return [];
       return [{ id: node.id, type: 'workflow' as const, position, selected: props.selected === node.id, draggable,
-        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0, beacon: beacon.has(node.id) } }];
+        data: { ...shared, node, state: view.nodes[node.id], trend: trendOf(node.id), issues: issueCount(node.id), connected: plan.graph.edges.some(edge => edge.id === props.selected && (edge.source === node.id || edge.target === node.id)), changed: props.changed?.has(node.id) ?? false, exits: summary.exits[node.id] ?? 0, beacon: beacon.has(node.id), branchOrder: branchLayout.orders.get(node.id) } }];
     });
     return [...frames, ...stages, ...cards];
-  }, [plan, index, display, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, queueScaleValue, beaconKey, running, draggable]);
+  }, [plan, index, display, branchLayout, view, previous, summary, props.selected, props.issues, props.tracked, chooseVisitor, props.visitorName, props.changed, props.editable, openStage, selectNode, queueScaleValue, beaconKey, running, draggable]);
   const [flowNodes, setFlowNodes] = useState(mapped);
   const detail = detailAt(zoom);
   const measurement = useRef({ plan, detail, lang: t.lang });
@@ -444,13 +485,13 @@ function CanvasInner(props: Props) {
       const changed = edge.ids.some(id => props.changed?.has(id));
       const color = isSelected ? 'var(--text-primary)' : changed ? 'var(--tone-diff)' : active ? 'var(--tone-serve)' : 'var(--text-muted)';
       return { id: edge.id, source: edge.source, target: edge.target, sourceHandle: edge.sourceHandle, type: 'route', label: edge.label,
-        data: { travelers, chooseVisitor, flowing: running && active, gradient: `route-flow-${plan.id}-${edge.id}`.replace(/[^\w-]/g, '_') },
+        data: { travelers, chooseVisitor, flowing: running && active, gradient: `route-flow-${plan.id}-${edge.id}`.replace(/[^\w-]/g, '_'), branchTargets: branchLayout.targetsBySource.get(edge.source) },
         selected: props.selected === edge.id, selectable: !edge.id.startsWith('agg:'), className: cls(active && 'is-active', changed && 'is-changed'),
         markerEnd: { type: MarkerType.ArrowClosed, color, width: isSelected ? 20 : 16, height: isSelected ? 20 : 16 },
         style: { stroke: color, strokeWidth: isSelected ? 3 : active || changed ? 2 : 1.6 },
       };
     });
-  }, [plan.id, plan.graph.edges, display, view, running, props.time, props.tracked, chooseVisitor, props.selected, props.changed]);
+  }, [plan.id, plan.graph.edges, display, branchLayout, view, running, props.time, props.tracked, chooseVisitor, props.selected, props.changed]);
 
   function openMenu(x: number, y: number, nodeId?: string) {
     placement.userMove();

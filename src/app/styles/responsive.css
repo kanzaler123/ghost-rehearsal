@@ -128,7 +128,6 @@
   .mode-compare .journey-header { scroll-margin-top: max(var(--space-12), calc(var(--comparison-header-height, 0) + var(--space-3))); }
   .mode-compare .report-head { scroll-margin-top: max(var(--space-12), calc(var(--comparison-header-height, 0) + var(--space-3))); }
   .mode-compare .report-snapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .mode-compare .resource-summary { grid-column: auto; }
   .mode-compare .status-bar { flex-shrink: 0; }
 }
 @media (max-width: 640px) {
@@ -169,7 +168,6 @@
   .form-row > .field { min-width: var(--form-row-field-min-width); }
   .mode-compare .stage-tools { justify-content: flex-start; width: auto; }
   .mode-compare .report-snapshot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .mode-compare .resource-summary { grid-column: 1 / -1; }
   .mode-compare .journey-header > div { flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
   .mode-compare .ghost-detail { gap: var(--space-5); }
   .ghost-card .ghost-id { min-width: 0; }

@@ -41,6 +41,7 @@
 .mode-switch button:disabled { opacity: 0.5; }
 .mode-switch .mode-index { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-3); }
 .mode-switch button.active { color: var(--text-primary); background: var(--hover-bg); box-shadow: var(--elev-tab); }
+.mode-switch button.tour-target { color: var(--candle); box-shadow: var(--elev-focus); }
 .mode-switch button:nth-child(1).active svg {
   color: var(--text-primary); }
 .mode-switch button:nth-child(2).active svg {
@@ -140,7 +141,7 @@
 }
 .plan-main:hover { background: var(--bg-3); border-color: var(--line-2); }
 .plan-badge {
-  width: var(--fs-2xl); height: var(--fs-2xl); flex-shrink: 0; display: grid; place-items: center; border-radius: var(--radius-md);
+  min-width: var(--fs-2xl); height: var(--fs-2xl); padding-inline: var(--space-2); flex-shrink: 0; display: grid; place-items: center; border-radius: var(--radius-md);
   font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 750;
   background: var(--bg-3); border: var(--stroke) dashed var(--line-2); color: var(--text-3);
 }

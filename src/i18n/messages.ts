@@ -41,6 +41,14 @@ const en = {
   runStateActions: { run: 'Run rehearsal', stop: 'Stop rehearsal', rerun: 'Run again', play: 'Play replay', 'clear-filter': 'Clear search and filter', 'choose-rule': 'Choose another rule', 'edit-guests': 'Edit guests' },
   topbar: { context: (activity: string, plan: string) => `${activity} · ${plan}`, compareUnavailable: 'Add a second plan to compare', contextActions: 'Plan and activity actions' },
   arrangement: { label: 'Canvas arrangement', auto: 'Auto', rows: 'Top-bottom', cols: 'Left-right', narrowNote: 'Canvases stack on a narrow screen; your choice applies when wider.' },
+  tour: {
+    title: 'Feature tour', previous: 'Back', next: 'Next', skip: 'Skip tour', done: 'Finish',
+    steps: {
+      Build: 'Add and connect the steps guests will go through. Set the service time and staffing for each station.',
+      Rehearse: 'Run your plan and drag the timeline to see where queues form and which stations are busy.',
+      Compare: 'Send the same guests through two plans. Start with completed visits, waiting and early departures, then open Guest journey to follow one person.',
+    },
+  },
   studioUi: { currentPlan: 'Current edit target', noSecond: 'Add a second plan', readOnly: 'Read-only', noReplay: 'No replay data', timeline: (at: string, end: string) => `${at} of ${end}`, collapseReport: 'Collapse report', expandReport: 'Expand report', collapsePlans: 'Collapse plans', expandPlans: 'Expand plans', exampleLoaded: 'Build mode: edit the example or run a rehearsal. Choose Two Futures to compare the same guests in both plans.', dockSummary: (count: number, first: string) => `${count} items${first ? ` · ${first}` : ''}` },
   list: { join: (items: string[]) => items.join(', '), stations: (items: string[]) => items.join(' / ') },
   reportUi: {
@@ -73,7 +81,7 @@ const en = {
     loop: (count: number, station: string) => `${count} visits, then ${station}`, completed: 'counts as finished', left: 'counts as left',
   },
   comparePicker: {
-    title: 'Choose comparison plans', left: 'Baseline (left)', right: 'Comparison (right)', apply: 'Run this comparison',
+    title: 'Choose comparison plans', left: 'Baseline', right: 'Comparison', apply: 'Run this comparison',
     hint: 'Choose two plans from this event and run them together. Existing plans are preserved.',
     leaveGuide: 'Running this comparison exits the guide. Cancel to keep your current guide step.',
     distinct: 'Choose two different plans.',
@@ -92,7 +100,7 @@ const en = {
       'Export C’s actionable rules, posts, sources and the B/C evidence using the current statistics basis and waiting threshold.',
     ],
     actions: ['Follow the same guest', 'Jump to first difference', 'Inspect posts and resources', 'Create C and compare', 'Prepare C export', 'Download C arrangement'],
-    packing: 'Inspect packing evidence', resources: 'View resource costs', mapping: 'Plan B is the baseline on the left. Experiment C is the comparison on the right.',
+    packing: 'Inspect packing evidence', resources: 'View resource costs', mapping: 'Plan B is the baseline. Experiment C is the comparison.',
     exportProject: 'Download A/B/C experiment',
     exportProjectHint: 'Only these three plans and their inputs. Re-import, choose B/C, and run to completion. Results and view settings are not stored.',
     projectDownloaded: 'A/B/C experiment downloaded. Existing events remain in your workbench.',
@@ -165,7 +173,7 @@ const en = {
   run: { scope: 'Run scope', cutoff: 'Stop at cutoff', completion: 'Run to completion', start: 'Run rehearsal', stop: 'Stop' },
   sidebar: {
     event: 'Event', guests: 'Guests & arrivals', resources: 'Staff & devices',
-    futures: 'Your futures', plans: 'Plans', duplicate: 'Duplicate current plan', setB: 'Use as comparison', currentBadge: 'L', secondBadge: 'R',
+    futures: 'Your futures', plans: 'Plans', duplicate: 'Duplicate current plan', setB: 'Use as comparison', currentBadge: 'Base', secondBadge: 'Comp',
     build: 'Build your flow', nodes: 'Flow nodes', search: 'Search nodes…', searchLabel: 'Search nodes', noMatch: 'No matching nodes',
     dragHint: 'Drag onto the canvas, or click to add', readOnlyHint: 'Switch to Build to add nodes',
     newProject: 'New / open example', planJson: 'Full plan parameters', scenarioJson: 'Full scenario parameters',
@@ -326,8 +334,8 @@ const en = {
   resourceStates: { unavailable: 'unavailable', handover: 'handing over', off_shift: 'off shift' } as Record<string, string>,
   navigator: { title: 'Flow stages', hint: 'Click a stage to zoom in. Numbers are people waiting now.', plans: 'Plans & nodes' },
   compare: {
-    title: 'Read the two futures', basis: (time: string) => `Results at cutoff ${time}. The canvases replay earlier moments.`,
-    steps: { changed: 'What changed', outcomes: 'What the results did', people: 'Who was affected', why: 'Where waiting changed', cost: 'What it costs' },
+    title: 'Comparison results', basis: (time: string) => `Results at cutoff ${time}. The canvases replay earlier moments.`,
+    steps: { changed: 'What changed', outcomes: 'Detailed results', people: 'Who was affected', why: 'Where waiting changed', cost: 'Resource costs' },
     verdictTitle: 'In one sentence',
     verdict: (parts: { completed: string; average: string; relief?: string; pressure?: string; cost: string }) =>
       `For the selected statistics window, the comparison plan ${parts.completed} and changes the average wait by ${parts.average}.${parts.relief ? ` Biggest relief: ${parts.relief}.` : ''}${parts.pressure ? ` New pressure: ${parts.pressure}.` : ''} Cost: ${parts.cost}.`,
@@ -533,6 +541,14 @@ const zh: Messages = {
   runStateActions: { run: '运行预演', stop: '停止预演', rerun: '重新运行', play: '播放回放', 'clear-filter': '清除搜索与筛选', 'choose-rule': '选择其他规则', 'edit-guests': '编辑访客' },
   topbar: { context: (activity: string, plan: string) => `${activity} · ${plan}`, compareUnavailable: '添加第二个方案后比较', contextActions: '方案与活动操作' },
   arrangement: { label: '画布排布', auto: '自动', rows: '上下排列', cols: '左右排列', narrowNote: '窄屏下画布上下排列；屏幕变宽后恢复你的选择。' },
+  tour: {
+    title: '功能导览', previous: '上一步', next: '下一步', skip: '跳过导览', done: '完成',
+    steps: {
+      Build: '添加节点，再用连线串起访客经过的步骤。为每个服务站填上用时和所需人手。',
+      Rehearse: '运行方案后拖动时间轴，看看队伍从哪里开始变长，哪些站点忙不过来。',
+      Compare: '让同一批访客分别走两套方案。先看完成、等待和离场，再打开「访客旅程」追踪同一位访客。',
+    },
+  },
   studioUi: { currentPlan: '当前编辑目标', noSecond: '添加第二个方案', readOnly: '只读', noReplay: '暂无回放数据', timeline: (at: string, end: string) => `${at}，共 ${end}`, collapseReport: '收起报告', expandReport: '展开报告', collapsePlans: '收起方案', expandPlans: '展开方案', exampleLoaded: '当前为搭建模式，可编辑示例或运行预演。选择“双未来”可比较两个方案中同一批访客的结局。', dockSummary: (count: number, first: string) => `${count} 项${first ? ` · ${first}` : ''}` },
   list: { join: items => items.join('、'), stations: items => items.join('、') },
   reportUi: {
@@ -563,7 +579,7 @@ const zh: Messages = {
     loop: (count, station) => `${count} 次后转往 ${station}`, completed: '计为完成', left: '计为离开',
   },
   comparePicker: {
-    title: '选择比较方案', left: '基线槽（左侧）', right: '对照槽（右侧）', apply: '运行这组对照',
+    title: '选择比较方案', left: '基线', right: '对照', apply: '运行这组对照',
     hint: '选择当前活动中的两个方案并一起运行，已有方案保持不变。',
     leaveGuide: '运行新对照会退出引导；取消可保留当前引导步骤。',
     distinct: '请选择两个不同的方案。',
@@ -582,13 +598,13 @@ const zh: Messages = {
       '按当前统计口径和等待阈值，导出 C 的执行规则、岗位、来源及 B/C 比较证据。',
     ],
     actions: ['追踪同一位访客', '跳到首次差异', '查看岗位与资源', '创建 C 并比较', '准备导出 C', '下载 C 执行安排'],
-    packing: '查看资料发放证据', resources: '查看资源代价', mapping: '左侧基线槽使用原方案 B，右侧对照槽使用实验方案 C。',
+    packing: '查看资料发放证据', resources: '查看资源代价', mapping: '原方案 B 是基线，实验方案 C 是对照。',
     exportProject: '下载 A/B/C 实验',
     exportProjectHint: '仅包含这三个方案及其输入。重新导入后选择 B/C 并运行至完成；不保存计算结果和视图设置。',
     projectDownloaded: '已下载 A/B/C 实验，工作台中的其他活动保持不变。',
     projectUnavailable: '实验无法导出，请检查方案和输入后重跑指南。',
     exported: '已下载 C 执行安排与 B/C 比较证据。可以继续编辑或重跑试验。',
-    needRun: '此步骤需要所选口径下两侧的最新结果。请重跑，或重置回 A/B。',
+    needRun: '此步骤需要所选口径下两个方案的最新结果。请重跑，或重置回 A/B。',
   },
   evidence: {
     threshold: '等待变化规则', minute: '至少相差 60 秒', any: '查看任何变化',
@@ -652,7 +668,7 @@ const zh: Messages = {
   run: { scope: '运行范围', cutoff: '运行到观察截止', completion: '运行到完成 / 上限', start: '运行预演', stop: '停止计算' },
   sidebar: {
     event: '活动', guests: '参与者与到达', resources: '资源与岗位',
-    futures: '你的未来', plans: '活动方案', duplicate: '复制当前方案', setB: '设为对照', currentBadge: '左', secondBadge: '右',
+    futures: '你的未来', plans: '活动方案', duplicate: '复制当前方案', setB: '设为对照', currentBadge: '基线', secondBadge: '对照',
     build: '搭建流程', nodes: '流程节点', search: '搜索节点…', searchLabel: '搜索节点', noMatch: '没有匹配的节点',
     dragHint: '拖入画布，或点击添加', readOnlyHint: '切换到搭建模式后可添加节点',
     newProject: '新建 / 打开示例', planJson: '完整方案参数', scenarioJson: '完整场景参数',
@@ -807,8 +823,8 @@ const zh: Messages = {
   resourceStates: { unavailable: '暂不可用', handover: '交接中', off_shift: '下班' },
   navigator: { title: '流程阶段', hint: '点击阶段即可放大查看，数字为此刻排队人数。', plans: '方案与节点' },
   compare: {
-    title: '按顺序读懂两个未来', basis: time => `结果截至观察截止 ${time}，画布回放的是更早的时刻。`,
-    steps: { changed: '改了什么', outcomes: '哪些结果发生变化', people: '哪些人受到影响', why: '等待变化在哪里', cost: '付出什么代价' },
+    title: '比较结果', basis: time => `结果截至观察截止 ${time}，画布回放的是更早的时刻。`,
+    steps: { changed: '改了什么', outcomes: '详细结果', people: '哪些访客受影响', why: '等待变化在哪里', cost: '资源代价' },
     verdictTitle: '一句话结论',
     verdict: parts => `在所选统计范围内，对照相对基线 ${parts.completed}，人均等待变化 ${parts.average}。${parts.relief ? `等待下降最多：${parts.relief}。` : ''}${parts.pressure ? `新的压力点：${parts.pressure}。` : ''}代价：${parts.cost}。`,
     completedMore: n => `多完成 ${n} 人`, completedLess: n => `少完成 ${n} 人`, completedSame: '完成人数持平',
@@ -831,7 +847,7 @@ const zh: Messages = {
       transferDuration: '转移时长', source: '起点', target: '终点', branchKey: '分支', quantity: '数量', shifts: '班次',
       unavailability: '不可用时段', skillIds: '技能', decisionKey: '分流标识',
     },
-    metric: '指标', a: '基线槽', b: '对照槽', delta: '对照 − 基线',
+    metric: '指标', a: '基线', b: '对照', delta: '对照 − 基线',
     rows: { completed: '完成人数', unfinished: '尚未完成', left: '中途离开或被拒', average: '人均等待', p90: 'P90 等待', total: '全体累计等待' },
     better: '更好', worse: '更差',
     of: n => `两个未来中共 ${n} 位已到达参与者`,
