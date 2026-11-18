@@ -140,7 +140,8 @@ test('a group export imports into the original workbench and reproduces its cuto
   expect(group.scenarios).toHaveLength(1);
   expect(group.plans).toHaveLength(2);
   expect(group.plans.every((plan: { scenarioId: string }) => plan.scenarioId === group.scenarios[0].id)).toBe(true);
-  const summaries = group.plans.map((plan: { id: string }) => (batch.rows as JobSummary[]).find(row => row.conditionId === 'original' && row.planId === plan.id)!) as JobSummary[];
+  const planIds: string[] = [batch.config.baselinePlanId, ...batch.config.candidatePlanIds];
+  const summaries = planIds.map(id => (batch.rows as JobSummary[]).find(row => row.conditionId === 'original' && row.planId === id)!);
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
   await page.goto('./');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'robustness-group.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(group)) });

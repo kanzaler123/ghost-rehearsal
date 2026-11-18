@@ -66,10 +66,14 @@ async function downloadProject(page: Page, t: Messages) {
 
 type Editor = 'resources' | 'scenario' | 'plan-json' | 'scenario-json' | 'rename-plan';
 
-async function selectFirstPlan(page: Page, t: Messages, project: ProjectDocument) {
+function baselinePlan(project: ProjectDocument) {
+  return project.plans.find(plan => !plan.sourcePlanId)!;
+}
+
+async function selectBaselinePlan(page: Page, t: Messages, project: ProjectDocument) {
   const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
   if (await expand.isVisible()) await expand.click();
-  const plan = page.locator('.plan-list').getByRole('button', { name: project.plans[0].name, exact: true });
+  const plan = page.locator('.plan-list').getByRole('button', { name: baselinePlan(project).name, exact: true });
   if (await plan.getAttribute('aria-pressed') !== 'true') await plan.click();
 }
 
@@ -181,7 +185,7 @@ for (const editor of ['resources', 'scenario'] as const) {
     const t = await openExample(page, info);
     await openExport(page, t);
     let current = await downloadProject(page, t);
-    await selectFirstPlan(page, t, current);
+    await selectBaselinePlan(page, t, current);
     for (const ids of ['matching', 'different'] as const) {
       const incoming = structuredClone(expected);
       if (ids === 'different') {
@@ -191,7 +195,7 @@ for (const editor of ['resources', 'scenario'] as const) {
           if (plan.sourcePlanId) plan.sourcePlanId = `replacement-${plan.sourcePlanId}`;
         });
       }
-      expect(incoming.plans[0].id === current.plans[0].id).toBe(ids === 'matching');
+      expect(baselinePlan(incoming).id === baselinePlan(current).id).toBe(ids === 'matching');
       expect(incoming.scenarios[0].id === current.scenarios[0].id).toBe(ids === 'matching');
       await holdRead(page, { ...file, buffer: Buffer.from(JSON.stringify(incoming)) });
       let dialog = await openEditor(page, t, editor);
@@ -211,9 +215,10 @@ for (const editor of ['resources', 'scenario'] as const) {
       const edited = structuredClone(incoming);
       if (editor === 'resources') {
         const staff = dialog.getByLabel(t.dialogs.staffName, { exact: true }).first();
-        await expect(staff).toHaveValue(incoming.plans[0].staff[0].name);
+        const member = baselinePlan(edited).staff[0];
+        await expect(staff).toHaveValue(member.name);
         await staff.fill('Fresh imported staff');
-        edited.plans[0].staff[0].name = 'Fresh imported staff';
+        member.name = 'Fresh imported staff';
       } else {
         await expect(dialog.getByLabel(t.dialogs.seed, { exact: true })).toHaveValue(String(incoming.scenarios[0].seed));
         await dialog.getByLabel(t.dialogs.eventName, { exact: true }).fill('Fresh imported event');
@@ -232,7 +237,7 @@ for (const editor of ['plan-json', 'scenario-json', 'rename-plan'] as const) {
   test(`import invalidates the ${editor} draft before a later save can target the new project`, async ({ page }, info) => {
     const t = await openExample(page, info);
     await openExport(page, t);
-    await selectFirstPlan(page, t, await downloadProject(page, t));
+    await selectBaselinePlan(page, t, await downloadProject(page, t));
     await holdRead(page);
     let dialog = await openEditor(page, t, editor);
     if (editor === 'rename-plan') await dialog.getByLabel(t.review.planName, { exact: true }).fill('Stale name draft');
@@ -248,7 +253,7 @@ for (const editor of ['plan-json', 'scenario-json', 'rename-plan'] as const) {
 
     dialog = await openEditor(page, t, editor);
     const edited = structuredClone(expected);
-    const target = editor === 'scenario-json' ? edited.scenarios[0] : edited.plans[0];
+    const target = editor === 'scenario-json' ? edited.scenarios[0] : baselinePlan(edited);
     if (editor === 'rename-plan') {
       const name = dialog.getByLabel(t.review.planName, { exact: true });
       await expect(name).toHaveValue(target.name!);

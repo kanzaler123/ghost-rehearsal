@@ -63,12 +63,16 @@ test('selected comparison plans run at cutoff and group export reproduces in the
   await (await chooseFile).setFiles((await groupFile.path())!);
   await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.locator('.workspace-menu > summary').click();
-  await page.getByLabel(t.run.scope, { exact: true }).selectOption('cutoff');
-  await page.keyboard.press('Escape');
   await page.getByRole('tab', { name: t.modes.Compare, exact: true }).click();
+  await page.getByRole('button', { name: t.comparePicker.title, exact: true }).click();
+  const picker = page.getByRole('dialog', { name: t.comparePicker.title });
+  const planIds: string[] = [batch.config.baselinePlanId, ...batch.config.candidatePlanIds];
+  await picker.getByLabel(t.comparePicker.left).selectOption(planIds[0]);
+  await picker.getByLabel(t.comparePicker.right).selectOption(planIds[1]);
+  await picker.getByLabel(t.run.scope).selectOption('cutoff');
+  await picker.getByRole('button', { name: t.comparePicker.apply }).click();
   await expect(page.locator('.outcome-table tbody tr')).toHaveCount(6);
-  const summaries = group.plans.map(plan => (batch.rows as JobSummary[]).find(row => row.conditionId === 'original' && row.planId === plan.id)!);
+  const summaries = planIds.map(id => (batch.rows as JobSummary[]).find(row => row.conditionId === 'original' && row.planId === id)!);
   const expected = [
     summaries.map(row => String(row.outcomes!.completed)), summaries.map(row => String(row.outcomes!.unfinished)),
     summaries.map(row => String(row.earlyLeaving)), summaries.map(row => t.formatWait(row.averageWaiting)),

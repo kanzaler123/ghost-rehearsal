@@ -14,8 +14,8 @@ export function ComparisonSnapshot({ a, b, cost }: { a: Statistics; b: Statistic
       <span>{item.label}</span><strong><DeltaBadge metric={item.metric} a={item.a} b={item.b} format={item.format} /></strong>
       <small>{t.compare.a} {metricText(item.a, item.format)} → {t.compare.b} {metricText(item.b, item.format)}</small>
     </div>)}
-    <div className="snapshot-item resource-summary"><span>{t.reportUi.resourceCost}</span>
-      <ul>{resources.map(item => <li key={item.id}><span>{item.label}</span><span>{t.compare.a} {metricText(item.a, item.format)} → {t.compare.b} {metricText(item.b, item.format)}{classifyDelta(item.metric, item.a, item.b, item.format).cls !== 'none' && <> <DeltaBadge metric={item.metric} a={item.a} b={item.b} format={item.format} /></>}</span></li>)}</ul>
+    <div className="snapshot-item resource-summary"><span>{t.reportUi.resourceCost} · {t.compare.a} → {t.compare.b}</span>
+      <ul>{resources.map(item => <li key={item.id}><span>{item.label}</span><span>{metricText(item.a, item.format)} → {metricText(item.b, item.format)}{classifyDelta(item.metric, item.a, item.b, item.format).cls !== 'none' && <> <DeltaBadge metric={item.metric} a={item.a} b={item.b} format={item.format} /></>}</span></li>)}</ul>
     </div>
   </div>;
 }
