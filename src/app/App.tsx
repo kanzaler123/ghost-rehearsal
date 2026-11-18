@@ -207,6 +207,7 @@ export function App() {
   /** Changed nodes and routes are highlighted on both canvases; stage cards light up when a member changed. */
   const changedIds = useMemo(() => new Set(reportChanges.flatMap(change => change.kind === 'node' || change.kind === 'edge' ? [change.id] : [])), [reportChanges]);
   const comparing = mode === 'Compare' && !!second;
+  const personFocus = comparing && compareFocus === 'person';
   const indexA = useMemo(() => stageIndex(plan), [plan]);
   const indexB = useMemo(() => second ? stageIndex(second) : undefined, [second]);
   const hasStages = indexA.stages.length > 0 || (comparing && !!indexB?.stages.length);
@@ -215,9 +216,10 @@ export function App() {
   const nameOf = useCallback((id: string) => visitorName(id, run?.request.plan ?? plan, scenario), [run, plan, scenario]);
   const tracked = useMemo(() => visitorId ? { id: visitorId, name: nameOf(visitorId) } : undefined, [visitorId, nameOf]);
   const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
-  const trackedStatus = trackedJourneys.map((journey, index) => {
-    if (!journey) return t.reportUi.notInSystem;
-    const status = statusAt(journey, time);
+  const trackedStates = trackedJourneys.map(journey => journey && statusAt(journey, time));
+  const [stationA, stationB] = trackedStates.map(status => status && 'since' in status ? status.nodeId : undefined);
+  const trackedStatus = trackedStates.map((status, index) => {
+    if (!status) return t.reportUi.notInSystem;
     return status.kind === 'not_arrived' || status.kind === 'done' || status.kind === 'left' ? t.reportUi.notInSystem : describeStatus(status, (index ? secondRun : run)!.request.plan, time, t);
   });
   const moments = useMemo(() => run ? keyEvents(run) : [], [run]);
@@ -288,6 +290,7 @@ export function App() {
   }
   function showJourney(group?: AffectedFilter) {
     setCompareFocus('person'); setMobilePanel('person'); setPeopleGroup(group); setBottomTab('journey'); setDockOpen(true); setInspectorOpen(false); setRailExpanded(false); setPlaying(false);
+    locateVisitor(visitorId);
   }
   async function save() {
     const result = readProject(JSON.stringify(project), lang);
@@ -358,15 +361,16 @@ export function App() {
     else { setExpanded(list => list.filter(item => item !== id)); requestView('default'); }
   }
   /** Locates a ghost at the replay moment, separately in each future. */
-  function locateVisitor(id: string) {
-    const where = (target?: SimulationRun) => {
-      if (!target) return undefined;
-      const journey = journeyOf(target, id); const status = statusAt(journey, time);
-      return ('nodeId' in status ? status.nodeId : undefined) ?? journey.entranceId;
-    };
-    const a = where(run), b = comparing ? where(secondRun) : undefined;
+  function locateVisitor(id: string, at = time, stations?: [string?, string?]) {
+    const [a, b] = [run, comparing ? secondRun : undefined].map((target, index) => {
+      if (stations?.[index]) return stations[index];
+      if (!target || !id) return undefined;
+      const journey = id === visitorId ? trackedJourneys[index] : journeyOf(target, id);
+      const status = journey && statusAt(journey, at);
+      return status && 'since' in status ? status.nodeId : undefined;
+    });
     const ids = [...new Set([a, b].filter((item): item is string => !!item))];
-    if (ids.length) focusNodes(ids, { [plan.id]: a ? [a] : [], ...(comparing && second ? { [second.id]: b ? [b] : [] } : {}) });
+    focusNodes(ids, { [plan.id]: a ? [a] : [], ...(comparing && second ? { [second.id]: b ? [b] : [] } : {}) });
   }
   function chooseVisitor(id: string, keepGroup = false) {
     if (!keepGroup) setPeopleGroup(undefined);
@@ -391,9 +395,15 @@ export function App() {
     else { setTime(0); setPlaying(false); focusNodes(ids); }
     setMobilePanel('canvas'); setInspectorOpen(false);
   }
-  function jumpTo(at: number, nodeId?: string, ownerId = plan.id) {
-    setTime(Math.min(at, endTime)); setPlaying(false);
-    if (nodeId) { setSelection({ id: nodeId, kind: 'node', owner: ownerId }); focusNodes([nodeId]); }
+  function jumpTo(at: number, nodeId?: string, ownerId = plan.id, stations?: [string?, string?]) {
+    const nextTime = Math.min(at, endTime);
+    setTime(nextTime); setPlaying(false);
+    if (nodeId) setSelection({ id: nodeId, kind: 'node', owner: ownerId });
+    if (stations || (personFocus && visitorId && !nodeId)) locateVisitor(visitorId, nextTime, stations);
+    else if (nodeId) focusNodes([nodeId]);
+  }
+  function jumpToDifference(at: number, nodeA?: string, nodeB?: string) {
+    jumpTo(at, nodeA ?? nodeB, nodeA ? plan.id : second?.id, [nodeA, nodeB]);
   }
   function launch(targets: Plan[], destination: Mode, document = project, scope = runMode) {
     if (dialog === 'robustness') return;
@@ -467,7 +477,7 @@ export function App() {
       if (!comparison.visitors.some(person => person.id === id)) { say(tr => tr.journey.noDiff); return; }
       const difference = firstDifference(journeyOf(run, id, selectedStats.until), journeyOf(secondRun, id, selectedSecondStats.until), run.request.plan, secondRun.request.plan);
       if (!difference) { say(tr => tr.journey.noDiff); return; }
-      chooseVisitor(id); jumpTo(difference.time, difference.a?.nodeId ?? difference.b?.nodeId, difference.a ? plan.id : second!.id);
+      chooseVisitor(id); jumpToDifference(difference.time, difference.a?.nodeId, difference.b?.nodeId);
       setGuide({ ...guide, step: 2, visitor: id });
     } else if (guide.step === 2) { setGuide({ ...guide, step: 3 }); showGuideEvidence('checkin-extra'); }
     else if (guide.step === 3) packingExperiment();
@@ -549,6 +559,9 @@ export function App() {
     return () => clearInterval(timer);
   }, [playing, speed, endTime]);
   useEffect(() => { if (time >= endTime) setPlaying(false); }, [time, endTime]);
+  useEffect(() => {
+    if (playing && personFocus && visitorId) locateVisitor(visitorId, time, [stationA, stationB]);
+  }, [playing, personFocus, visitorId, stationA, stationB]);
   // Each mode gets its own layout: Build edits, Rehearse watches the queues, Two Futures compares.
   useEffect(() => {
     setExpanded([]); setRailExpanded(false); setBottomTab(mode === 'Compare' ? 'journey' : 'now');
@@ -657,7 +670,7 @@ export function App() {
   /** One gauge scale for every card on screen, so A and B queues read on the same ruler. */
   const sharedQueueScale = useMemo(() => queueScale(mode === 'Build' ? [] : comparing ? [run, secondRun] : [run]), [mode, comparing, run, secondRun]);
   /** On desktop, following a ghost keeps both futures visible as a short strip above the journey. */
-  const personStrip = comparing && compareFocus === 'person' && !narrowScreen;
+  const personStrip = personFocus && !narrowScreen;
   const tempo = tempoOf(playing, speed);
   const showRunBanner = busy || runState.kind === 'failed' || runState.kind === 'stopped' || stale || (mode !== 'Build' && runState.kind !== 'complete');
   const showCompleteChip = mode !== 'Build' && runState.kind === 'complete' && (!comparing || comparison.status === 'ready');
@@ -734,7 +747,7 @@ export function App() {
       </aside>}
       {!fullSidebar && comparing && second && <aside className={cls("sidebar is-report", reportCollapsed && "is-collapsed")} aria-label={t.compare.title}>
         <div className="report-toolbar"><button type="button" className="text-btn report-collapse" aria-expanded={!reportCollapsed} onClick={() => setReportCollapsed(value => !value)}>{reportCollapsed ? t.studioUi.expandReport : t.studioUi.collapseReport}</button>{compareFocus === 'person' && <button type="button" className="text-btn" onClick={showOverview}>{t.workspace.overview}</button>}<button type="button" className="text-btn" title={plan.name} aria-label={t.navigator.plans} onClick={() => setRailExpanded(true)}><PanelLeftOpen size={15} aria-hidden="true" /><span className="current-plan-name">{t.compare.a} · {plan.name}</span><StatusMarker id="selected" label={t.studioUi.currentPlan} compact /></button>{!guide && <button type="button" className="text-btn" disabled={busy} onClick={startGuide}>{t.guide.start}</button>}<button type="button" className="text-btn robustness-trigger" aria-label={robustnessLabels[lang].title} title={robustnessLabels[lang].title} disabled={busy} onClick={event => { event.currentTarget.focus(); setPlaying(false); setDialog('robustness'); }}><FlaskConical size={15} aria-hidden="true" /></button></div>
-        <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { setCompareFocus('person'); setMobilePanel('person'); setBottomTab('journey'); setDockOpen(true); setPlaying(false); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
+        <CompareReport onChooseRule={() => { const details = thresholdInput.current?.closest('details'); if (details) details.open = true; thresholdInput.current?.focus(); }} onEvidence={() => { showJourney(peopleGroup); setEvidenceReveal(value => value + 1); }} onRerun={rerun} runState={interrupted ? lastRun?.kind : undefined} basis={basis} threshold={threshold} guided={!!guide} planA={run?.request.plan ?? plan} planB={secondRun?.request.plan ?? second} runA={run} runB={secondRun} scenario={scenario} ready={comparisonReady} changes={reportChanges}
           visitorId={visitorId} featured={featured} nameOf={nameOf} onFocus={ids => { showOverview(); setMobilePanel('canvas'); focusNodes(ids); }} onChoose={chooseVisitor}
           compact={compareFocus === 'person'} onBrowsePeople={showJourney} onInspect={inspectNodes} onMoment={inspectMoment} />
       </aside>}
@@ -746,6 +759,7 @@ export function App() {
         onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
 
       <main className="stage">
+        {personFocus && <h1 className="sr-only">{t.workspace.person}</h1>}
         {showRunBanner && <RunStateCard kind={runState.kind} action={runState.action} onAction={runState.action === 'stop' ? stopRun : runState.action === 'play' ? () => { if (time >= endTime) setTime(0); setPlaying(true); } : rerun} />}
         {mode === 'Rehearse' && <div className="metrics-strip two-clocks">
           <LiveStatusStrip time={formatTime(time)} metrics={liveMetrics} available={!!run} />
@@ -755,7 +769,7 @@ export function App() {
         <div className={cls('canvas-area', comparing && `split ${effectiveArrangement(arrangement, narrowScreen, splitRows)}`)} style={{ '--fx-tempo': tempo } as CSSProperties}>
           <SpectralStageBackdrop tempo={tempo} reducedMotion={reducedMotion} moon={comparing} quiet={mode === 'Build'} paused={!!dialog} />
           <div className="stage-head">
-            <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} /><h1>{stageTitle}</h1><small>{stageSub}</small>{showCompleteChip && <span className="run-state-card is-compact" data-state="complete"><StatusMarker id="finished" label={t.runState.complete.label} /></span>}</div>
+            <div className="stage-title"><span className={cls('live-dot', mode !== 'Build' && 'on')} />{!personFocus && <h1>{stageTitle}</h1>}<small>{stageSub}</small>{showCompleteChip && <span className="run-state-card is-compact" data-state="complete"><StatusMarker id="finished" label={t.runState.complete.label} /></span>}</div>
             <ModeActions unavailable={busy ? t.runState.computing.description : !second ? t.topbar.compareUnavailable : undefined}>
               {mode !== 'Build' && !comparing && run && <label className="select-pill small" title={t.review.completionHint}><span>{t.review.basis}</span><select aria-label={t.review.basis} value={basis} onChange={event => setBasis(event.target.value as ResultBasis)}><option value="cutoff">{t.review.cutoff}</option><option value="completion" disabled={!run.completion || (mode === 'Compare' && !secondRun?.completion)}>{t.review.completion}</option></select></label>}
               {comparing && compareFocus === 'overview' && <ArrangementControl value={arrangement} narrow={narrowScreen} onChange={value => { setArrangement(value); saveArrangement(value); }} />}
@@ -791,10 +805,10 @@ export function App() {
           <div className="dock-head">
           <div className="timeline">
             <button type="button" className="play-btn" aria-label={playing ? t.dock.pause : t.dock.play} disabled={!run} onClick={() => { if (time >= endTime) setTime(0); setPlaying(value => !value); }}>{playing ? <Pause size={16} /> : <Play size={16} />}</button>
-            <button type="button" className="icon-btn" aria-label={t.dock.reset} disabled={!run} onClick={() => { setTime(0); setPlaying(false); }}><RotateCcw size={16} /></button>
+            <button type="button" className="icon-btn" aria-label={t.dock.reset} disabled={!run} onClick={() => jumpTo(0)}><RotateCcw size={16} /></button>
             <time className="clock-now"><small>{t.live.replay}</small>{formatTime(time)}</time>
             <div className="scrubber-wrap">
-              <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} aria-valuetext={t.studioUi.timeline(formatTime(time), formatTime(endTime))} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => { setTime(Number(event.target.value)); setPlaying(false); }} />
+              <input className="scrubber" style={{ '--p': `${progress}%` } as CSSProperties} aria-label={t.dock.timeline} aria-valuetext={t.studioUi.timeline(formatTime(time), formatTime(endTime))} type="range" min={0} max={endTime || 1} step={0.1} value={Math.min(time, endTime)} disabled={!run} onChange={event => jumpTo(Number(event.target.value))} />
               {mode === 'Rehearse' && run && endTime > 0 && <div className="markers" aria-label={t.dock.markers}>{moments.map((item, index) => <button type="button" key={index} className={`marker k-${item.kind}`} style={{ left: `${Math.min(100, item.time / endTime * 100)}%` }}
                 title={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} aria-label={`${formatTime(item.time)} · ${keyEventText(item, run.request.plan, nameOf, t)}`} onClick={() => jumpTo(item.time, item.nodeId)}><StatusMarker id={item.kind === 'blocked' ? 'blocked' : item.kind === 'queue' ? 'queue' : 'diff'} compact /></button>)}</div>}
             </div>
@@ -821,8 +835,8 @@ export function App() {
               tracked={tracked ? { ...tracked, status: trackedStatus[0] } : undefined} onFocus={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }}
               onJump={jumpTo} onChoose={chooseVisitor} onOpenJourney={() => setBottomTab('journey')} />}
             {run && bottomTab === 'events' && <EventLog events={activeEvents} plan={run.request.plan} nameOf={nameOf} onPick={event => { if (event.participantId) chooseVisitor(event.participantId); else if (event.nodeId) jumpTo(event.time, event.nodeId); }} />}
-            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.evidence.unavailable[comparison.status]}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney onEditGuests={() => enterBuild(plan.id, 'scenario')} revealEvidence={evidenceReveal} reducedMotion={reducedMotion} onInspect={(ids, ownerId) => { const id = ids[0]; if (id) { setSelection({ id, kind: 'node', owner: ownerId }); setInspectorOpen(true); focusNodes(ids); } }} onDivergence={(at, nodeA, nodeB) => { jumpTo(at, nodeA ?? nodeB, nodeA ? plan.id : second?.id); focusNodes([nodeA, nodeB].filter((id): id is string => !!id), { [plan.id]: nodeA ? [nodeA] : [], ...(second ? { [second.id]: nodeB ? [nodeB] : [] } : {}) }); }} basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
-              picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId)}
+            {run && bottomTab === 'journey' && (comparing && !comparisonReady ? <div className="comparison-unavailable" role="status"><p>{t.evidence.unavailable[comparison.status]}</p><button type="button" className="btn primary" disabled={busy} onClick={() => second && launch([plan, second], 'Compare')}>{t.run.start}</button></div> : <GhostJourney onEditGuests={() => enterBuild(plan.id, 'scenario')} revealEvidence={evidenceReveal} reducedMotion={reducedMotion} onInspect={(ids, ownerId) => { const id = ids[0]; if (id) { setSelection({ id, kind: 'node', owner: ownerId }); setInspectorOpen(true); focusNodes(ids); } }} onDivergence={jumpToDifference} basis={basis} threshold={threshold} runs={comparing && secondRun ? [run, secondRun] : [run]} compare={comparing && !!secondRun} scenario={scenario} visitorId={visitorId} time={time} endTime={endTime}
+              picks={picks} featured={featured} nameOf={nameOf} onChoose={id => chooseVisitor(id, true)} onLocate={() => { if (comparing) { showOverview(); setMobilePanel('canvas'); } locateVisitor(visitorId); }} onJump={(at, nodeId, ownerId) => jumpTo(at, nodeId, ownerId, personFocus ? [] : undefined)}
               group={peopleGroup} onGroupChange={setPeopleGroup} onOverview={comparing ? showOverview : undefined} />)}
             {run && bottomTab === 'resources' && (comparing && !comparisonReady ? <p className="report-stale">{t.evidence.unavailable[comparison.status]}</p> : <ResourceUse run={run} second={mode === 'Compare' && comparisonReady ? secondRun : undefined} basis={basis} limits={resourceLimits} onLimits={setResourceLimits} />)}
           </div>}

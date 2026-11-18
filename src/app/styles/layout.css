@@ -247,6 +247,8 @@
   position: absolute; top: var(--space-3); left: var(--space-3); right: var(--space-3); z-index: 8; display: flex; align-items: flex-start; justify-content: flex-end; gap: var(--space-3);
   pointer-events: none;
 }
+.mode-build .stage-head { left: calc(var(--canvas-zoom-min-width) + 3 * var(--control-md) + var(--space-8)); }
+.mode-rehearse .stage-head { left: calc(var(--canvas-zoom-min-width) + var(--space-8)); }
 .stage-title, .stage-tools {
   pointer-events: auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--capsule-h); padding: var(--space-1) var(--space-2); border-radius: var(--radius-pill);
   border: var(--stroke) solid color-mix(in srgb, var(--fx-rune) 22%, var(--line)); background: color-mix(in srgb, var(--surface-1) 94%, transparent);

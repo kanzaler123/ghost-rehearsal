@@ -376,7 +376,7 @@ function CanvasInner(props: Props) {
     const own = target.byPlan?.[plan.id];
     const matches = plan.graph.nodes.filter(node => own ? own.includes(node.id) : target.ids.includes(node.id) || (node.type === 'service' && target.stageKeys?.includes(node.stageKey)));
     let ids = matches.map(node => node.type === 'subflow' ? node.id : display.visible(node.id)).filter(id => boxOf(display, id, nodeSize));
-    if (!ids.length && target.stages) ids = target.stages.filter(id => boxOf(display, id, nodeSize));
+    if (!own && !ids.length && target.stages) ids = target.stages.filter(id => boxOf(display, id, nodeSize));
     return [...new Set(ids)];
   }
   /** Measured bounds once React Flow has sized the nodes; layout estimates before that. */

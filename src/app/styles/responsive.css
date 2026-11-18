@@ -195,6 +195,8 @@
  .context-chip { order: 6; flex: 1 0 100%; max-width: 100%; overflow: visible; white-space: normal; overflow-wrap: anywhere; }
  .timeline { min-height: var(--touch-min); height: auto; padding: var(--space-2); flex-wrap: wrap; }
  .timeline .scrubber-wrap { min-width: 30%; }
+ .timeline .scrubber-wrap:has(.markers) { padding: var(--space-3) 0 calc(var(--touch-min) + var(--space-3)); }
+ .timeline .markers { top: auto; bottom: 0; height: var(--touch-min); }
  .dock-tabs { height: auto; padding: var(--space-2); }
  .dock-tabs > button { flex-shrink: 0; min-width: max-content; }
  .stage-tools { flex-wrap: wrap; justify-content: flex-start; max-width: 100%; }
@@ -240,5 +242,6 @@
 }
 /* Timeline and tabs share one row only when the dock itself is wide (person focus on desktop). */
 @container dock (max-width: 1180px) {
-   .dock-head > .timeline { border-bottom: var(--stroke) solid var(--line); }
+  .dock-head { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .dock-head > .timeline { border-bottom: var(--stroke) solid var(--line); }
 }

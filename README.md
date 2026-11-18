@@ -121,9 +121,9 @@ Intended category: **Costume Contest**. Ghosts represent the same simulated gues
 
 The public repository includes the source, examples, setup instructions, an open-source license, and the root [`.kiro/`](.kiro/) directory. English product and testing instructions are above; the original internal planning documents remain in Chinese.
 
-**Submission is not complete.** The usage log contains one manually recorded, evidence-backed entry for the UI redesign. The inspected Kiro session produced the requirements and initial screenshot preparation; Codex implemented and verified the interface. Raw session exports remain pending and execution of the Stop Hook remains unverified. See [KIRO_USAGE.md](KIRO_USAGE.md) for the evidence status and recording template.
+**Submission is in progress.** Kiro wrote the requirements and prepared the baseline screenshots for the November 16 redesign, which Codex implemented and verified. On November 18, Kiro specified, implemented and tested the Haunted Stage redesign in commit `55ce3c6`. The local session records the Stop Hook that prompted the usage entry. Raw session exports are pending. See the [Kiro usage record](KIRO_USAGE.md).
 
-Before submitting, complete substantive work in Kiro and document its actual contribution, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
+Before submitting, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
 
 ## Project map
 
