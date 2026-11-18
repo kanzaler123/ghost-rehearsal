@@ -85,10 +85,15 @@ test('a failed draft write prevents recovery from replacing unsaved edits', asyn
   const original = JSON.parse((await storedProject(page, 'saved'))!).scenarios[0].name as string;
   await page.evaluate(() => {
     const add = IDBObjectStore.prototype.add;
+    const storageTest = window as typeof window & { restoreWrites: () => void; failedDraftWrites: number };
     let failing = true;
-    (window as typeof window & { restoreWrites: () => void }).restoreWrites = () => { failing = false; };
+    storageTest.failedDraftWrites = 0;
+    storageTest.restoreWrites = () => { failing = false; };
     IDBObjectStore.prototype.add = function (value, key) {
-      if (failing && this.name === 'revisions') throw new DOMException('Injected full quota', 'QuotaExceededError');
+      if (failing && this.name === 'revisions') {
+        storageTest.failedDraftWrites++;
+        throw new DOMException('Injected full quota', 'QuotaExceededError');
+      }
       return add.call(this, value, key);
     };
   });
@@ -97,6 +102,7 @@ test('a failed draft write prevents recovery from replacing unsaved edits', asyn
   await page.getByRole('button', { name: t.persistence.recover, exact: true }).click();
   const recovery = page.getByRole('dialog', { name: t.persistence.recover });
   await recovery.getByRole('button', { name: t.persistence.restore, exact: true }).first().click();
+  await page.waitForFunction(() => (window as typeof window & { failedDraftWrites: number }).failedDraftWrites >= 2);
   await expect(recovery).toBeVisible();
   await expect(page.locator('.event-title')).toContainText('Unsaved recovery original');
   await expect(page.getByTitle(t.header.undo, { exact: false })).toBeEnabled();
