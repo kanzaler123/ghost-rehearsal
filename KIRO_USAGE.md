@@ -2,15 +2,50 @@
 
 状态：已核实两条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`）。2026-11-18 条目由 Stop Hook 在该会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
 
-## English status for reviewers
+## English Kiro Usage Summary for Kiroween Reviewers
 
-On 2026-11-16, Kiro wrote the UI redesign requirements and prepared the baseline screenshot capture. Codex implemented and verified that redesign and wrote the November 16 entry below. The supporting evidence is described in [the November 16 usage record](docs/kiro/ui-creative-redesign-usage.md).
+> **Attribution policy:** Every claim below separates verified Kiro work from work completed by human review, Codex, or Antigravity. No external tool work is attributed to Kiro, and raw local session exports remain in the git-ignored `kiro-evidence/` directory (pending manual export from Kiro IDE).
 
-On 2026-11-18, Kiro wrote the Haunted Stage requirements, design and task list, then implemented the redesign in commit `55ce3c6`. It combined the workbench toolbars, kept both plans visible while following a guest, added the stage lighting and gave both plans a shared queue scale. Kiro ran the checks in its session. All 592 unit tests passed and the production build succeeded. The full browser run had 515 passes, four skips and one failure. That case passed in three isolated reruns. See the [Haunted Stage specification](.kiro/specs/haunted-stage-ui/requirements.md).
+### 1. Which Kiro features were used and why
 
-The November 18 session records the Stop Hook that prompted the usage entry below. Portable session exports are pending. Codex reviewed the redesign and fixed guest tracking, mobile timeline taps, overlapping canvas controls, clipped queue counts and the missing screen-reader heading.
+- **Spec-driven workflow (`.kiro/specs/`):** Used to lock down presentation guardrails, invariants, and acceptance contracts before editing UI or simulation code—especially ensuring that visual overhauls for the Costume Contest never altered simulation semantics (`src/simulation/**`, `src/schemas/**`, `examples/open-house.json`) or broke the frozen SHA-256 simulation digests in `tests/ui-redesign-equivalence.test.ts`.
+- **Stop Hook (`.kiro/hooks/update-usage-log.json`):** Configured as an agent Stop Hook to append evidence-based, non-duplicate task logs directly to `KIRO_USAGE.md` after substantive work, preventing fabricated metrics or unverified claims. Its reload/registration was verified in local Kiro logs on 2026-11-15, and its end-to-end execution fired and wrote the 2026-11-18 Haunted Stage entry below.
+- **Steering (`.kiro/steering/comparison-evidence.md`):** Defines always-on project guardrails for shared waiting thresholds, sample scope disclosure, C-plan experiment construction (`createPackingExperiment`), real-Worker browser verification, and strict tool attribution. *(Note: authored by Codex on 2026-11-15; retained in `.kiro/steering/` as part of the repository's Kiro configuration.)*
 
-For each future Kiro task, record its date, problem, Kiro features actually used, concrete contributions, human or other-tool contributions, changed files or commit, verification results, and supporting session export. Raw exports stay in the ignored `kiro-evidence/` directory; prepare appropriate public evidence and an English account of actual Kiro use before submission. Do not attribute Codex work to Kiro.
+### 2. Verified Kiro contributions across the project
+
+1. **2026-11-15 — `rehearsal-studio-ui` spec preparation (handoff-reported):**
+   - Kiro authored the initial requirements, design, and task specs (commit `eeef1dc`) and baseline verification notes (`4d22025`). Subsequent UI implementation and verification were completed by Codex (`c3464a4`). See [docs/kiro/ui-visual-polish-usage.md](docs/kiro/ui-visual-polish-usage.md).
+2. **2026-11-16 — `ui-creative-redesign` requirements & baseline capture (session `sess_286db17c-aa87-47be-a7e8-e92b05f746a1`):**
+   - Kiro authored the 22-requirement specification ([`.kiro/specs/ui-creative-redesign/requirements.md`](.kiro/specs/ui-creative-redesign/requirements.md)), reconciled contract edge cases, and built the initial Playwright screenshot harness with before-redesign captures. Implementation (`af34260`) and verification were taken over and completed by Codex. See [docs/kiro/ui-creative-redesign-usage.md](docs/kiro/ui-creative-redesign-usage.md).
+3. **2026-11-18 — `haunted-stage-ui` Midnight Haunted Stage redesign (session `sess_114da15d-bf8d-438c-b907-beb37999f9a7`, commit `55ce3c6`):**
+   - **End-to-end Spec → Code → Test in Kiro:** Kiro wrote the full three-file spec ([requirements](.kiro/specs/haunted-stage-ui/requirements.md), [design](.kiro/specs/haunted-stage-ui/design.md), [tasks](.kiro/specs/haunted-stage-ui/tasks.md)) and implemented the Costume Contest transformation without touching the simulation engine or schemas.
+   - **Concrete UI deliverables by Kiro (`55ce3c6`):** Collapsed three header layers into a single 52px top bar with floating canvas HUD capsules; kept both synchronized canvases visible as a strip above the guest journey on desktop; built the local Canvas 2D atmosphere layer (`src/components/SpectralStageBackdrop.tsx`, `src/components/spectral.ts`) with replay-tempo response and `prefers-reduced-motion` static frame fallback; added glowing active route lines, trailing traveller orbs, rune branch capsules (`src/components/routeLabel.ts`), overload flames (`haunt-pulse`), tracked-ghost rotating spotlight, divergence rift scene, dark data-source editors, and a cross-plan shared queue gauge scale (`src/components/queueScale.ts` + `tests/ui-queue-scale.test.ts`).
+   - **Stop Hook execution:** At the end of the November 18 Kiro session, `.kiro/hooks/update-usage-log.json` triggered automatically and wrote the dated entry under `实际记录` below.
+
+### 3. Representative problem & human / Kiro / Codex collaboration
+
+During the **Midnight Haunted Stage redesign (`haunted-stage-ui`)**, turning a dense data workbench into an animated Halloween stage surfaced real cross-engine regressions that Kiro and subsequent review caught step by step:
+
+- **What Kiro caught and fixed inside its own session (`55ce3c6`):**
+  1. Enlarging live cards to `232×220` / `248×220` broke `stages.test.ts`; Kiro decoupled `arrangeLayout` (`ARRANGE_CELL`) from rendered card dimensions so automatic layout tests stayed green.
+  2. Full Playwright runs exposed a prototype-collision crash when a plan ID equaled `constructor` (fixed by switching plain objects to `Map`) and an invisible heading intercepting keyboard route selection (restored).
+  3. Headless Chromium without GPU acceleration slowed Web Worker tests when the new Canvas 2D backdrop ran at full resolution/60fps, causing 7 test timeouts; Kiro halved backdrop resolution (`0.5×`), capped animation at 30fps, paused the canvas when dialogs open, and eliminated per-frame CSS filters—bringing suite timing back in line with `main`.
+- **Verification & follow-up review:** Kiro ran `npm run check` (592 unit tests passed), `npm run build`, 22 targeted browser tests (passed), and the full Chromium suite with `--global-timeout=0` (515 passed, 4 intentional skips, 1 timing-sensitive failure that passed 3/3 isolated reruns). Codex then independently reviewed `55ce3c6` and landed targeted polish fixes in `9ec4f01` (guest tracking sync, mobile timeline tap hit areas, overlapping canvas controls, clipped queue counts, and screen-reader heading), followed by later Midnight Opening, six-step tour (`344b246`, `a9ec3fe`), and Vite 8 bundle splitting (`0d8d400`) updates outside Kiro.
+
+### 4. Evidence & verification map
+
+| Artifact | Location | Attribution |
+| --- | --- | --- |
+| Haunted Stage spec (requirements / design / tasks) | [`.kiro/specs/haunted-stage-ui/`](.kiro/specs/haunted-stage-ui/) | Kiro (2026-11-18) |
+| Haunted Stage implementation commit | `55ce3c6` | Kiro (2026-11-18) |
+| UI creative redesign requirements (22 reqs) | [`.kiro/specs/ui-creative-redesign/requirements.md`](.kiro/specs/ui-creative-redesign/requirements.md) | Kiro (2026-11-16) |
+| Stop Hook configuration & verified log entry | [`.kiro/hooks/update-usage-log.json`](.kiro/hooks/update-usage-log.json) & section `2026-11-18` below | Configured manually/Codex; executed by Kiro on 2026-11-18 |
+| Steering guardrails | [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) | Codex (2026-11-15) |
+| Simulation invariance guarantee (6 frozen SHA-256 digests) | [`tests/ui-redesign-equivalence.test.ts`](tests/ui-redesign-equivalence.test.ts) | Verified unchanged after Kiro's `55ce3c6` |
+| Portable Kiro IDE session exports & screenshots | Ignored local `kiro-evidence/` | **Pending manual export** |
+
+> For each future Kiro task, record its date, problem, Kiro features actually used, concrete contributions, human or other-tool contributions, changed files or commit, verification results, and supporting session export. Raw exports stay in the ignored `kiro-evidence/` directory. Do not attribute Codex or Antigravity work to Kiro.
 
 ## 每完成一个关键任务后
 

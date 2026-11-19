@@ -4,12 +4,13 @@
 
 See how staffing and flow decisions change people’s waiting before real guests arrive. Build an event, rehearse two arrangements with the same simulated guests, then follow the same person across both plans to see where their wait and outcome changed. The ghosts make those individual journeys visible.
 
-[Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Kiro usage status](KIRO_USAGE.md) · [MIT license](LICENSE)
+[Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Kiro usage status](KIRO_USAGE.md) · [Submission kit](docs/kiroween-submission.md) · [MIT license](LICENSE)
 
 ![Open House at 08:00. Side entrance guest #10 is at ID check in the baseline and at Kit pickup in the dual-lane plan.](docs/images/workbench.png)
 
 ## What you can do
 
+- **Open on a Midnight Stage:** first launch opens an interactive **Midnight Opening** landing page with a live timeline preview of Side entrance guest #10 (no simulation worker needed upfront). Jump straight into **Try the 60-second A/B guide**, or click **Rehearse my event** / **Enter the workbench** to choose between a six-step **Feature tour**, the **A/B guide**, or **Set up my event**. Revisit both the opening and the tour anytime from **More options**.
 - **Start with an event:** set its name, guest count, duration, and arrival window. Each event has its own plans; creating another event keeps the existing ones.
 - **Build a flow:** entrances, services, decisions, waiting areas, merges, exits, and subflow groups; curved connections, parameter editing, undo/redo, and stage-aware automatic layout. Subflows are drawn as stage frames, and the default view stays zoomed in far enough to read service times. Double-click the canvas to find a node, use right-click menus, or switch between selection and hand tools.
 - **Reuse your work:** start with Haunted House, Trick or Treat, Open House, or a blank plan. Save a node or an entire plan as a template. Each plan has its own node list. When applying a node template, choose shared or copied resources; matching shared posts include the new node, while copies add staff and equipment.
@@ -25,7 +26,7 @@ No account, API key, or backend is needed. Simulation runs in a browser worker; 
 
 ## Quick start
 
-1. Open the workbench and choose **Follow a guest through A/B** on the welcome screen, or **Start the A/B/C guide** in the Build sidebar. The guide adds its own example plans and preserves existing events. [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Run locally](#run-locally)
+1. Open the workbench and click **Try the 60-second A/B guide** on the Midnight Opening page—or click **Enter the workbench** and choose **Follow a guest through A/B** (you can also pick **Explore the workbench** for a six-step spotlight tour, or start **Start the A/B/C guide** from the Build sidebar). The guide adds its own example plans and preserves existing events. [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Run locally](#run-locally)
 2. Read the A/B results: completed, unfinished, early departures, average/P90 waiting and resource costs. The example is synthetic, and B changes several arrangements at once.
 3. Choose **Follow the same guest**, then **Jump to first difference**. At 03:30, Side entrance #10 is queuing at ID check in A and being served there in B. Drag the timeline to 08:00 to see A still at ID check while B is already queuing at Kit pickup.
 4. Choose **Inspect posts and resources**, then **Inspect packing evidence**. Check staff eligibility, actual postings and availability; the backlog alone does not establish a unique cause.
@@ -93,7 +94,13 @@ npm run preview
 
 `check` runs both strict TypeScript checks and the automated tests once. `build` produces `dist/`; `preview` serves that build locally. There are no environment variables or external services to configure.
 
-For the real Chromium/production-Worker smoke suite, run `npx playwright install chromium`, then `npm run build` and `npm run test:browser`. It starts its own preview server on port 4178 and covers desktop/390px in English/Chinese. Failure traces, screenshots, downloads and a JSON result go to ignored `test-results/`; the HTML report is in `playwright-report/`. CI installs Chromium with its system dependencies and checks the `/ghost-rehearsal/` deployment base path.
+For the fast real-Chromium / production-Worker smoke suite (40 tests covering the production subpath build, Midnight Opening, six-step tour, and critical save/run/compare/export flows across desktop/390px in English and Chinese), run `npx playwright install chromium` and then:
+
+```sh
+npm run test:browser:smoke
+```
+
+To run the full Chromium suite locally without hitting the 10-minute global timeout in `playwright.config.ts`, run both shards matching CI: `npm run test:browser -- --shard=1/2` and `npm run test:browser -- --shard=2/2`. Playwright builds the `/ghost-rehearsal/` subpath bundle and starts its own preview server on port 4178. Failure traces, screenshots, downloads and a JSON result go to ignored `test-results/`; the HTML report is in `playwright-report/`.
 
 ## Deployment and verification
 
@@ -103,7 +110,8 @@ The Pages build uses `/ghost-rehearsal/` as its base path. If you fork and publi
 
 See [GitHub Actions](https://github.com/kanzaler123/ghost-rehearsal/actions/workflows/pages.yml) for checks and deployment status for each revision. The [2026-11-15 validation record](docs/validation-2026-11-15.md) documents an earlier checkpoint, including test counts, browser evidence, intermediate failures and remaining work. Those historical results do not establish the status of the latest commit.
 
-On 2026-11-18, the Haunted Stage fixes passed both TypeScript checks, all 592 unit tests, a production build and 80 targeted Chromium tests across English and Chinese desktop and mobile layouts. One Chinese mobile playback test timed out on the first pass. It then passed three isolated runs and the 80-test rerun. [Tested revision](https://github.com/kanzaler123/ghost-rehearsal/commit/9ec4f01115275c1ea60c02533263374ee43af857)
+- On 2026-11-18, the Haunted Stage fixes passed both TypeScript checks, all 592 unit tests, a production build and 80 targeted Chromium tests across English and Chinese desktop and mobile layouts. One Chinese mobile playback test timed out on the first pass. It then passed three isolated runs and the 80-test rerun. [Tested revision](https://github.com/kanzaler123/ghost-rehearsal/commit/9ec4f01115275c1ea60c02533263374ee43af857)
+- On 2026-11-19, commit [`0d8d400`](https://github.com/kanzaler123/ghost-rehearsal/commit/0d8d400) added Vite 8 vendor chunk splitting (`index-*.js` reduced from 1,007 kB to 490 kB with zero chunk-size warnings) and `npm run test:browser:smoke`, passing both TypeScript checks, all 593 unit tests, all 37 release-gate checks (`node --test e2e/release/gate-checks.mjs`), the `/ghost-rehearsal/` subpath build, all 40 local Chromium smoke tests, and the full cross-browser GitHub Actions deployment pipeline ([run `44429878793`](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/44429878793): Chromium, Chromium Touch, Firefox, WebKit shards, import/comparison WebKit, and Pages deploy).
 
 ## Scope and limitations
 
@@ -119,27 +127,27 @@ This is a working preview. The planning specification describes a broader target
 
 ## Kiroween 2026
 
-Intended category: **Costume Contest**. Ghosts represent the same simulated guests across alternative arrangements, making queues, individual waiting and outcome changes visible.
+Intended category: **Costume Contest**. Ghosts represent the same simulated guests across alternative arrangements, making queues, individual waiting and outcome changes visible on a Midnight Haunted Stage.
 
-The public repository includes the source, examples, setup instructions, an open-source license, and the root [`.kiro/`](.kiro/) directory. English product and testing instructions are above; the original internal planning documents remain in Chinese.
+The public repository includes the source, examples, setup instructions, an open-source license, the root [`.kiro/`](.kiro/) directory (8 specs, 1 steering file, 1 Stop Hook), and an English [submission kit & demo script](docs/kiroween-submission.md). English product, Kiro usage, and testing instructions are included; internal planning specs and historical verification records retain their original Chinese entries.
 
-**Submission is in progress.** Kiro wrote the requirements and prepared the baseline screenshots for the November 16 redesign, which Codex implemented and verified. On November 18, Kiro specified, implemented and tested the Haunted Stage redesign in commit `55ce3c6`. The local session records the Stop Hook that prompted the usage entry. Raw session exports are pending. See the [Kiro usage record](KIRO_USAGE.md).
-
-Before submitting, provide a public YouTube demo shorter than three minutes, supply English versions of any additional materials used in the submission, and complete the Devpost entry. These are separate from publishing this repository. See the [official competition requirements](https://kiroween.devpost.com/rules).
+**Submission status:** Source, tests, `.kiro/` artifacts, English Kiro usage summary ([KIRO_USAGE.md](KIRO_USAGE.md)), and the Devpost / demo video script ([docs/kiroween-submission.md](docs/kiroween-submission.md)) are ready for final submission review. Kiro authored the requirements and baseline screenshots for the November 16 redesign (implemented and verified by Codex) and specified, implemented, and tested the November 18 Midnight Haunted Stage redesign in commit `55ce3c6`, with the Stop Hook automatically writing its usage log entry. Local raw Kiro session exports (`kiro-evidence/`), recording/uploading the <3-minute public YouTube demo, and submitting the Devpost form remain the final manual steps. See the [official competition requirements](https://kiroween.devpost.com/rules).
 
 ## Project map
 
 | Location | Contents |
 | --- | --- |
-| `src/app/`, `src/components/` | React workbench, flow canvas, inspector, and results |
+| `src/app/`, `src/components/` | React workbench, Midnight Opening, flow canvas, inspector, and results |
 | `src/features/project.ts` | Project operations, built-in examples, and reusable templates |
-| `src/simulation/` | Simulation worker, event engine, and metrics |
-| `src/schemas/` | Input schemas, graph validation, and plan operations |
+| `src/simulation/` | Simulation worker, deterministic event engine, and metrics |
+| `src/schemas/` | Input schemas, graph validation, SHA-256 fingerprints, and plan operations |
 | `src/i18n/` | English and Chinese interface text |
-| `tests/` | Schema, simulation, comparison, viewport, template, and workbench tests |
+| `tests/`, `e2e/` | 593 unit tests, 37 release-gate tests, and cross-browser Playwright E2E suites |
 | [examples/open-house.json](examples/open-house.json) | Synthetic two-plan Open House example |
-| [.kiro/specs/product-foundation/](.kiro/specs/product-foundation/) | Existing requirements, design, and task records |
-| [.kiro/hooks/](.kiro/hooks/) | Kiro usage-recording hook configuration |
+| [.kiro/specs/](.kiro/specs/) | Requirements, design, and task specs (including `haunted-stage-ui` and `product-foundation`) |
+| [.kiro/hooks/](.kiro/hooks/) | Kiro Stop Hook for evidence-based usage logging |
+| [.kiro/steering/](.kiro/steering/) | Comparison and demo evidence steering rules |
+| [docs/kiroween-submission.md](docs/kiroween-submission.md) | English Devpost project story, 2:45 YouTube demo script, and submission checklist |
 | [PLAN.md](PLAN.md) | Original product roadmap; planned scope, not a completion report |
 
 Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
