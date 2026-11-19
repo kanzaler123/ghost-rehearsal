@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Crosshair, Search, Star } from 'lucide-react';
+import { Crosshair, Download, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
-import { formatTime } from '../features/project';
+import { download, formatTime } from '../features/project';
+import { buildFateCardSvg, fateCardFilename } from '../features/fateCard';
+import type { FateCardSide } from '../features/fateCard';
 import { comparisonContext, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
 import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
@@ -161,6 +163,15 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     if (typeof targetWindow.requestAnimationFrame === 'function') targetWindow.requestAnimationFrame(reveal);
     else setTimeout(reveal, 0);
   }
+  const canExportCard = compare && journeys.length === 2 && context.status === 'ready';
+  function exportFateCard() {
+    if (!canExportCard) return;
+    const sides = journeys.map((journey, column) => {
+      const stats = statisticsAt(runs[column], basis);
+      return { planName: plans[column].name, journey, until: stats?.until ?? journey.until, outcome: stats?.visitors.find(item => item.id === visitorId) };
+    }) as [FateCardSide, FateCardSide];
+    download(fateCardFilename(visitorId), buildFateCardSvg({ t, visitorId, visitorName: nameOf(visitorId), eventName: scenario.name ?? scenario.id, basis, cutoff, sides, difference }), 'image/svg+xml;charset=utf-8');
+  }
   const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= 6) ?? Math.ceil(span / 21600) * 3600;
   const ticks = [...new Set([...Array.from({ length: Math.floor(span / tickStep) + 1 }, (_, index) => index * tickStep), cutoff])];
   const stories = groupPicks(picks);
@@ -176,6 +187,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           {scenario.attributes.length > 0 && <div className="ghost-attrs">{scenario.attributes.map(attribute => <span key={attribute.id}>{attribute.name}<b>{person.attributes[attribute.id] ?? '—'}</b></span>)}</div>}
         </div>
         <button type="button" className="btn small ghost locate" onClick={onLocate}><Crosshair size={14} aria-hidden="true" />{t.journey.locate}</button>
+        {canExportCard && <button type="button" className="icon-btn" aria-label={t.encore.fateCard.button} title={t.encore.fateCard.button} onClick={exportFateCard}><Download size={16} aria-hidden="true" /></button>}
       </div>
 
       <div className="ghost-futures">{journeys.map((journey, column) => {

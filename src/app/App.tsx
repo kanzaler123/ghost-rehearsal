@@ -5,7 +5,7 @@ import type { Connection } from '@xyflow/react';
 import {
   BookOpen, BookmarkPlus, Boxes, Braces, ChevronDown, ChevronUp, CircleCheck, CircleHelp, Copy, Download, FileText, Flame, FlaskConical, Gauge,
   Hourglass, LayoutGrid, LocateFixed, Maximize, Pause, Play, Redo2, RotateCcw, Save, ScrollText, Search, Sparkles, Square, Timer, TriangleAlert,
-  MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Radio, Settings2, Trash2, Undo2, Upload, Users, WandSparkles, Workflow,
+  MoreHorizontal, PanelLeftClose, PanelLeftOpen, Plus, Radio, Settings2, Trash2, Undo2, Upload, Users, Volume2, VolumeX, WandSparkles, Workflow,
 } from 'lucide-react';
 import { duplicatePlan, edgeSchema, nodeSchema, planSchema, PRODUCT_STATEMENT, scenarioSchema, serializeDocument, validateGraph, validatePlan, validateScenario } from '../schemas';
 import type { Edge, Node, Plan, ProjectDocument, RunRequest, Scenario, ValidationIssue } from '../schemas';
@@ -41,6 +41,8 @@ import type { Lang, Messages } from '../i18n';
 import { MESSAGES } from '../i18n/messages';
 import { inputKey, populationSize } from '../simulation/input';
 import { usePlayback } from './usePlayback';
+import { useSoundscape } from './useSoundscape';
+import { isHaunted } from '../features/soundscape';
 import { useProjectPersistence } from './useProjectPersistence';
 import { ImportClient } from '../features/imports/client';
 import type { ImportState } from '../features/imports/client';
@@ -228,6 +230,9 @@ export function App() {
   const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
   const trackedStates = trackedJourneys.map(journey => journey && statusAt(journey, time));
   const [stationA, stationB] = trackedStates.map(status => status && 'since' in status ? status.nodeId : undefined);
+  const riftTime = useMemo(() => comparing && second && trackedJourneys[0] && trackedJourneys[1] ? firstDifference(trackedJourneys[0], trackedJourneys[1], plan, second)?.time ?? null : null, [comparing, second, trackedJourneys, plan]);
+  const finishTimes = useMemo(() => trackedJourneys.flatMap(journey => journey?.end?.kind === 'complete' ? [journey.end.time] : []), [trackedJourneys]);
+  const sound = useSoundscape({ playing, time, reducedMotion, riftTime, finishTimes, hot: isHaunted(view.nodes) || (comparing && isHaunted(secondView.nodes)) });
   const trackedStatus = trackedStates.map((status, index) => {
     if (!status) return t.reportUi.notInSystem;
     return status.kind === 'not_arrived' || status.kind === 'done' || status.kind === 'left' ? t.reportUi.notInSystem : describeStatus(status, (index ? secondRun : run)!.request.plan, time, t);
@@ -840,6 +845,7 @@ export function App() {
             </div>
             <time className="clock-end">{formatTime(endTime)}</time>
             <label className="select-pill small" title={t.dock.speedHint}><select aria-label={t.dock.speed} disabled={!run} value={speed} onChange={event => setSpeed(Number(event.target.value))}>{[0.5, 1, 2, 4, 8].map(value => <option key={value} value={value}>{value}×</option>)}</select><ChevronDown size={12} aria-hidden="true" /></label>
+            <button type="button" className="icon-btn" aria-pressed={sound.on} disabled={!run || !sound.available} aria-label={t.encore.sound.label} title={sound.available ? sound.on ? t.encore.sound.titleOn : t.encore.sound.titleOff : t.encore.sound.unavailable} onClick={sound.toggle}>{sound.on ? <Volume2 size={16} aria-hidden="true" /> : <VolumeX size={16} aria-hidden="true" />}</button>
             <span className="clock-label">{t.dock.clock}</span>
           </div>
           <div className="dock-tabs" role="tablist">

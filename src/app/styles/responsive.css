@@ -164,7 +164,7 @@
   .mode-compare .report-snapshot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mode-compare .journey-header > div { flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
   .mode-compare .ghost-detail { gap: var(--space-5); }
-  .ghost-card .ghost-id { min-width: 0; }
+  .ghost-card .ghost-id { min-width: 0; flex-basis: 50%; }
   .ghost-card .locate { margin-left: 0; }
   .future-row { gap: var(--space-3); }
   .lane-ticks i { font-size: var(--fs-xs); }
