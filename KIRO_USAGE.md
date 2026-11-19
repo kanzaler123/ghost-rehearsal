@@ -1,6 +1,6 @@
 # Ghost Rehearsal — Kiro 使用记录
 
-状态：已核实两条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`）。2026-11-18 条目由 Stop Hook 在该会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
+状态：已核实三条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`），2026-11-19 Haunted Stage Encore 的 Spec、实现与验证（Kiro 会话内完成，提交 `2c400bb`）。2026-11-18 条目由 Stop Hook 在该会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
 
 ## English Kiro Usage Summary for Kiroween Reviewers
 
@@ -102,6 +102,17 @@ During the **Midnight Haunted Stage redesign (`haunted-stage-ui`)**, turning a d
 - 原始对话文件／相关截图：会话导出待导出；Kiro 界面截图待截图。过程中的 Playwright 诊断截图位于被忽略的 `test-results/`，未入库。
 - 遇到的问题、纠正过程与尚未完成的事项：卡片尺寸变化使 `stages.test` 失败，改为 `arrangeLayout` 保留原网格 `ARRANGE_CELL`；390px 顶栏与时间轴横向溢出已修复；完整运行发现计划 ID `constructor` 命中对象原型导致白屏（改用 `Map`）、Rehearse 隐藏标题导致 route-keyboard 点击被拦截（恢复可见）、Canvas 背景在无 GPU 无头浏览器中拖慢 Worker 致 7 项超时（降分辨率、限 30fps、对话框打开时暂停、去除逐帧滤镜后恢复与 main 相当耗时）。剩余事项：上述 1 项时序敏感测试；`playwright.config.ts` 全局超时需另行调整；会话导出与截图待补。
 
+### 2026-11-19：Haunted Stage Encore（午夜声景与幽灵命运卡）
+- 日期与时间（UTC+8）：2026-11-19 上午；Kiro IDE 会话 `sess_c8ef18f5-67ca-4040-9cec-2e690d222045`。
+- 任务名称／对应 Spec：`haunted-stage-encore`（Kiroween Costume Contest 两个轻量亮点功能）。
+- 本次要解决的问题：为比较与回放加入默认静音的合成氛围提示音，并让用户把同一访客在 A/B 两个未来中的经历导出为独立 SVG 命运卡；不得改动 `TopBar.tsx`、仿真、schema，也不得在 CSS 中引入字面量或孤儿 class。
+- 实际使用的 Kiro 功能：Spec 工作流（requirements／design／tasks）、Steering（`haunted-stage.md`、`comparison-evidence.md`）、代码读取与编辑、终端执行（类型检查、单测、构建、Playwright）、截图读取用于定位首屏失败。Hook：`Guard Haunted Stage UI invariants` 在本会话没有看到执行输出，不记为已执行；其覆盖的冻结摘要与样式测试由 `npm run check` 手动运行。本条由 Stop Hook 触发后写入。
+- Kiro 实际完成的工作：编写 `.kiro/specs/haunted-stage-encore/` 三份文档；`soundscape.ts`（纯函数 `planCues`／`isHaunted` 与 Web Audio 合成，无外部文件、无网络请求）、`useSoundscape.ts` 与 `App.tsx` `.timeline` 内的 `Volume2`／`VolumeX` 开关；`fateCard.ts`（`buildFateCardSvg`，双语、XML 转义）与 `Journey.tsx` `.ghost-card` 内的导出按钮；`messages.ts` 新增 `encore` 分组；`tests/soundscape.test.ts`、`tests/fate-card.test.ts`、`e2e/ui/encore.spec.ts`。
+- 人工／Codex 的修改、审查或决策：用户提供完整需求与护栏；本轮未观察到 Codex 参与。
+- 产物文件／Git 提交编号：分支 `docs/kiroween-submission-prep`，提交 `2c400bb`（未推送、未合并 main）。新增 `src/features/soundscape.ts`、`src/features/fateCard.ts`、`src/app/useSoundscape.ts`、两份单测、`e2e/ui/encore.spec.ts`；修改 `src/app/App.tsx`、`src/components/Journey.tsx`、`src/i18n/messages.ts`、`src/app/styles/responsive.css`（仅 `.ghost-card .ghost-id` 增加 `flex-basis: 50%`）。未改动 `src/simulation/**`、`src/schemas/**`、`examples/open-house.json`、`TopBar.tsx`。
+- 验证方法与实际结果：`npm run check` 通过（43 文件、614 项，含 `ui-redesign-equivalence`、`ui-styles`、`ui-i18n`）；`npm run build -- --base=/ghost-rehearsal/` 通过；`npm run test:browser:smoke` 40 项通过；`npx playwright test e2e/ui` 144 通过、4 跳过（可选截图用例），含新增 `encore.spec.ts`（桌面与 390px、中英文，共 12 项）与 `compare-first-screen.spec.ts`。完整 `npm run test:browser` 未运行。过程中的失败见下条。
+- 原始对话文件／相关截图：会话导出待导出；Kiro 界面截图待截图。Playwright 失败截图位于被忽略的 `test-results/`，未入库。
+- 遇到的问题、纠正过程与尚未完成的事项：带文字的导出按钮挤窄 `.ghost-id`，使 `compare-first-screen` 在 desktop-en 失败，改为纯图标 `icon-btn`；随后 mobile-en 仍失败，隐藏按钮后确认由其引起，通过移动端 `flex-basis` 修复。曾误并行启动两个 Playwright 命令，端口与 `test-results` 冲突，结果作废并串行重跑。尚未完成：完整浏览器套件、会话导出与截图。
 ## 最终参赛汇总
 
 提交前，从实际记录中挑选有证据支持的案例，整理为英文使用说明：
