@@ -376,8 +376,8 @@
 .opening-hero { isolation: isolate; position: relative; display: flex; flex-direction: column; justify-content: center; min-height: calc(100svh - var(--topbar-h)); background: radial-gradient(ellipse at 72% 40%, var(--fx-velvet), transparent 58%), var(--bg-0); }
 .opening-hero .haunt { z-index: -1; }
 .opening-hero .spectral-backdrop { z-index: -2; }
-.opening-hero .haunt-moon { right: 8%; top: 6%; opacity: 0.75; translate: calc(var(--stage-x, 0) * var(--space-4)) calc(var(--stage-y, 0) * var(--space-4)); }
-.opening-hero .haunt-bat { right: 12%; top: 11%; color: var(--plan-b); opacity: 0.55; animation: bat-drift var(--dur-split) linear infinite; translate: calc(var(--stage-x, 0) * var(--space-6)) calc(var(--stage-y, 0) * var(--space-6)); }
+.opening-hero .haunt-moon { right: 8%; top: 6%; opacity: 0.75; }
+.opening-hero .haunt-bat { right: 12%; top: 11%; color: var(--plan-b); opacity: 0.55; animation: bat-drift var(--dur-split) linear infinite; }
 .opening-hero .haunt-bat.bat-2 { top: 8%; right: 18%; animation-delay: calc(var(--dur-split) / -2); }
 .opening-hero .haunt-bat.bat-3 { top: 15%; right: 9%; }
 .opening-hero .haunt-web { opacity: 0.32; width: var(--spot-w); height: var(--spot-w); }
@@ -402,7 +402,7 @@
 .opening-rift::before { content: ''; position: absolute; inset: 8% 8% 0; border-radius: 50% 50% 0 0; border: var(--stroke) solid color-mix(in srgb, var(--plan-b) 23%, transparent); background: radial-gradient(ellipse at 22% 96%, color-mix(in srgb, var(--plan-a) 16%, transparent), transparent 40%), radial-gradient(ellipse at 80% 96%, color-mix(in srgb, var(--plan-b) 18%, transparent), transparent 45%); }
 .opening-rift .rift-scene { position: relative; }
 .opening-guest { position: absolute; z-index: 1; top: 4%; left: 50%; translate: -50% 0; display: flex; gap: var(--space-2); align-items: center; white-space: nowrap; padding: var(--space-2) var(--space-4); border: var(--stroke) solid color-mix(in srgb, var(--brand) 38%, var(--line)); border-radius: var(--radius-pill); background: var(--fx-rune-ink); color: var(--candle); font-size: var(--fs-xs); box-shadow: var(--glow-capsule); }
-.opening-stations { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0 var(--space-2) var(--space-5); translate: calc(var(--stage-x, 0) * var(--space-4)) calc(var(--stage-y, 0) * var(--space-4)); }
+.opening-stations { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0 var(--space-2) var(--space-5); }
 .opening-stations .flow-card { --c: var(--plan-a); width: auto; min-height: 0; rotate: -2deg; }
 .opening-stations .flow-card + .flow-card { --c: var(--plan-b); rotate: 2deg; }
 .opening-stations .card-name { display: flex; gap: var(--space-2); align-items: center; }

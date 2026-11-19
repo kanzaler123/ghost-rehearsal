@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { CSSProperties, PointerEvent } from 'react';
+import type { CSSProperties } from 'react';
 import { ArrowDown, ArrowRight, CalendarDays, Flashlight, Play } from 'lucide-react';
 import { visitorName } from '../features/analysis';
 import { formatTime, initialDocument } from '../features/project';
@@ -33,12 +33,6 @@ export function OpeningPage({ reducedMotion, savedActivityName, onEnter, onGuide
   const current = openingPreview.lanes[1].find(([, from, to]) => from <= time && time < to);
   const station = current && b.graph.nodes.find(node => node.id === current[3]);
   const guestState = current ? t.journey.segments[current[0]] : time < openingPreview.lanes[1][0][1] ? t.reportUi.notInSystem : t.markers.finished;
-  function shiftScene(event: PointerEvent<HTMLElement>) {
-    if (reducedMotion || event.pointerType !== 'mouse') return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty('--stage-x', `${(event.clientX - rect.left) / rect.width - 0.5}`);
-    event.currentTarget.style.setProperty('--stage-y', `${(event.clientY - rect.top) / rect.height - 0.5}`);
-  }
   const actCopy = [[copy.build, copy.buildText], [copy.rehearse, copy.rehearseText], [copy.compare, copy.compareText]];
   const modes = ['Build', 'Rehearse', 'Compare'] as const;
   return <div className="opening-page">
@@ -48,7 +42,7 @@ export function OpeningPage({ reducedMotion, savedActivityName, onEnter, onGuide
       <button type="button" className="btn run" onClick={onEnter}>{copy.enter}<ArrowRight size={15} aria-hidden="true" /></button>
     </header>
     <main>
-      <section className="opening-hero" onPointerMove={shiftScene} onPointerLeave={event => { event.currentTarget.style.removeProperty('--stage-x'); event.currentTarget.style.removeProperty('--stage-y'); }}>
+      <section className="opening-hero">
         <SpectralStageBackdrop tempo={0.55} reducedMotion={reducedMotion} /><HauntedBackdrop />
         <div className="opening-hero-inner">
           <div className="opening-copy"><p className="eyebrow">{copy.eyebrow}</p>

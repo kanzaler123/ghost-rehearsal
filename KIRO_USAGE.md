@@ -1,6 +1,6 @@
 # Ghost Rehearsal — Kiro 使用记录
 
-状态：已核实三条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`），2026-11-19 Haunted Stage Encore 的 Spec、实现与验证（Kiro 会话内完成，提交 `2c400bb`，另于 `72ffc63` 编写常驻 Steering `.kiro/steering/haunted-stage.md`）。2026-11-18 与 2026-11-19 条目均由 Stop Hook 在各自会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
+状态：已核实四条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`），2026-11-19 Haunted Stage Encore 的 Spec、实现与验证（Kiro 会话内完成，提交 `2c400bb`，另于 `72ffc63` 编写常驻 Steering `.kiro/steering/haunted-stage.md`），2026-11-19 开场页鼠标视差 bug 修复（Kiro 会话内完成，该会话的完整浏览器套件因全局超时未跑完）。2026-11-18 与 2026-11-19 条目均由 Stop Hook 在各自会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
 
 ## English Kiro Usage Summary for Kiroween Reviewers
 
@@ -124,6 +124,19 @@
 - 验证方法与实际结果：`npm run check` 通过（43 文件、614 项，含 `ui-redesign-equivalence`、`ui-styles`、`ui-i18n`）；`npm run build -- --base=/ghost-rehearsal/` 通过；`npm run test:browser:smoke` 40 项通过；`npx playwright test e2e/ui` 144 通过、4 跳过（可选截图用例），含新增 `encore.spec.ts`（桌面与 390px、中英文，共 12 项）与 `compare-first-screen.spec.ts`。完整 `npm run test:browser` 未运行。过程中的失败见下条。
 - 原始对话文件／相关截图：会话导出待导出；Kiro 界面截图待截图。Playwright 失败截图位于被忽略的 `test-results/`，未入库。
 - 遇到的问题、纠正过程与尚未完成的事项：带文字的导出按钮挤窄 `.ghost-id`，使 `compare-first-screen` 在 desktop-en 失败，改为纯图标 `icon-btn`；随后 mobile-en 仍失败，隐藏按钮后确认由其引起，通过移动端 `flex-basis` 修复。曾误并行启动两个 Playwright 命令，端口与 `test-results` 冲突，结果作废并串行重跑。尚未完成：完整浏览器套件、会话导出与截图。
+
+### 2026-11-19：开场页鼠标视差 bug 修复
+- 日期与时间（UTC+8）：2026-11-19 约 23:25–23:46；Kiro IDE 会话 `sess_9779c7f9-503d-4f10-ab56-20b4ee0424e1`。
+- 任务名称／对应 Spec：开场页（`OpeningPage`）鼠标视差移除；无新 Spec，受 `haunted-stage-ui` 护栏约束。
+- 本次要解决的问题：`.opening-hero` 的 `onPointerMove` 把鼠标偏移写入 `--stage-x`／`--stage-y`，使月亮、蝙蝠和 `.opening-stations` 随鼠标位移；要求只移除视差，保留蝙蝠漂浮、火焰、RiftScene、背景粒子与薄雾动效及卡片静态倾角。
+- 实际使用的 Kiro 功能：Steering（`haunted-stage.md`、`comparison-evidence.md` 作为常驻规则加载）、代码读取与编辑、终端执行（类型检查、单测、构建、Playwright）。Hook：`Guard Haunted Stage UI invariants` 在本会话没有看到执行输出，不记为已执行；本条由 Stop Hook 触发后写入。
+- Kiro 实际完成的工作：删除 `OpeningPage.tsx` 中的 `shiftScene`、`onPointerMove`／`onPointerLeave` 与未使用的 `PointerEvent` 类型导入；删除 `layout.css` 中 `.opening-hero .haunt-moon`、`.opening-hero .haunt-bat`、`.opening-stations` 上依赖 `--stage-x`／`--stage-y` 的三条 `translate`；在 `e2e/ui/welcome.spec.ts` 新增回归测试 `opening scene does not follow the mouse`（`no-preference` 与 `reduce` 两种模式：鼠标多点移动与移出后月亮和站点卡位置不变、无 `--stage-*` 内联变量、`translate` 为 `none`、普通模式蝙蝠仍为 `bat-drift`、减少动态下动画时长 ≤ 0.001s）。
+- 人工／Codex 的修改、审查或决策：问题定位、保留清单与验证提示词由人工结合 Antigravity 整理；修复后由 Antigravity 独立复核并收紧 `e2e/ui/welcome.spec.ts` 断言（`boundingBox` 非空检查、视口内坐标夹紧、`bats` 数量与 `reduce` 模式下 `animationName` 精确断言）及补正本条归属与空行排版（上述排查、复核与收紧修改不归为 Kiro 产出）；本轮未观察到 Codex 参与。
+- 产物文件／Git 提交编号：修改 `src/components/OpeningPage.tsx`、`src/app/styles/layout.css`、`e2e/ui/welcome.spec.ts`；会话结束时工作区尚未提交，基于 `main` `fa387d1`。未改动 `src/simulation/**`、`src/schemas/**`、`examples/open-house.json`。
+- 验证方法与实际结果：`npm run check` 通过（43 文件、618 项）；`npm run build` 通过。`welcome.spec.ts` + `reduced-motion.spec.ts` 在 desktop／mobile × en／zh 共 28 项通过。将两个源码文件临时 `git stash` 回旧代码后，新测试在 desktop-en 两种模式均失败（位置变化、`translate` 为 `0px`），随后恢复修复。完整 `npm run test:browser` 在 600s 全局超时处中止：140 通过、0 失败、其余约 400 项未执行，退出码 1，不计为完整浏览器验收。
+- 原始对话文件／相关截图：会话导出待导出；Kiro 界面截图待截图。Playwright 失败截图位于被忽略的 `test-results/`，未入库。
+- 遇到的问题、纠正过程与尚未完成的事项：未遇到实现问题。会话结束时待办：完整浏览器套件（需分批运行或调整 `globalTimeout`，本轮未改配置）、Git 提交、会话导出与截图。
+
 ## 最终参赛汇总
 
 提交前，从实际记录中挑选有证据支持的案例，整理为英文使用说明：

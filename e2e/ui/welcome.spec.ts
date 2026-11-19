@@ -137,6 +137,34 @@ test('welcome starts a real A/B guide by keyboard or touch without filling setup
   await expect(page.getByRole('dialog').getByLabel(t.dialogs.eventName, { exact: true })).toBeFocused();
 });
 
+for (const reducedMotion of ['no-preference', 'reduce'] as const) test(`opening scene does not follow the mouse (${reducedMotion})`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion });
+  await page.goto('./');
+  const hero = page.locator('.opening-hero');
+  const moon = hero.locator('.haunt-moon');
+  const stations = hero.locator('.opening-stations');
+  const bats = hero.locator('.haunt-bat');
+  await expect(stations).toBeVisible();
+  const boxes = async () => [await moon.boundingBox(), await stations.boundingBox()];
+  const before = await boxes();
+  expect(before[0]).not.toBeNull();
+  expect(before[1]).not.toBeNull();
+  const hb = (await hero.boundingBox())!;
+  const visibleHeight = Math.max(1, Math.min(hb.y + hb.height, page.viewportSize()!.height) - hb.y);
+  for (const [x, y] of [[0.05, 0.05], [0.95, 0.95], [0.1, 0.9], [0.5, 0.5]]) {
+    await page.mouse.move(hb.x + hb.width * x, hb.y + visibleHeight * y);
+    expect(await boxes()).toEqual(before);
+  }
+  await page.mouse.move(0, 0);
+  expect(await boxes()).toEqual(before);
+  expect(await hero.evaluate(el => [el.style.getPropertyValue('--stage-x'), el.style.getPropertyValue('--stage-y')])).toEqual(['', '']);
+  await expect(bats).toHaveCount(3);
+  for (const el of [moon, stations, ...await bats.all()]) expect(await el.evaluate(node => getComputedStyle(node).translate)).toBe('none');
+  const names = await bats.evaluateAll(nodes => nodes.map(node => getComputedStyle(node).animationName));
+  expect(names).toEqual(reducedMotion === 'reduce' ? ['none', 'none', 'none'] : ['bat-drift', 'bat-drift', 'bat-drift']);
+  if (reducedMotion === 'reduce') for (const duration of await bats.evaluateAll(nodes => nodes.map(node => parseFloat(getComputedStyle(node).animationDuration)))) expect(duration).toBeLessThanOrEqual(0.001);
+});
+
 for (const outcome of ['success', 'failure'] as const) test(`starting the welcome guide supersedes an older import ${outcome}`, async ({ page }, info) => {
   const t = MESSAGES[info.project.name.endsWith('zh') ? 'zh' : 'en'];
   await page.addInitScript(lang => localStorage.setItem('ghost-rehearsal.lang', lang), t.lang);
