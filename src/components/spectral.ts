@@ -7,7 +7,7 @@ export function tempoOf(playing: boolean, speed: number): number {
   return Math.min(3, 0.55 + 0.45 * Math.pow(safe, 0.75));
 }
 
-/** Particle budget scales with area and stays small enough for 60fps on modest laptops. */
+/** Particle budget scales with area and stays small enough for 30fps (15fps under heavy draw cost) on modest laptops. */
 export function particleBudget(width: number, height: number, quiet = false): { embers: number; wisps: number; mist: number } {
   const area = Math.max(0, width) * Math.max(0, height);
   if (!area) return { embers: 0, wisps: 0, mist: 0 };
