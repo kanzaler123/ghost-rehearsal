@@ -20,6 +20,12 @@ export function useSoundscape({ playing, time, reducedMotion, riftTime, finishTi
     previous.current = time; state.current = result.state;
     for (const cue of result.cues) engine.current?.play(cue);
   }, [time]);
+  useEffect(() => {
+    if (!available) {
+      if (engine.current) { engine.current.close(); engine.current = undefined; }
+      setOn(false);
+    }
+  }, [available]);
   useEffect(() => () => engine.current?.close(), []);
   const toggle = useCallback(() => {
     if (!available) return;

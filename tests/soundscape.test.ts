@@ -38,6 +38,13 @@ describe('planCues', () => {
     const later = planCues({ ...base, from: 125, to: 125 + EMBER_COOLDOWN, hot: false }, early.state);
     expect(planCues({ ...base, from: 100 + EMBER_COOLDOWN + 6, to: 100 + EMBER_COOLDOWN + 11, hot: true }, later.state).cues).toEqual(['ember']);
   });
+  it('resets the ember cooldown after rewinding or resetting the timeline', () => {
+    const first = planCues({ ...base, from: 500, to: 505, hot: true });
+    expect(first.cues).toEqual(['ember']);
+    const reset = planCues({ ...base, from: 505, to: 0, playing: false, hot: false }, first.state);
+    expect(reset.cues).toEqual([]);
+    expect(planCues({ ...base, from: 10, to: 15, hot: true }, reset.state).cues).toEqual(['ember']);
+  });
   it('can fire several cues in the same step', () => {
     expect(planCues({ ...base, hot: true, riftTime: 101, finishTimes: [102] }).cues).toEqual(['rift', 'ember', 'bell']);
   });

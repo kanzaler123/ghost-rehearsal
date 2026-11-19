@@ -39,7 +39,7 @@ const crosses = (time: number | null | undefined, from: number, to: number) => t
 /** Decides which cues fire for a replay step. Only forward playback with sound on can fire. */
 export function planCues(input: CueInput, state: CueState = INITIAL_CUE_STATE): { cues: Cue[]; state: CueState } {
   const { enabled, playing, from, to, hot } = input;
-  const next: CueState = { wasHot: hot, lastEmberAt: state.lastEmberAt };
+  const next: CueState = { wasHot: hot, lastEmberAt: to < from ? -Infinity : state.lastEmberAt };
   const step = to - from;
   if (!enabled || !playing || !(step > 0) || step > MAX_STEP) return { cues: [], state: next };
   const cues: Cue[] = [];

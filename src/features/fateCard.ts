@@ -55,7 +55,10 @@ const text = (x: number, y: number, size: number, content: string, fill: string,
 export function fateCardFilename(visitorId: string): string {
   return `ghost-fate-card-${visitorId.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'guest'}.svg`;
 }
-const signed = (delta: number, t: Messages) => delta === 0 ? '0' : `${delta > 0 ? '+' : '−'}${t.formatWait(Math.abs(delta))}`;
+const signed = (delta: number, t: Messages) => {
+  const rounded = Math.round(delta * 1000) / 1000;
+  return rounded === 0 ? '0' : `${rounded > 0 ? '+' : '−'}${t.formatWait(Math.abs(rounded))}`;
+};
 
 export function buildFateCardSvg(input: FateCardInput): string {
   const { t, sides, difference } = input;
@@ -69,7 +72,7 @@ export function buildFateCardSvg(input: FateCardInput): string {
   parts.push(`<g transform="translate(80 44) scale(2.6)" fill="${COLORS.gold}"><path d="M0 22V10a10 10 0 0 1 20 0v12l-3.4-3-3.3 3-3.3-3-3.3 3-3.4-3z"/><circle cx="7" cy="10" r="1.8" fill="${COLORS.ground}"/><circle cx="13" cy="10" r="1.8" fill="${COLORS.ground}"/></g>`);
   parts.push(text(150, 62, 15, card.badge.toUpperCase(), COLORS.gold, ` font-family="${FONT.sans}" letter-spacing="2.5"`));
   parts.push(text(150, 108, 40, clip(input.visitorName, 26), COLORS.text, ` font-family="${FONT.serif}" font-weight="600"`));
-  parts.push(text(150, 138, 18, input.visitorId, COLORS.muted, ` font-family="${FONT.mono}"`));
+  parts.push(text(150, 138, 18, clip(input.visitorId, 38), COLORS.muted, ` font-family="${FONT.mono}"`));
   const right = (y: number, content: string, size: number, fill: string) => text(RIGHT, y, size, clip(content, 60), fill, ` font-family="${FONT.sans}" text-anchor="end"`);
   parts.push(right(62, card.event(input.eventName), 17, COLORS.text));
   parts.push(right(92, basisLine, 16, COLORS.muted));

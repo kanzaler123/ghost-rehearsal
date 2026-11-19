@@ -12,6 +12,7 @@ export default defineConfig({
             { name: 'vendor-flow', test: /node_modules[\\/](@xyflow|d3-|zustand|use-sync-external-store)[\\/]/, priority: 30 },
             { name: 'vendor-zod', test: /node_modules[\\/]zod[\\/]/, priority: 25 },
             { name: 'vendor-icons', test: /node_modules[\\/]lucide-react[\\/]/, priority: 20 },
+            { name: 'app-i18n', test: /src[\\/]i18n[\\/]messages\.ts$/, priority: 15 },
           ],
         },
       },

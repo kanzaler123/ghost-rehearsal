@@ -92,10 +92,19 @@ describe('buildFateCardSvg', () => {
     expect(svg).toContain('&lt;script&gt;');
     expect(svg).toContain('a&amp;b&lt;c&gt;');
   });
-  it('keeps long names within the card', () => {
-    const svg = buildFateCardSvg(input('zh', { visitorName: '长'.repeat(80) }));
+  it('keeps long names and visitor IDs within the card', () => {
+    const svg = buildFateCardSvg(input('zh', { visitorName: '长'.repeat(80), visitorId: 'stream-'.repeat(20) }));
     expect(svg).toContain('…');
     expect(svg).not.toContain('长'.repeat(30));
+    expect(svg).not.toContain('stream-'.repeat(10));
+  });
+  it('treats sub-millisecond floating-point noise in waiting delta as zero', () => {
+    const data = input('en');
+    const a = { ...data.sides[0], outcome: { outcome: 'completed' as const, waiting: 100 } };
+    const b = { ...data.sides[1], outcome: { outcome: 'completed' as const, waiting: 100 + 1e-12 } };
+    const svg = buildFateCardSvg({ ...data, sides: [a, b] });
+    expect(svg).toContain(`${data.t.encore.fateCard.delta}: 0`);
+    expect(svg).not.toContain('+0.0 s');
   });
   it('is deterministic', () => { expect(buildFateCardSvg(input('en'))).toBe(buildFateCardSvg(input('en'))); });
 });
