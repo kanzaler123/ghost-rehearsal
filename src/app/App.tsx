@@ -42,7 +42,7 @@ import { MESSAGES } from '../i18n/messages';
 import { inputKey, populationSize } from '../simulation/input';
 import { usePlayback } from './usePlayback';
 import { useSoundscape } from './useSoundscape';
-import { isHaunted } from '../features/soundscape';
+import { hauntedStations } from '../features/soundscape';
 import { useProjectPersistence } from './useProjectPersistence';
 import { ImportClient } from '../features/imports/client';
 import type { ImportState } from '../features/imports/client';
@@ -230,9 +230,21 @@ export function App() {
   const trackedJourneys = useMemo(() => [run, comparing ? secondRun : undefined].map(target => target && visitorId ? journeyOf(target, visitorId) : undefined), [run, secondRun, comparing, visitorId]);
   const trackedStates = trackedJourneys.map(journey => journey && statusAt(journey, time));
   const [stationA, stationB] = trackedStates.map(status => status && 'since' in status ? status.nodeId : undefined);
-  const riftTime = useMemo(() => comparing && second && trackedJourneys[0] && trackedJourneys[1] ? firstDifference(trackedJourneys[0], trackedJourneys[1], plan, second)?.time ?? null : null, [comparing, second, trackedJourneys, plan]);
-  const finishTimes = useMemo(() => trackedJourneys.flatMap(journey => journey?.end?.kind === 'complete' ? [journey.end.time] : []), [trackedJourneys]);
-  const sound = useSoundscape({ playing, time, reducedMotion, riftTime, finishTimes, hot: isHaunted(view.nodes) || (comparing && isHaunted(secondView.nodes)) });
+  const { riftTime, finishTimes } = useMemo(() => {
+    const journeys = [run, comparing ? secondRun : undefined].map(target => {
+      const stats = statisticsAt(target, basis);
+      return target && visitorId && stats ? journeyOf(target, visitorId, stats.until) : undefined;
+    });
+    const [a, b] = journeys;
+    const riftTime = comparison.status === 'ready' && run && secondRun && a && b
+      ? firstDifference(a, b, run.request.plan, secondRun.request.plan)?.time ?? null : null;
+    return { riftTime, finishTimes: journeys.flatMap(journey => journey?.end?.kind === 'complete' ? [journey.end.time] : []) };
+  }, [run, secondRun, comparing, comparison.status, visitorId, basis]);
+  const hotStations = useMemo(() => [
+    ...hauntedStations(view.nodes, plan.id),
+    ...(comparing && second ? hauntedStations(secondView.nodes, second.id) : []),
+  ], [view.nodes, plan.id, comparing, second, secondView.nodes]);
+  const sound = useSoundscape({ playing, time, reducedMotion, riftTime, finishTimes, hotStations });
   const trackedStatus = trackedStates.map((status, index) => {
     if (!status) return t.reportUi.notInSystem;
     return status.kind === 'not_arrived' || status.kind === 'done' || status.kind === 'left' ? t.reportUi.notInSystem : describeStatus(status, (index ? secondRun : run)!.request.plan, time, t);

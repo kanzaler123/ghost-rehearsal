@@ -1,18 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { audioSupported, createSoundEngine, EMBER_COOLDOWN, INITIAL_CUE_STATE, isHaunted, MAX_STEP, planCues } from '../src/features/soundscape';
+import { audioSupported, createSoundEngine, EMBER_COOLDOWN, hauntedStations, INITIAL_CUE_STATE, MAX_STEP, planCues } from '../src/features/soundscape';
 import type { AudioContextLike, CueInput } from '../src/features/soundscape';
 
-const base: CueInput = { enabled: true, playing: true, from: 100, to: 105, hot: false };
+const base: CueInput = { enabled: true, playing: true, from: 100, to: 105, hotStations: [] };
 const crowd = (queued: number, blocked = 0, holding = 0) => ({ queued: Array(queued).fill('x'), blocked: Array(blocked).fill('x'), holding: Array(holding).fill('x') });
 
-describe('isHaunted', () => {
+describe('hauntedStations', () => {
   it('uses the canvas rule: more than 10 waiting, or anyone blocked', () => {
-    expect(isHaunted({ a: crowd(10) })).toBe(false);
-    expect(isHaunted({ a: crowd(11) })).toBe(true);
-    expect(isHaunted({ a: crowd(6, 0, 5) })).toBe(true);
-    expect(isHaunted({ a: crowd(0, 1) })).toBe(true);
-    expect(isHaunted({ a: crowd(3), b: crowd(2) })).toBe(false);
-    expect(isHaunted({})).toBe(false);
+    expect(hauntedStations({ a: crowd(10) }, 'baseline')).toEqual([]);
+    expect(hauntedStations({ a: crowd(11), b: crowd(6, 0, 5), c: crowd(0, 1) }, 'baseline')).toEqual(['baseline/a', 'baseline/b', 'baseline/c']);
+    expect(hauntedStations({ a: crowd(11) }, 'alternative')).toEqual(['alternative/a']);
+    expect(hauntedStations({ a: crowd(3), b: crowd(2) }, 'baseline')).toEqual([]);
+    expect(hauntedStations({}, 'baseline')).toEqual([]);
   });
 });
 
@@ -28,44 +27,43 @@ describe('planCues', () => {
     expect(planCues({ ...base, finishTimes: [90, 104] }).cues).toEqual(['bell']);
     expect(planCues({ ...base, finishTimes: [90, 120] }).cues).toEqual([]);
   });
-  it('pulses an ember only on a new haunted state, then respects the cooldown', () => {
-    const first = planCues({ ...base, hot: true });
+  it('pulses an ember for a newly haunted station while respecting the cooldown', () => {
+    const first = planCues({ ...base, hotStations: ['a/checkin'] });
     expect(first.cues).toEqual(['ember']);
-    expect(planCues({ ...base, from: 105, to: 110, hot: true }, first.state).cues).toEqual([]);
-    const cooled = planCues({ ...base, from: 110, to: 115, hot: false }, first.state);
-    const early = planCues({ ...base, from: 115, to: 120, hot: true }, cooled.state);
+    const early = planCues({ ...base, from: 105, to: 110, hotStations: ['a/checkin', 'a/packing'] }, first.state);
     expect(early.cues).toEqual([]);
-    const later = planCues({ ...base, from: 125, to: 125 + EMBER_COOLDOWN, hot: false }, early.state);
-    expect(planCues({ ...base, from: 100 + EMBER_COOLDOWN + 6, to: 100 + EMBER_COOLDOWN + 11, hot: true }, later.state).cues).toEqual(['ember']);
+    const later = planCues({ ...base, from: 110, to: 105 + EMBER_COOLDOWN, hotStations: ['a/checkin', 'a/packing'] }, early.state);
+    expect(later.cues).toEqual([]);
+    expect(planCues({ ...base, from: later.state.lastEmberAt + EMBER_COOLDOWN, to: 110 + EMBER_COOLDOWN, hotStations: ['a/checkin', 'a/packing', 'b/checkin'] }, later.state).cues).toEqual(['ember']);
   });
   it('resets the ember cooldown after rewinding or resetting the timeline', () => {
-    const first = planCues({ ...base, from: 500, to: 505, hot: true });
+    const first = planCues({ ...base, from: 500, to: 505, hotStations: ['a/checkin'] });
     expect(first.cues).toEqual(['ember']);
-    const reset = planCues({ ...base, from: 505, to: 0, playing: false, hot: false }, first.state);
+    const reset = planCues({ ...base, from: 505, to: 0, playing: false }, first.state);
     expect(reset.cues).toEqual([]);
-    expect(planCues({ ...base, from: 10, to: 15, hot: true }, reset.state).cues).toEqual(['ember']);
+    expect(planCues({ ...base, from: 10, to: 15, hotStations: ['a/checkin'] }, reset.state).cues).toEqual(['ember']);
   });
   it('can fire several cues in the same step', () => {
-    expect(planCues({ ...base, hot: true, riftTime: 101, finishTimes: [102] }).cues).toEqual(['rift', 'ember', 'bell']);
+    expect(planCues({ ...base, hotStations: ['a/checkin'], riftTime: 101, finishTimes: [102] }).cues).toEqual(['rift', 'ember', 'bell']);
   });
   it('stays silent when sound is off or replay is paused, but still tracks the haunted state', () => {
     for (const quiet of [{ enabled: false }, { playing: false }]) {
-      const result = planCues({ ...base, ...quiet, hot: true, riftTime: 102, finishTimes: [103] });
+      const result = planCues({ ...base, ...quiet, hotStations: ['a/checkin'], riftTime: 102, finishTimes: [103] });
       expect(result.cues).toEqual([]);
-      expect(result.state.wasHot).toBe(true);
+      expect(result.state.hotStations).toEqual(['a/checkin']);
     }
   });
   it('stays silent for backwards, zero and scrub-sized steps, and does not burst afterwards', () => {
     expect(planCues({ ...base, from: 105, to: 100, riftTime: 102 }).cues).toEqual([]);
     expect(planCues({ ...base, from: 100, to: 100, riftTime: 100 }).cues).toEqual([]);
-    expect(planCues({ ...base, from: 0, to: MAX_STEP + 1, riftTime: 10, finishTimes: [20], hot: true }).cues).toEqual([]);
+    expect(planCues({ ...base, from: 0, to: MAX_STEP + 1, riftTime: 10, finishTimes: [20], hotStations: ['a/checkin'] }).cues).toEqual([]);
     expect(planCues({ ...base, from: 0, to: MAX_STEP, riftTime: 10 }).cues).toEqual(['rift']);
-    const scrub = planCues({ ...base, from: 0, to: 500, hot: true });
-    expect(planCues({ ...base, from: 500, to: 505, hot: true }, scrub.state).cues).toEqual([]);
+    const scrub = planCues({ ...base, from: 0, to: 500, hotStations: ['a/checkin'] });
+    expect(planCues({ ...base, from: 500, to: 505, hotStations: ['a/checkin'] }, scrub.state).cues).toEqual([]);
   });
   it('does not mutate the previous state', () => {
     const before = { ...INITIAL_CUE_STATE };
-    planCues({ ...base, hot: true });
+    planCues({ ...base, hotStations: ['a/checkin'] });
     expect(INITIAL_CUE_STATE).toEqual(before);
   });
 });

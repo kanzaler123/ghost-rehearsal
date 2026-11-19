@@ -3,11 +3,11 @@
 ## Soundscape
 
 - `src/features/soundscape.ts` (no React, no DOM at import time)
-  - `isHaunted(nodes)`: any node with `queued + holding + blocked > 10` or `blocked > 0`. This mirrors `Canvas.tsx`.
-  - `planCues(input, state) → { cues, state }`. Input: `enabled`, `playing`, `from`, `to`, `riftTime`, `finishTimes`, `hot`. State: `wasHot`, `lastEmberAt`. A forward step of 0 < `to − from` ≤ `MAX_STEP` (60 scenario s) counts as playback. Crossing means `from < t ≤ to`. An ember needs a rising edge of `hot` plus `EMBER_COOLDOWN` (20 s) since the last ember. `wasHot` always tracks the latest value, so scrubbing never causes a burst afterwards.
+  - `hauntedStations(nodes, planId)` returns the plan and station IDs for each node with `queued + holding + blocked > 10` or `blocked > 0`. This mirrors `Canvas.tsx`.
+  - `planCues(input, state) → { cues, state }` receives `enabled`, `playing`, `from`, `to`, `riftTime`, `finishTimes` and `hotStations`. It stores the latest `hotStations` and `lastEmberAt`. A forward step of 0 < `to − from` ≤ `MAX_STEP` (60 scenario s) counts as playback. Crossing means `from < t ≤ to`. An ember requires a station newly entering the haunted state and `EMBER_COOLDOWN` (20 s) since the last ember. The station list stays current during scrubbing.
   - `createSoundEngine(env = globalThis)`: lazily builds one context. Every call is wrapped in `try/catch`; a missing or throwing constructor yields `available: false`. Cues are oscillators with gain envelopes: rift (tritone sines), ember (55 Hz sine through a low-pass, two pulses), bell (sine with a 2× partial and fast decay).
-- `src/app/useSoundscape.ts`: React wrapper. `enabled` starts `false`. `toggle()` creates the engine inside the click for the autoplay policy. A `time` effect calls `planCues` and plays the cues. Reduced motion forces `enabled=false` and disables the button.
-- `App.tsx`: builds `riftTime` (`firstDifference` of the tracked journeys in Compare), `finishTimes` (completed journey ends) and `hot` (playback views), then renders the toggle inside `.timeline` after the speed pill. It reuses `icon-btn`, so no CSS is added.
+- `src/app/useSoundscape.ts`: React wrapper. `enabled` starts `false`. `toggle()` creates the engine inside the click for the autoplay policy. The effect calls `planCues` when the replay time or haunted stations change. Reduced motion forces `enabled=false` and disables the button.
+- `App.tsx` builds `riftTime` and `finishTimes` from tracked journeys within the selected statistics basis. It reads haunted stations from the playback views and reuses `icon-btn` for the toggle after the speed selector.
 
 ## Fate card
 

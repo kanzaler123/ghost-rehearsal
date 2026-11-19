@@ -425,7 +425,7 @@ fieldset:disabled { opacity: 0.82; }
 .check-item.warning b { color: var(--candle); }
 
 .dock { flex-shrink: 0; display: flex; flex-direction: column; border-top: var(--stroke) solid var(--line); background: var(--surface-1); }
-.timeline { height: var(--timeline-height); flex-shrink: 0; display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-5); border-bottom: var(--stroke) solid var(--line); }
+.timeline { height: var(--timeline-height); flex-shrink: 0; display: flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-5); border-bottom: var(--stroke) solid var(--line); }
 .play-btn {
   width: var(--play-btn-width); height: var(--play-btn-height); flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
   color: var(--primary-ink); background: var(--brand);

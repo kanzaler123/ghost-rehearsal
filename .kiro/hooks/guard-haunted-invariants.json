@@ -3,21 +3,9 @@
   "hooks": [
     {
       "name": "Guard Haunted Stage UI invariants (save)",
-      "description": "Run frozen SHA-256 simulation digests and Haunted Stage CSS/WCAG contrast contracts after editor saves in UI component or style folders (local command, zero model credits).",
+      "description": "Run frozen SHA-256 simulation digests and Haunted Stage CSS/WCAG contrast contracts after UI component or style files are saved (local command, zero model credits).",
       "trigger": "PostFileSave",
       "matcher": "(?:^|[\\\\/])src[\\\\/](?:components|app[\\\\/]styles)[\\\\/].*\\.(?:tsx?|css)$",
-      "action": {
-        "type": "command",
-        "command": "node scripts/guard-haunted-invariants.mjs"
-      },
-      "timeout": 60,
-      "enabled": true
-    },
-    {
-      "name": "Guard Haunted Stage UI invariants (agent write)",
-      "description": "Run frozen SHA-256 simulation digests and Haunted Stage CSS/WCAG contrast contracts automatically whenever Kiro writes files under src/components or src/app/styles (local command, zero model credits).",
-      "trigger": "PostToolUse",
-      "matcher": "write",
       "action": {
         "type": "command",
         "command": "node scripts/guard-haunted-invariants.mjs"

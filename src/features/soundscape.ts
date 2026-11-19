@@ -14,9 +14,11 @@ export const CROWDED_WAITING = 10;
 
 interface StationCrowd { queued: readonly unknown[]; blocked: readonly unknown[]; holding: readonly unknown[] }
 
-/** True when any station is in the haunted (crowded or blocked) state. Waiting counts queued, holding and blocked guests like the canvas. */
-export function isHaunted(nodes: Readonly<Record<string, StationCrowd>>): boolean {
-  return Object.values(nodes).some(node => node.blocked.length > 0 || node.queued.length + node.holding.length + node.blocked.length > CROWDED_WAITING);
+/** Waiting counts queued, holding and blocked guests like the canvas. */
+export function hauntedStations(nodes: Readonly<Record<string, StationCrowd>>, planId: string): string[] {
+  return Object.entries(nodes)
+    .filter(([, node]) => node.blocked.length > 0 || node.queued.length + node.holding.length + node.blocked.length > CROWDED_WAITING)
+    .map(([nodeId]) => `${planId}/${nodeId}`);
 }
 
 export interface CueInput {
@@ -28,23 +30,22 @@ export interface CueInput {
   riftTime?: number | null;
   /** Times at which the tracked ghost completes the flow and leaves. */
   finishTimes?: readonly number[];
-  /** Whether any station is haunted at `to`. */
-  hot: boolean;
+  hotStations: readonly string[];
 }
-export interface CueState { wasHot: boolean; lastEmberAt: number }
-export const INITIAL_CUE_STATE: CueState = { wasHot: false, lastEmberAt: -Infinity };
+export interface CueState { hotStations: readonly string[]; lastEmberAt: number }
+export const INITIAL_CUE_STATE: CueState = { hotStations: [], lastEmberAt: -Infinity };
 
 const crosses = (time: number | null | undefined, from: number, to: number) => typeof time === 'number' && Number.isFinite(time) && from < time && time <= to;
 
 /** Decides which cues fire for a replay step. Only forward playback with sound on can fire. */
 export function planCues(input: CueInput, state: CueState = INITIAL_CUE_STATE): { cues: Cue[]; state: CueState } {
-  const { enabled, playing, from, to, hot } = input;
-  const next: CueState = { wasHot: hot, lastEmberAt: to < from ? -Infinity : state.lastEmberAt };
+  const { enabled, playing, from, to, hotStations } = input;
+  const next: CueState = { hotStations, lastEmberAt: to < from ? -Infinity : state.lastEmberAt };
   const step = to - from;
   if (!enabled || !playing || !(step > 0) || step > MAX_STEP) return { cues: [], state: next };
   const cues: Cue[] = [];
   if (crosses(input.riftTime, from, to)) cues.push('rift');
-  if (hot && !state.wasHot && to - state.lastEmberAt >= EMBER_COOLDOWN) { cues.push('ember'); next.lastEmberAt = to; }
+  if (to - state.lastEmberAt >= EMBER_COOLDOWN && hotStations.some(id => !state.hotStations.includes(id))) { cues.push('ember'); next.lastEmberAt = to; }
   if (input.finishTimes?.some(time => crosses(time, from, to))) cues.push('bell');
   return { cues, state: next };
 }

@@ -12,7 +12,7 @@
 - **Steering (`.kiro/steering/`):**
   - [`.kiro/steering/haunted-stage.md`](.kiro/steering/haunted-stage.md) *(authored by Kiro on 2026-11-19, commit `72ffc63`)*: always-on UI guardrail enforcing zero simulation edits, token-only styling with WCAG contrast/reduced-motion bounds, zero external runtime requests, and card/selector compatibility; actively loaded and followed during Kiro's `haunted-stage-encore` session.
   - [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) *(authored by Codex on 2026-11-15)*: always-on contract for shared waiting thresholds, sample scope disclosure, C-plan experiment construction (`createPackingExperiment`), real-Worker browser verification, and strict tool attribution.
-- **Stop Hook (`.kiro/hooks/update-usage-log.json`):** Configured as an agent Stop Hook to append evidence-based, non-duplicate task logs directly to `KIRO_USAGE.md` after substantive work, preventing fabricated metrics or unverified claims. Its reload/registration was verified in local Kiro logs on 2026-11-15, and it fired end-to-end twice—automatically writing both the **2026-11-18** Haunted Stage entry and the **2026-11-19** Haunted Stage Encore entry (`6d68e4a`). *(A local command hook `.kiro/hooks/guard-haunted-invariants.json` was also configured for UI invariant checks, but its execution output was not observed inside Kiro chat, so it is not claimed as an executed Kiro hook.)*
+- **Stop Hook (`.kiro/hooks/update-usage-log.json`):** Configured as an agent Stop Hook to append evidence-based, non-duplicate task logs directly to `KIRO_USAGE.md` after substantive work, preventing fabricated metrics or unverified claims. Its reload/registration was verified in local Kiro logs on 2026-11-15, and it fired end-to-end twice—automatically writing both the **2026-11-18** Haunted Stage entry and the **2026-11-19** Haunted Stage Encore entry (`6d68e4a`). The Encore session log records both triggers for the UI invariant command hook. The command's test output remains unverified in that session. Codex consolidated the guard to the file-save trigger after reviewing those events.
 
 ### 2. Verified Kiro contributions across the project
 
@@ -29,7 +29,7 @@
    - **End-to-end Spec → Code → Test (`2c400bb`):** Guided by both steering files, Kiro authored `.kiro/specs/haunted-stage-encore/` (`requirements.md`, `design.md`, `tasks.md`) and implemented two Costume Contest highlights with zero simulation/schema/`TopBar.tsx` changes:
      - **Spectral Soundscape (`src/features/soundscape.ts`, `src/app/useSoundscape.ts`):** Pure-Web-Audio procedural cues (muted by default, zero audio files/network requests, silent under `prefers-reduced-motion`) firing a soft two-tone rift chord at `firstDifference`, rate-limited ember pulses on overload, and a completion bell, toggled from `.timeline`.
      - **Spectral Fate Card (`src/features/fateCard.ts`):** Pure bilingual 1200×630 XML-escaped standalone SVG poster export from `.ghost-card` in `Journey.tsx` comparing one guest's aligned A/B timelines, first-difference rift, outcomes, signed wait delta, and synthetic-assumption footnote.
-     - **Tests (`tests/soundscape.test.ts`, `tests/fate-card.test.ts`, `e2e/ui/encore.spec.ts`):** 21 new unit tests + 12 real-browser Playwright assertions (desktop & 390px, EN & ZH, verifying oscillator pitches `[311.13, 440]`, zero external requests, and real downloaded SVG `1200×630` rendering).
+     - **Tests (`tests/soundscape.test.ts`, `tests/fate-card.test.ts`, `e2e/ui/encore.spec.ts`):** 21 new unit tests and 12 Playwright cases across desktop and 390px layouts in EN and ZH. They verify oscillator pitches `[311.13, 440]`, zero external requests, and rendering of the downloaded `1200×630` SVG.
    - **Stop Hook execution #2 (`6d68e4a`):** `.kiro/hooks/update-usage-log.json` automatically appended the 2026-11-19 record below.
 
 ### 3. Representative problems & human / Kiro / review collaboration
@@ -52,7 +52,7 @@
 | UI creative redesign requirements (22 reqs) | [`.kiro/specs/ui-creative-redesign/requirements.md`](.kiro/specs/ui-creative-redesign/requirements.md) | Kiro (2026-11-16) |
 | Stop Hook configuration & 2 verified log entries | [`.kiro/hooks/update-usage-log.json`](.kiro/hooks/update-usage-log.json) & sections `2026-11-18`, `2026-11-19` below | Executed by Kiro on 2026-11-18 & 2026-11-19 (`6d68e4a`) |
 | Comparison evidence Steering guardrails | [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) | Codex (2026-11-15) |
-| UI invariant command Hook | [`.kiro/hooks/guard-haunted-invariants.json`](.kiro/hooks/guard-haunted-invariants.json) | Configured outside Kiro; chat trigger unverified |
+| UI invariant command Hook | [`.kiro/hooks/guard-haunted-invariants.json`](.kiro/hooks/guard-haunted-invariants.json) | Configured outside Kiro. Local session events confirm the triggers. Test output from those events remains unverified. |
 | Simulation invariance guarantee (6 frozen SHA-256 digests) | [`tests/ui-redesign-equivalence.test.ts`](tests/ui-redesign-equivalence.test.ts) | Verified unchanged after both `55ce3c6` & `2c400bb` |
 | Portable Kiro IDE session exports & screenshots | Ignored local `kiro-evidence/` | **Pending manual export** |
 

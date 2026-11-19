@@ -18,3 +18,5 @@
   - Two Playwright runs started in parallel collided on port 4178 and `test-results`. Their results were discarded and the runs repeated serially.
   - Final serial runs: `npm run check` 43 files / 614 tests passed; `npm run build -- --base=/ghost-rehearsal/` built; `npm run test:browser:smoke` 40 passed; `npx playwright test e2e/ui` 144 passed, 4 skipped (optional capture), which includes `encore.spec.ts` and `compare-first-screen.spec.ts`.
   - `npm run test:browser` (the full suite) was not run.
+
+- 2026-11-19, Codex follow-up. Both TypeScript checks, 616 unit tests, the production subpath build, and 37 release checks passed. All 67 selected browser cases passed, including Chromium smoke and the A/B/C guide, the Firefox timeline check, and WebKit SVG and reduced-motion checks. The guard command passed its 12 invariant tests with a matching file-save payload.

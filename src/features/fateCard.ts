@@ -122,7 +122,9 @@ export function buildFateCardSvg(input: FateCardInput): string {
     const { color, label } = bands[index];
     const left = index ? 610 : 80;
     parts.push(`<rect x="${left}" y="414" width="510" height="102" rx="12" fill="${COLORS.raised}" stroke="${color}" stroke-opacity="0.7"/>`);
-    parts.push(text(left + 20, 442, 15, `${label} · ${clip(side.planName, 36)}`, color, ` font-family="${FONT.sans}" font-weight="600"`));
+    const titleClip = `fate-plan-title-${index}`;
+    parts.push(`<clipPath id="${titleClip}"><rect x="${left + 20}" y="422" width="470" height="26"/></clipPath>`);
+    parts.push(text(left + 20, 442, 15, `${label} · ${clip(side.planName, 36)}`, color, ` font-family="${FONT.sans}" font-weight="600" clip-path="url(#${titleClip})"`));
     const outcome = side.outcome;
     parts.push(text(left + 20, 475, 19, `${card.outcome}: ${outcome ? t.outcomes[outcome.outcome] ?? outcome.outcome : card.noData}`, COLORS.text, ` font-family="${FONT.sans}"`));
     parts.push(text(left + 20, 503, 19, `${card.totalWait}: ${outcome ? t.formatWait(outcome.waiting) : card.noData}`, COLORS.text, ` font-family="${FONT.sans}"`));

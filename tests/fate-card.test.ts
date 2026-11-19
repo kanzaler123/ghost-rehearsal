@@ -93,10 +93,15 @@ describe('buildFateCardSvg', () => {
     expect(svg).toContain('a&amp;b&lt;c&gt;');
   });
   it('keeps long names and visitor IDs within the card', () => {
-    const svg = buildFateCardSvg(input('zh', { visitorName: '长'.repeat(80), visitorId: 'stream-'.repeat(20) }));
+    const data = input('zh', { visitorName: '长'.repeat(80), visitorId: 'stream-'.repeat(20) });
+    data.sides[0].planName = data.sides[1].planName = 'W'.repeat(36);
+    const svg = buildFateCardSvg(data);
     expect(svg).toContain('…');
     expect(svg).not.toContain('长'.repeat(30));
     expect(svg).not.toContain('stream-'.repeat(10));
+    expect(svg).toContain('<clipPath id="fate-plan-title-0"><rect x="100" y="422" width="470" height="26"/>');
+    expect(svg).toContain('<clipPath id="fate-plan-title-1"><rect x="630" y="422" width="470" height="26"/>');
+    for (const index of [0, 1]) expect(svg).toContain(`clip-path="url(#fate-plan-title-${index})"`);
   });
   it('treats sub-millisecond floating-point noise in waiting delta as zero', () => {
     const data = input('en');

@@ -4,11 +4,11 @@ import type { SoundEngine } from '../features/soundscape';
 
 interface Options {
   playing: boolean; time: number; reducedMotion: boolean;
-  riftTime?: number | null; finishTimes?: readonly number[]; hot: boolean;
+  riftTime?: number | null; finishTimes?: readonly number[]; hotStations: readonly string[];
 }
 
 /** Sound is off until the user turns it on, and it stays silent under reduced motion or without Web Audio. */
-export function useSoundscape({ playing, time, reducedMotion, riftTime, finishTimes, hot }: Options) {
+export function useSoundscape({ playing, time, reducedMotion, riftTime, finishTimes, hotStations }: Options) {
   const [on, setOn] = useState(false);
   const engine = useRef<SoundEngine | undefined>(undefined);
   const previous = useRef(time);
@@ -16,10 +16,10 @@ export function useSoundscape({ playing, time, reducedMotion, riftTime, finishTi
   const available = !reducedMotion && audioSupported();
   const enabled = on && available;
   useEffect(() => {
-    const result = planCues({ enabled, playing, from: previous.current, to: time, riftTime, finishTimes, hot }, state.current);
+    const result = planCues({ enabled, playing, from: previous.current, to: time, riftTime, finishTimes, hotStations }, state.current);
     previous.current = time; state.current = result.state;
     for (const cue of result.cues) engine.current?.play(cue);
-  }, [time]);
+  }, [time, hotStations]);
   useEffect(() => {
     if (!available) {
       if (engine.current) { engine.current.close(); engine.current = undefined; }

@@ -27,7 +27,7 @@ async function spyOnAudio(page: Page) {
 }
 const audio = (page: Page) => page.evaluate(() => window.__encore);
 
-test('sound is muted by default and the toggle plays a rift cue only when on', async ({ page }, info) => {
+test('sound is muted by default and the rift cue respects the selected scope', async ({ page }, info) => {
   const external: string[] = [];
   page.on('request', request => { if (!/^(?:https?:\/\/127\.0\.0\.1|blob:|data:|about:)/.test(request.url())) external.push(request.url()); });
   await spyOnAudio(page);
@@ -44,7 +44,7 @@ test('sound is muted by default and the toggle plays a rift cue only when on', a
   expect((await audio(page)).contexts).toBe(0);
 
   // Muted: replay crosses the first difference at 03:30 without a sound or an AudioContext.
-  const playBack = async () => { await pauseAt(page, t, 200); await page.getByRole('button', { name: t.dock.play, exact: true }).click(); };
+  const playBack = async (seconds = 200) => { await pauseAt(page, t, seconds); await page.getByRole('button', { name: t.dock.play, exact: true }).click(); };
   await playBack();
   await expect.poll(async () => Number(await page.getByLabel(t.dock.timeline, { exact: true }).inputValue())).toBeGreaterThan(215);
   await page.getByRole('button', { name: t.dock.pause, exact: true }).click();
@@ -68,6 +68,17 @@ test('sound is muted by default and the toggle plays a rift cue only when on', a
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(size.width);
   if (mobile) expect(box.width).toBeGreaterThanOrEqual(24);
+
+  const search = page.locator('.ghost-stories').getByRole('searchbox');
+  await search.fill('main-stream:64');
+  await search.press('Enter');
+  await expect(page.locator('.ghost-id code')).toHaveText('main-stream:64');
+  await expect(page.locator('.diff-note')).toContainText(t.reportUi.noDivergence);
+  const rifts = (await audio(page)).frequencies.filter(pitch => pitch === 311.13).length;
+  await playBack(1810);
+  await expect.poll(async () => Number(await page.getByLabel(t.dock.timeline, { exact: true }).inputValue())).toBeGreaterThan(1825);
+  await page.getByRole('button', { name: t.dock.pause, exact: true }).click();
+  expect((await audio(page)).frequencies.filter(pitch => pitch === 311.13)).toHaveLength(rifts);
 
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
