@@ -1,6 +1,6 @@
 # Ghost Rehearsal — Kiro 使用记录
 
-状态：已核实三条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`），2026-11-19 Haunted Stage Encore 的 Spec、实现与验证（Kiro 会话内完成，提交 `2c400bb`）。2026-11-18 条目由 Stop Hook 在该会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
+状态：已核实三条 Kiro 记录：2026-11-16 需求与基线截图准备（实现由 Codex 接手），2026-11-18 Haunted Stage 改版的 Spec、实现与验证（Kiro 会话内完成，提交 `55ce3c6`），2026-11-19 Haunted Stage Encore 的 Spec、实现与验证（Kiro 会话内完成，提交 `2c400bb`，另于 `72ffc63` 编写常驻 Steering `.kiro/steering/haunted-stage.md`）。2026-11-18 与 2026-11-19 条目均由 Stop Hook 在各自会话触发后写入；此前条目由 Codex 手动补充。会话导出仍待导出。
 
 ## English Kiro Usage Summary for Kiroween Reviewers
 
@@ -8,9 +8,11 @@
 
 ### 1. Which Kiro features were used and why
 
-- **Spec-driven workflow (`.kiro/specs/`):** Used to lock down presentation guardrails, invariants, and acceptance contracts before editing UI or simulation code—especially ensuring that visual overhauls for the Costume Contest never altered simulation semantics (`src/simulation/**`, `src/schemas/**`, `examples/open-house.json`) or broke the frozen SHA-256 simulation digests in `tests/ui-redesign-equivalence.test.ts`.
-- **Stop Hook (`.kiro/hooks/update-usage-log.json`):** Configured as an agent Stop Hook to append evidence-based, non-duplicate task logs directly to `KIRO_USAGE.md` after substantive work, preventing fabricated metrics or unverified claims. Its reload/registration was verified in local Kiro logs on 2026-11-15, and its end-to-end execution fired and wrote the 2026-11-18 Haunted Stage entry below.
-- **Steering (`.kiro/steering/comparison-evidence.md`):** Defines always-on project guardrails for shared waiting thresholds, sample scope disclosure, C-plan experiment construction (`createPackingExperiment`), real-Worker browser verification, and strict tool attribution. *(Note: authored by Codex on 2026-11-15; retained in `.kiro/steering/` as part of the repository's Kiro configuration.)*
+- **Spec-driven workflow (`.kiro/specs/`):** Used to lock down presentation guardrails, invariants, and acceptance contracts before editing UI or simulation code—especially ensuring that Costume Contest visual and sensory features never altered simulation semantics (`src/simulation/**`, `src/schemas/**`, `examples/open-house.json`) or broke the six frozen SHA-256 simulation digests in `tests/ui-redesign-equivalence.test.ts`.
+- **Steering (`.kiro/steering/`):**
+  - [`.kiro/steering/haunted-stage.md`](.kiro/steering/haunted-stage.md) *(authored by Kiro on 2026-11-19, commit `72ffc63`)*: always-on UI guardrail enforcing zero simulation edits, token-only styling with WCAG contrast/reduced-motion bounds, zero external runtime requests, and card/selector compatibility; actively loaded and followed during Kiro's `haunted-stage-encore` session.
+  - [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) *(authored by Codex on 2026-11-15)*: always-on contract for shared waiting thresholds, sample scope disclosure, C-plan experiment construction (`createPackingExperiment`), real-Worker browser verification, and strict tool attribution.
+- **Stop Hook (`.kiro/hooks/update-usage-log.json`):** Configured as an agent Stop Hook to append evidence-based, non-duplicate task logs directly to `KIRO_USAGE.md` after substantive work, preventing fabricated metrics or unverified claims. Its reload/registration was verified in local Kiro logs on 2026-11-15, and it fired end-to-end twice—automatically writing both the **2026-11-18** Haunted Stage entry and the **2026-11-19** Haunted Stage Encore entry (`6d68e4a`). *(A local command hook `.kiro/hooks/guard-haunted-invariants.json` was also configured for UI invariant checks, but its execution output was not observed inside Kiro chat, so it is not claimed as an executed Kiro hook.)*
 
 ### 2. Verified Kiro contributions across the project
 
@@ -21,17 +23,23 @@
 3. **2026-11-18 — `haunted-stage-ui` Midnight Haunted Stage redesign (session `sess_114da15d-bf8d-438c-b907-beb37999f9a7`, commit `55ce3c6`):**
    - **End-to-end Spec → Code → Test in Kiro:** Kiro wrote the full three-file spec ([requirements](.kiro/specs/haunted-stage-ui/requirements.md), [design](.kiro/specs/haunted-stage-ui/design.md), [tasks](.kiro/specs/haunted-stage-ui/tasks.md)) and implemented the Costume Contest transformation without touching the simulation engine or schemas.
    - **Concrete UI deliverables by Kiro (`55ce3c6`):** Collapsed three header layers into a single 52px top bar with floating canvas HUD capsules; kept both synchronized canvases visible as a strip above the guest journey on desktop; built the local Canvas 2D atmosphere layer (`src/components/SpectralStageBackdrop.tsx`, `src/components/spectral.ts`) with replay-tempo response and `prefers-reduced-motion` static frame fallback; added glowing active route lines, trailing traveller orbs, rune branch capsules (`src/components/routeLabel.ts`), overload flames (`haunt-pulse`), tracked-ghost rotating spotlight, divergence rift scene, dark data-source editors, and a cross-plan shared queue gauge scale (`src/components/queueScale.ts` + `tests/ui-queue-scale.test.ts`).
-   - **Stop Hook execution:** At the end of the November 18 Kiro session, `.kiro/hooks/update-usage-log.json` triggered automatically and wrote the dated entry under `实际记录` below.
+   - **Stop Hook execution #1:** At the end of the November 18 session, `.kiro/hooks/update-usage-log.json` triggered automatically and wrote the dated entry under `实际记录` below.
+4. **2026-11-19 — `haunted-stage.md` Steering (`72ffc63`) & `haunted-stage-encore` Spec → Code → Test (session `sess_c8ef18f5-67ca-4040-9cec-2e690d222045`, commit `2c400bb`):**
+   - **Kiro-authored Steering (`72ffc63`):** Distilled the Haunted Stage invariants into `.kiro/steering/haunted-stage.md` (`inclusion: always`) and fixed a stale `60fps` comment in `src/components/spectral.ts`.
+   - **End-to-end Spec → Code → Test (`2c400bb`):** Guided by both steering files, Kiro authored `.kiro/specs/haunted-stage-encore/` (`requirements.md`, `design.md`, `tasks.md`) and implemented two Costume Contest highlights with zero simulation/schema/`TopBar.tsx` changes:
+     - **Spectral Soundscape (`src/features/soundscape.ts`, `src/app/useSoundscape.ts`):** Pure-Web-Audio procedural cues (muted by default, zero audio files/network requests, silent under `prefers-reduced-motion`) firing a soft two-tone rift chord at `firstDifference`, rate-limited ember pulses on overload, and a completion bell, toggled from `.timeline`.
+     - **Spectral Fate Card (`src/features/fateCard.ts`):** Pure bilingual 1200×630 XML-escaped standalone SVG poster export from `.ghost-card` in `Journey.tsx` comparing one guest's aligned A/B timelines, first-difference rift, outcomes, signed wait delta, and synthetic-assumption footnote.
+     - **Tests (`tests/soundscape.test.ts`, `tests/fate-card.test.ts`, `e2e/ui/encore.spec.ts`):** 21 new unit tests + 12 real-browser Playwright assertions (desktop & 390px, EN & ZH, verifying oscillator pitches `[311.13, 440]`, zero external requests, and real downloaded SVG `1200×630` rendering).
+   - **Stop Hook execution #2 (`6d68e4a`):** `.kiro/hooks/update-usage-log.json` automatically appended the 2026-11-19 record below.
 
-### 3. Representative problem & human / Kiro / Codex collaboration
+### 3. Representative problems & human / Kiro / review collaboration
 
-During the **Midnight Haunted Stage redesign (`haunted-stage-ui`)**, turning a dense data workbench into an animated Halloween stage surfaced real cross-engine regressions that Kiro and subsequent review caught step by step:
-
-- **What Kiro caught and fixed inside its own session (`55ce3c6`):**
-  1. Enlarging live cards to `232×220` / `248×220` broke `stages.test.ts`; Kiro decoupled `arrangeLayout` (`ARRANGE_CELL`) from rendered card dimensions so automatic layout tests stayed green.
-  2. Full Playwright runs exposed a prototype-collision crash when a plan ID equaled `constructor` (fixed by switching plain objects to `Map`) and an invisible heading intercepting keyboard route selection (restored).
-  3. Headless Chromium without GPU acceleration slowed Web Worker tests when the new Canvas 2D backdrop ran at full resolution/60fps, causing 7 test timeouts; Kiro halved backdrop resolution (`0.5×`), capped animation at 30fps, paused the canvas when dialogs open, and eliminated per-frame CSS filters—bringing suite timing back in line with `main`.
-- **Verification & follow-up review:** Kiro ran `npm run check` (592 unit tests passed), `npm run build`, 22 targeted browser tests (passed), and the full Chromium suite with `--global-timeout=0` (515 passed, 4 intentional skips, 1 timing-sensitive failure that passed 3/3 isolated reruns). Codex then independently reviewed `55ce3c6` and landed targeted polish fixes in `9ec4f01` (guest tracking sync, mobile timeline tap hit areas, overlapping canvas controls, clipped queue counts, and screen-reader heading), followed by later Midnight Opening, six-step tour (`344b246`, `a9ec3fe`), and Vite 8 bundle splitting (`0d8d400`) updates outside Kiro.
+1. **Midnight Haunted Stage (`55ce3c6`, 2026-11-18):**
+   - *Caught & fixed by Kiro:* Decoupled `arrangeLayout` (`ARRANGE_CELL`) when card sizing broke `stages.test.ts`; replaced object-keyed lookups with `Map` after plan ID `constructor` triggered a prototype-collision crash; halved Canvas 2D backdrop resolution (`0.5×`), capped at 30fps, and paused behind dialogs after GPU-less headless Chromium slowed Web Worker tests and caused 7 timeouts.
+   - *Independent follow-up review:* Codex reviewed `55ce3c6` and landed targeted polish fixes in `9ec4f01` (guest tracking sync, mobile timeline taps, overlapping canvas controls, clipped queue counts, screen-reader heading), followed by Midnight Opening & six-step tour (`344b246`, `a9ec3fe`) and Vite 8 bundle splitting (`0d8d400`) outside Kiro.
+2. **Haunted Stage Encore (`2c400bb`, 2026-11-19):**
+   - *Caught & fixed by Kiro:* During Playwright verification, a text label on the fate-card button squeezed `.ghost-id` and broke `compare-first-screen.spec.ts` at `1366×768`; Kiro switched it to an accessible `icon-btn`, then isolated a follow-up `390px` mobile failure and resolved it with a single token-safe `flex-basis: 50%` rule in `responsive.css` (passing 144/144 UI E2E checks + 40/40 smoke tests).
+   - *Independent follow-up review (`c7385bd`, outside Kiro):* Added ember-cooldown reset on timeline rewind, immediate `AudioContext` close on dynamic `prefers-reduced-motion`, millisecond rounding + ID clipping in `fateCard.ts`, and `app-i18n` chunk splitting to restore a zero-warning Vite 8 build.
 
 ### 4. Evidence & verification map
 
@@ -39,10 +47,13 @@ During the **Midnight Haunted Stage redesign (`haunted-stage-ui`)**, turning a d
 | --- | --- | --- |
 | Haunted Stage spec (requirements / design / tasks) | [`.kiro/specs/haunted-stage-ui/`](.kiro/specs/haunted-stage-ui/) | Kiro (2026-11-18) |
 | Haunted Stage implementation commit | `55ce3c6` | Kiro (2026-11-18) |
+| Haunted Stage Encore spec & implementation | [`.kiro/specs/haunted-stage-encore/`](.kiro/specs/haunted-stage-encore/) & `2c400bb` | Kiro (2026-11-19) |
+| Haunted Stage always-on Steering doc | [`.kiro/steering/haunted-stage.md`](.kiro/steering/haunted-stage.md) (`72ffc63`) | Kiro (2026-11-19) |
 | UI creative redesign requirements (22 reqs) | [`.kiro/specs/ui-creative-redesign/requirements.md`](.kiro/specs/ui-creative-redesign/requirements.md) | Kiro (2026-11-16) |
-| Stop Hook configuration & verified log entry | [`.kiro/hooks/update-usage-log.json`](.kiro/hooks/update-usage-log.json) & section `2026-11-18` below | Configured manually/Codex; executed by Kiro on 2026-11-18 |
-| Steering guardrails | [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) | Codex (2026-11-15) |
-| Simulation invariance guarantee (6 frozen SHA-256 digests) | [`tests/ui-redesign-equivalence.test.ts`](tests/ui-redesign-equivalence.test.ts) | Verified unchanged after Kiro's `55ce3c6` |
+| Stop Hook configuration & 2 verified log entries | [`.kiro/hooks/update-usage-log.json`](.kiro/hooks/update-usage-log.json) & sections `2026-11-18`, `2026-11-19` below | Executed by Kiro on 2026-11-18 & 2026-11-19 (`6d68e4a`) |
+| Comparison evidence Steering guardrails | [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) | Codex (2026-11-15) |
+| UI invariant command Hook | [`.kiro/hooks/guard-haunted-invariants.json`](.kiro/hooks/guard-haunted-invariants.json) | Configured outside Kiro; chat trigger unverified |
+| Simulation invariance guarantee (6 frozen SHA-256 digests) | [`tests/ui-redesign-equivalence.test.ts`](tests/ui-redesign-equivalence.test.ts) | Verified unchanged after both `55ce3c6` & `2c400bb` |
 | Portable Kiro IDE session exports & screenshots | Ignored local `kiro-evidence/` | **Pending manual export** |
 
 > For each future Kiro task, record its date, problem, Kiro features actually used, concrete contributions, human or other-tool contributions, changed files or commit, verification results, and supporting session export. Raw exports stay in the ignored `kiro-evidence/` directory. Do not attribute Codex or Antigravity work to Kiro.
