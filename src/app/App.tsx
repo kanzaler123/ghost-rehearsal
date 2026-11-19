@@ -32,7 +32,7 @@ import { EmptyResults, EventLog, Insights, ResourceUse } from '../components/Res
 import { comparisonContext, compatibleRuns, firstDifference, journeyOf, keyEvents, liveSummary, planChanges, rehearsePicks, statusAt, THRESHOLD, visitorName } from '../features/analysis';
 import type { AffectedFilter, WaitThreshold } from '../features/analysis';
 import { arrangeLayout, stageIndex } from '../features/stages';
-import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, NODE_TYPES, plansInSourceOrder, readProject, serializeTemplate, serializeTemplates, subflowDependencies, templateLibrarySchema } from '../features/project';
+import { addEvent, addNodeFromTemplate, addPlanFromTemplate, comparisonReport, createBlankPlan, createNode, createPackingExperiment, download, emptyProject, executionReport, experimentProject, formatTime, halloweenProject, initialDocument, newId, nextPlanName, NODE_TYPES, plansInSourceOrder, readProject, serializeTemplate, serializeTemplates, subflowDependencies, templateLibrarySchema } from '../features/project';
 import type { SavedTemplate, TemplateBindings, TemplateDependency } from '../features/project';
 import { statisticsAt } from '../features/analysis';
 import type { ResultBasis } from '../features/analysis';
@@ -66,11 +66,11 @@ import { SummaryStrip } from '../components/shell/SummaryStrip';
 import { StatusMarker } from '../components/shell/StatusMarker';
 import { longestQueues } from '../components/shell/navigation';
 import { autoplayAfterRun } from '../features/motion';
-import { hasSeenOpening, loadArrangement, rememberOpening, saveArrangement } from './preferences';
+import { hasBrowserLocation, isStudioRoute, loadActivePlan, loadArrangement, navigateRoute, saveActivePlan, saveArrangement } from './preferences';
 import { useNarrowScreen, usePrefersReducedMotion } from './useMedia';
 
 type Mode = 'Build' | 'Rehearse' | 'Compare';
-type Dialog = 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'opening' | 'tutorial' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
+type Dialog = 'add-node' | 'comparison-plans' | 'resources' | 'scenario' | 'node-json' | 'edge-json' | 'plan-json' | 'scenario-json' | 'about' | 'export' | 'stress' | 'robustness' | 'opening' | 'tutorial' | 'welcome' | 'new' | 'templates' | 'template-bindings' | 'save-template' | 'rename-plan' | null;
 type Notice = ((t: Messages) => string) | null;
 type Tab = 'now' | 'insights' | 'events' | 'journey' | 'resources';
 const TABS: Record<'Rehearse' | 'Compare', { tab: Tab; icon: typeof Sparkles }[]> = {
@@ -107,6 +107,7 @@ export function App() {
   const [evidenceReveal, setEvidenceReveal] = useState(0);
   const [evidenceTarget, setEvidenceTarget] = useState<{ id: string; owner: string }>();
   const [planName, setPlanName] = useState('');
+  const [renamePlanId, setRenamePlanId] = useState('');
   const [resourceLimits, setResourceLimits] = useState({ staff: '', devices: '' });
   const [runs, setRuns] = useState<RunResults>(() => createRunResults());
   const [selection, setSelection] = useState({ id: '', kind: 'node' as 'node' | 'edge', owner: planId });
@@ -135,7 +136,7 @@ export function App() {
   const [templateName, setTemplateName] = useState('');
   const [templateError, setTemplateError] = useState('');
   const [templateNotice, setTemplateNotice] = useState('');
-  const [connections, setConnections] = useState<{ template: SavedTemplate; dependencies: TemplateDependency[]; values: TemplateBindings } | null>(null);
+  const [connections, setConnections] = useState<{ template: SavedTemplate; dependencies: TemplateDependency[]; values: TemplateBindings; returnTo: 'add-node' | 'templates' } | null>(null);
   const [templateResources, setTemplateResources] = useState<'share' | 'copy'>('share');
   const [notice, setNoticeState] = useState<Record<Lang, string> | null>(null);
   const [showIssues, setShowIssues] = useState(false);
@@ -160,20 +161,31 @@ export function App() {
   const worker = useRef<SimulationClient | null>(null);
   const launchContext = useRef<{ requestId: number; destination: Mode; scope: RunRequest['runMode']; planIds: string[]; presentResult: boolean } | null>(null);
   const say = (next: Notice) => setNoticeState(next ? { en: next(MESSAGES.en), zh: next(MESSAGES.zh) } : null);
-  function activateWorkspace() { setHasWorkspace(true); rememberOpening(); }
-  const persistence = useProjectPersistence(project, hasWorkspace, (document, needsRecovery) => {
+  function activateWorkspace() { setHasWorkspace(true); navigateRoute('studio'); }
+  function goHome() { setPlaying(false); navigateRoute('home'); setDialog('opening'); }
+  function enterFromOpening() {
+    if (hasWorkspace) { navigateRoute('studio'); setDialog(null); }
+    else setDialog('tutorial');
+  }
+  const persistence = useProjectPersistence(project, hasWorkspace, (document, needsRecovery, explicit, projectId) => {
     if (!document) {
       if (needsRecovery) setDialog('welcome');
-      else if (hasSeenOpening()) { setHasWorkspace(true); setDialog(null); }
+      else if (hasBrowserLocation() && isStudioRoute()) { setHasWorkspace(true); setDialog(null); }
       else setDialog('opening');
       return;
     }
-    activateWorkspace(); setTourStep(null);
+    setHasWorkspace(true); setTourStep(null);
     projectRead.current += 1; projectImporter.current?.cancel();
     worker.current?.reset(); setBusy(false); setLastRun(null);
     setProject(document); setPast([]); setFuture([]); setRuns(createRunResults());
-    selectInitialPlans(document.plans);
-    setPlaying(false); setTime(0); setMode('Build'); setDialog(null);
+    selectInitialPlans(document.plans, projectId ? loadActivePlan(projectId) : null);
+    setPlaying(false); setTime(0); setMode('Build');
+    if (explicit || !hasBrowserLocation() || isStudioRoute()) {
+      if (explicit) navigateRoute('studio');
+      setDialog(null);
+    } else {
+      setDialog('opening');
+    }
     say(tr => tr.review.draftRestored);
   });
   const { templates, unsaved, draftSaved } = persistence;
@@ -256,11 +268,12 @@ export function App() {
   const picks = useMemo(() => !run || !needsPicks ? [] : comparing ? comparison.picks()
     : rehearsePicks(run, view, time, 3, selectedStats), [run, comparing, comparison, view, time, selectedStats, needsPicks]);
 
-  function selectInitialPlans(plans: Plan[]) {
-    const [first, ...others] = plansInSourceOrder(plans);
+  function selectInitialPlans(plans: Plan[], preferredId?: string | null) {
+    const ordered = plansInSourceOrder(plans);
+    const first = ordered.find(item => item.id === preferredId) ?? ordered[0];
+    const others = ordered.filter(item => item.id !== first.id && item.scenarioId === first.scenarioId);
     setPlanId(first.id);
-    setSecondId((others.find(item => item.scenarioId === first.scenarioId && item.sourcePlanId === first.id)
-      ?? others.find(item => item.scenarioId === first.scenarioId))?.id ?? '');
+    setSecondId((others.find(item => item.sourcePlanId === first.id) ?? others[0])?.id ?? '');
     setSelection({ id: '', kind: 'node', owner: first.id });
   }
   function commit(next: ProjectDocument, previous = project) {
@@ -270,6 +283,7 @@ export function App() {
   async function importProject(file: File) {
     const request = ++projectRead.current;
     const importDialog = dialog;
+    const fromStudio = isStudioRoute();
     setProjectReadFailed(false);
     setIssuePage(0);
     const client = projectImporter.current!;
@@ -288,13 +302,17 @@ export function App() {
       worker.current?.reset(); setBusy(false);
       setLastRun(null);
       persistence.replace();
-      activateWorkspace(); setTourStep(null);
+      const stayHome = fromStudio && !isStudioRoute();
+      setHasWorkspace(true);
+      if (!stayHome) navigateRoute('studio');
+      setTourStep(null);
       commit(result.document, currentProject.current);
       selectInitialPlans(result.document.plans); setRuns(createRunResults()); setMode('Build');
       setPlaying(false); setTime(0);
       // Editors hold drafts of the replaced document, even when its IDs match.
       // Keep only dialogs independent of that document; an owned entry still closes.
-      setDialog(current => current === 'export' || current === 'about'
+      if (stayHome) setDialog('opening');
+      else setDialog(current => current === 'export' || current === 'about'
         || ((current === 'welcome' || current === 'new') && current !== importDialog) ? current : null);
       say(tr => tr.notices.imported);
     }
@@ -326,8 +344,8 @@ export function App() {
     say(await persistence.write('saved') ? tr => tr.notices.saved : tr => tr.notices.saveFailed);
   }
   function openLibrary(tab: 'nodes' | 'plans') { setLibraryTab(tab); setTemplateError(''); setTemplateNotice(''); setDialog('templates'); }
-  function prepareTemplate(node?: Node) {
-    const target = node ? owner : plan;
+  function prepareTemplate(node?: Node, targetPlanId?: string) {
+    const target = node ? owner : (targetPlanId ? project.plans.find(item => item.id === targetPlanId) ?? plan : plan);
     const draft: SavedTemplate = { id: newId('template', templates.map(item => item.id)), name: node?.name ?? target.name,
       ...(node ? { nodeId: node.id } : {}), document: structuredClone({ ...project, plans: [target], scenarios: project.scenarios.filter(item => item.id === target.scenarioId) }) };
     if (!templateLibrarySchema.safeParse([draft]).success) { say(tr => tr.templates.invalid); return; }
@@ -354,12 +372,17 @@ export function App() {
           for (const item of dependencies) if (item.kind !== 'incoming' && item.kind !== 'outgoing' && item.options.some(option => option.id === item.id)) {
             (values[item.kind] ??= Object.create(null))[item.id] = item.id;
           }
-          setConnections({ template, dependencies, values }); setTemplateError(''); setDialog('template-bindings'); return;
+          setConnections({ template, dependencies, values, returnTo: dialog === 'add-node' ? 'add-node' : 'templates' });
+          setTemplateError(''); setDialog('template-bindings'); return;
         }
       }
       const added = addNodeFromTemplate(plan, scenario, template, templateResources, bindings);
       changePlan(added.plan); setSelection({ id: added.node.id, kind: 'node', owner: plan.id }); requestView('default'); setDialog(null); say(tr => tr.templates.added);
     } catch (error) { setTemplateError(error instanceof Error && error.cause ? issueText(error.cause as ValidationIssue, lang) : t.templates.bindingError); }
+  }
+  function closeTemplateBindings() {
+    if (connections?.returnTo === 'add-node') { setTemplateError(''); setDialog('add-node'); }
+    else openLibrary('nodes');
   }
   function switchLanguage(next: Lang) {
     if (next === lang) return;
@@ -463,13 +486,48 @@ export function App() {
     setVisitorId(''); setEvidenceTarget(undefined); setSearch(''); showOverview();
     launch([left, right], 'Compare', project, scope);
   }
-  function copyPlan() {
-    const result = duplicatePlan(plan, new Set(project.plans.map(item => item.id)));
+  function copyPlan(sourceId = plan.id, asComparison = false) {
+    const source = project.plans.find(item => item.id === sourceId) ?? plan;
+    const result = duplicatePlan(source, new Set(project.plans.map(item => item.id)));
     if (!result.ok) { say(tr => tr.notices.copyFormat); return; }
-    if (lang === 'zh') result.plan.name = result.plan.name.replace(/ \(copy\)$/, t.defaults.copySuffix);
-    commit({ ...project, plans: [...project.plans, result.plan] });
-    selectPlan(result.plan.id); setSecondId(plan.id);
+    const sameScenario = project.plans.filter(item => item.scenarioId === source.scenarioId);
+    if (source.name === t.defaults.plan && !sameScenario.some(item => item.name === t.defaults.secondPlan)) {
+      result.plan.name = t.defaults.secondPlan;
+    } else if (lang === 'zh') {
+      result.plan.name = result.plan.name.replace(/ \(copy\)$/, t.defaults.copySuffix);
+    }
+    const nextPlans = [...project.plans, result.plan];
+    commit({ ...project, plans: nextPlans });
+    selectPlan(asComparison ? source.id : result.plan.id, nextPlans);
+    setSecondId(asComparison ? result.plan.id : source.id);
     setMode('Build'); say(tr => tr.notices.copied);
+  }
+  function addBlankComparisonPlan() {
+    const sameScenario = project.plans.filter(item => item.scenarioId === scenario.id);
+    const blank = createBlankPlan(scenario.id, project.plans.map(item => item.id), nextPlanName(sameScenario, t));
+    const nextPlans = [...project.plans, blank];
+    commit({ ...project, plans: nextPlans });
+    selectPlan(plan.id, nextPlans); setSecondId(blank.id);
+    setMode('Build'); say(tr => tr.notices.blankPlanAdded);
+  }
+  function openRenamePlan(targetId = plan.id) {
+    const target = project.plans.find(item => item.id === targetId) ?? plan;
+    setRenamePlanId(target.id); setPlanName(target.name); setDialog('rename-plan');
+  }
+  function deletePlan(targetId = plan.id) {
+    if (project.plans.length < 2) return;
+    const target = project.plans.find(item => item.id === targetId) ?? plan;
+    const remaining = project.plans.filter(item => item.id !== target.id);
+    setRuns(previous => removeRunResults(previous, [target.id]));
+    commit({ ...project, plans: remaining });
+    if (target.id === plan.id) {
+      const next = remaining.find(item => item.scenarioId === target.scenarioId) ?? remaining[0];
+      selectPlan(next.id, remaining);
+    } else if (target.id === second?.id) {
+      const nextB = remaining.find(item => item.id !== plan.id && item.scenarioId === plan.scenarioId)?.id ?? '';
+      setSecondId(nextB);
+      if (!nextB && mode === 'Compare') setMode('Build');
+    }
   }
   function packingExperiment() {
     if (!second) return;
@@ -514,7 +572,7 @@ export function App() {
     else if (guide.step === 4) { setGuide({ ...guide, step: 5 }); showOverview(); }
     else {
       const c = project.plans.find(item => item.id === guide.c)!, b = project.plans.find(item => item.id === guide.b)!;
-      download(`${c.id}-execution.md`, executionReport(c, scenario, runs.get(c.id), false, t, b, basis) + '\n' + comparisonReport(runs.get(b.id), runs.get(c.id), comparisonReady, t, basis, threshold), 'text/markdown;charset=utf-8');
+      download(`${c.id}-execution.md`, executionReport(c, scenario, runs.get(c.id), false, t, b, basis) + '\n' + comparisonReport(runs.get(b.id), runs.get(c.id), comparisonReady, t, basis, threshold, project.plans), 'text/markdown;charset=utf-8');
       setGuide({ ...guide, exported: true });
     }
   }
@@ -669,6 +727,23 @@ export function App() {
     return () => { projects.dispose(); library.dispose(); };
   }, []);
   useEffect(() => {
+    if (hasWorkspace && persistence.ready) saveActivePlan(persistence.projectId, plan.id);
+  }, [hasWorkspace, persistence.ready, persistence.projectId, plan.id]);
+  useEffect(() => {
+    if (!hasBrowserLocation()) return;
+    const syncRoute = () => {
+      if (isStudioRoute()) {
+        setDialog(current => current === 'opening' ? null : current);
+      } else {
+        setPlaying(false);
+        setDialog(current => current === 'opening' || current === 'tutorial' || current === 'welcome' ? current : 'opening');
+      }
+    };
+    window.addEventListener('hashchange', syncRoute);
+    window.addEventListener('popstate', syncRoute);
+    return () => { window.removeEventListener('hashchange', syncRoute); window.removeEventListener('popstate', syncRoute); };
+  }, []);
+  useEffect(() => {
     if (dialog !== 'templates') templateImporter.current?.cancel();
     setProjectReadFailed(false);
   }, [dialog]);
@@ -747,14 +822,15 @@ export function App() {
 
   if (!persistence.ready) return <p role="status">{t.persistence.loading}</p>;
   const opening = dialog === 'opening' && !persistence.chooseRecovery;
+  const savedNodeTemplates = templates.filter(item => !!item.nodeId);
   const visiblePanel = tourStep === 1 ? 'report' : tourStep === 2 || tourStep === 3 ? 'canvas' : mobilePanel;
-  return <>{opening && <OpeningPage reducedMotion={reducedMotion} onEnter={() => setDialog('tutorial')} onGuide={startGuide} onLang={switchLanguage} />}
+  return <>{opening && <OpeningPage reducedMotion={reducedMotion} savedActivityName={hasWorkspace ? (scenario.name ?? t.header.untitled) : undefined} onEnter={enterFromOpening} onGuide={startGuide} onLang={switchLanguage} />}
   <div hidden={opening} className={cls('app', `mode-${mode.toLowerCase()}`, comparing && `focus-${tourStep === null ? compareFocus : 'overview'}`, comparing && `mobile-${visiblePanel}`, reportCollapsed && 'report-collapsed', (dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && 'is-entry')}>
     {(dialog === 'welcome' || dialog === 'new' || dialog === 'templates') && <div className="entry-atmosphere"><SpectralStageBackdrop tempo={0.7} reducedMotion={reducedMotion} /><HauntedBackdrop /></div>}
     <TopBar mode={mode} busy={busy} canUndo={!!past.length} canRedo={!!future.length} unsaved={unsaved} draftSaved={draftSaved} activityName={scenario.name ?? t.header.untitled} planName={plan.name}
       compareUnavailable={!second ? t.topbar.compareUnavailable : undefined} runMode={runMode} lang={lang} onMode={switchMode} onUndo={undo} onRedo={redo} onRun={rerun} onStop={stopRun} onSave={save}
       onImport={() => fileInput.current?.click()} onExport={() => setDialog('export')} onPlanJson={() => setDialog('plan-json')} onScenarioJson={() => setDialog('scenario-json')} onAbout={() => setDialog('about')}
-      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} onTour={() => { setPlaying(false); setTourStep(0); }} onOpening={() => { setPlaying(false); setDialog('opening'); }} />
+      onRunMode={value => { setPlaying(false); setRunMode(value); }} onLang={switchLanguage} onTour={() => { setPlaying(false); setTourStep(0); }} onOpening={goHome} />
 
     {tourStep !== null && <SpotlightTour key={mode} step={tourStep} onStep={setTourStep} onClose={closeTour} />}
     {tourStep === null && guide && <GuidedDemo progress={guide} showPlanMapping={comparing && plan.id === guide.b && second?.id === guide.c} ready={comparisonReady && !!selectedStats && !!selectedSecondStats && plan.id === (guide.step >= 4 ? guide.b : guide.a) && second?.id === (guide.step >= 4 ? guide.c : guide.b)} busy={busy}
@@ -798,8 +874,8 @@ export function App() {
         onCollapse={() => mode === 'Build' ? setNavigatorCollapsed(value => !value) : setRailExpanded(false)}
         onScenario={id => { const target = plansInSourceOrder(project.plans).find(item => item.scenarioId === id); if (target) selectPlan(target.id); }} onPlan={selectPlan} onSetB={id => { if (id !== secondId && launchContext.current?.destination === 'Compare') launchContext.current.presentResult = false; setSecondId(id); setPlaying(false); }}
         onNew={() => setDialog('new')} onSettings={() => enterBuild(plan.id, 'scenario')} onGuests={() => enterBuild(plan.id, 'scenario')} onResources={() => enterBuild(plan.id, 'resources')}
-        onRename={() => { setPlanName(plan.name); setDialog('rename-plan'); }} onDuplicate={copyPlan} onDelete={() => { const remaining = project.plans.filter(item => item.id !== plan.id); setRuns(previous => removeRunResults(previous, [plan.id])); commit({ ...project, plans: remaining }); selectPlan(remaining[0].id, remaining); }}
-        onTemplate={() => prepareTemplate()} onAddNode={() => openLibrary('nodes')} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
+        onRename={openRenamePlan} onDuplicate={copyPlan} onAddComparisonPlan={() => copyPlan(plan.id, true)} onAddBlankPlan={addBlankComparisonPlan} onComparePicker={() => setDialog('comparison-plans')} onDelete={deletePlan}
+        onTemplate={id => prepareTemplate(undefined, id)} onAddNode={() => { setTemplateError(''); setTemplateNotice(''); setDialog('add-node'); }} onSearch={setSearch} onNode={id => { setSelection({ id, kind: 'node', owner: plan.id }); focusNodes([id]); }} onGuide={startGuide} onLibrary={() => openLibrary('plans')} />}
 
       <main className="stage">
         {personFocus && <h1 className="sr-only">{t.workspace.person}</h1>}
@@ -920,7 +996,7 @@ export function App() {
       event.target.value = '';
       if (file) void importProject(file);
     }} />
-    {!!documentIssues.length && <Modal title={t.stage.checksTitle} onClose={() => { projectImporter.current?.cancel(); setDocumentIssues([]); setIssuePage(0); }} wide>
+    {!opening && !!documentIssues.length && <Modal title={t.stage.checksTitle} onClose={() => { projectImporter.current?.cancel(); setDocumentIssues([]); setIssuePage(0); }} wide>
       <div className="modal-body">{documentIssues.slice(issuePage * 50, issuePage * 50 + 50).map((issue, index) => <div key={index} className={`check-item ${issue.severity}`}>
         <b>{issue.severity}</b><span>{issueText(issue, lang)}</span><small>{issue.path.join('.') || '$'}</small>
       </div>)}{documentIssues.length > 50 && <><p>{t.imports.diagnostics(documentIssues.length, issuePage * 50 + 1, Math.min(documentIssues.length, issuePage * 50 + 50))}</p><button type="button" disabled={!issuePage} onClick={() => setIssuePage(page => page - 1)}>{t.imports.previous}</button><button type="button" disabled={(issuePage + 1) * 50 >= documentIssues.length} onClick={() => setIssuePage(page => page + 1)}>{t.imports.next}</button><button type="button" onClick={() => download('import-diagnostics.json', JSON.stringify(documentIssues, null, 2), 'application/json')}>{t.imports.download}</button></>}</div>
@@ -954,6 +1030,27 @@ export function App() {
         }
       } catch { setTemplateError(t.templates.importFailed); }
     }} />
+    {dialog === 'add-node' && <Modal title={t.sidebar.addNodeTitle} icon={<Plus size={18} />} onClose={() => setDialog(null)} wide>
+      <div className="modal-body add-node-body">
+        <p className="subtle">{readOnly ? t.sidebar.readOnlyHint : t.sidebar.addNodeSubtitle}</p>
+        <h3 className="eyebrow">{t.sidebar.addNodeTypes}</h3>
+        <div className="palette add-node-palette">{NODE_TYPES.map(type => <button type="button" key={type} disabled={readOnly} className={`palette-node type-${type}`} onClick={() => { addNode(type); setDialog(null); }}>
+          <span className="palette-icon"><NodeIcon type={type} size={19} /></span><span className="palette-text"><b>{t.nodeTypes[type]}</b><small>{t.nodeHints[type]}</small></span>
+        </button>)}</div>
+        {savedNodeTemplates.length > 0 && <div className="add-node-saved">
+          <h3 className="eyebrow">{t.sidebar.addNodeSaved}</h3>
+          <label className="field"><span>{t.review.resourcesMode}</span><select value={templateResources} onChange={event => setTemplateResources(event.target.value as 'share' | 'copy')}><option value="share">{t.review.share}</option><option value="copy">{t.review.copy}</option></select><small>{t.review.shareHint}</small></label>
+          <div className="saved-templates">{savedNodeTemplates.map(item => <div className="saved-template" key={item.id}>
+            <button type="button" className="side-action" disabled={readOnly} onClick={() => useNodeTemplate(item)}><NodeIcon type={item.document.plans[0].graph.nodes.find(node => node.id === item.nodeId)!.type} size={18} /><span>{item.name}</span><Plus size={15} /></button>
+          </div>)}</div>
+        </div>}
+        {templateError && <p className="form-error" role="alert">{templateError}</p>}
+      </div>
+      <div className="modal-footer add-node-footer">
+        <button type="button" className="text-btn" onClick={() => openLibrary('nodes')}><BookOpen size={15} aria-hidden="true" />{t.sidebar.addNodeLibrary}</button>
+        <button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.close}</button>
+      </div>
+    </Modal>}
     {dialog === 'templates' && <Modal title={t.templates.title} icon={<BookOpen size={18} />} onClose={() => setDialog(null)} wide>
       <div className="spellbook-intro"><div><span className="eyebrow">KIROWEEN / GHOST REHEARSAL</span><p>{t.templates.subtitle}</p></div><Pumpkin size={64} /></div>
       <div className="dialog-tabs" role="tablist">{(['plans', 'nodes'] as const).map(tab => <button type="button" role="tab" aria-selected={libraryTab === tab} className={libraryTab === tab ? 'active' : ''} key={tab} onClick={() => setLibraryTab(tab)}>{t.templates[tab]}</button>)}</div>
@@ -974,12 +1071,11 @@ export function App() {
         <ImportDiagnostics client={templateImporter.current} state={templateImportState} lang={lang} />
         {templateNotice && <p className="template-notice" role="status">{templateNotice}</p>}
         <p className="subtle">{libraryTab === 'plans' ? t.templates.planHint : readOnly ? t.sidebar.readOnlyHint : t.templates.nodeHint}</p>
-        {libraryTab === 'nodes' && <label className="field"><span>{t.review.resourcesMode}</span><select value={templateResources} onChange={event => setTemplateResources(event.target.value as 'share' | 'copy')}><option value="share">{t.review.share}</option><option value="copy">{t.review.copy}</option></select><small>{t.review.shareHint}</small></label>}
         <h3 className="eyebrow">{t.templates.presets}</h3>
         {libraryTab === 'nodes' ? <div className="palette">{NODE_TYPES.map(type => <button type="button" key={type} disabled={readOnly} className={`palette-node type-${type}`} onClick={() => { addNode(type); setDialog(null); }}>
           <span className="palette-icon"><NodeIcon type={type} size={19} /></span><span className="palette-text"><b>{t.nodeTypes[type]}</b><small>{t.nodeHints[type]}</small></span>
         </button>)}</div> : <div className="template-grid">
-          {(['haunted', 'candy'] as const).map(kind => <button type="button" key={kind} className={`template-card ${kind}`} onClick={() => usePlanTemplate(halloweenProject(kind, t), t.templates[kind].name)}>
+          {(['haunted', 'candy'] as const).map(kind => <button type="button" key={kind} className={`template-card ${kind}`} onClick={() => usePlanTemplate(halloweenProject(kind, t), t.defaults.plan)}>
             <div className="template-art">{kind === 'haunted' ? <Ghost size={42} /> : <Pumpkin size={50} />}<span>0{kind === 'haunted' ? 1 : 2}</span></div><b>{t.templates[kind].name}</b><small>{t.templates[kind].hint}</small>
           </button>)}
           <button type="button" className="template-card" onClick={() => { const document = localizeDocument(initialDocument(), 'zh', lang); usePlanTemplate(document, document.plans[0].name); }}><div className="template-art"><LayoutGrid size={38} /><span>03</span></div><b>{t.dialogs.example}</b><small>{exampleCounts}</small></button>
@@ -988,6 +1084,7 @@ export function App() {
         <div className="section-heading"><h3 className="eyebrow">{t.templates.saved}</h3><div className="section-actions">
           {libraryTab === 'plans' && <button type="button" className="icon-btn" aria-label={t.templates.savePlan} title={t.templates.savePlan} onClick={() => prepareTemplate()}><BookmarkPlus size={15} /></button>}
         </div></div>
+        {libraryTab === 'nodes' && savedNodeTemplates.length > 0 && <label className="field"><span>{t.review.resourcesMode}</span><select value={templateResources} onChange={event => setTemplateResources(event.target.value as 'share' | 'copy')}><option value="share">{t.review.share}</option><option value="copy">{t.review.copy}</option></select><small>{t.review.shareHint}</small></label>}
         <div className="saved-templates">{templates.filter(item => libraryTab === 'nodes' ? !!item.nodeId : !item.nodeId).map(item => <div className="saved-template" key={item.id}>
           <button type="button" className="side-action" disabled={!!item.nodeId && readOnly} onClick={() => item.nodeId ? useNodeTemplate(item) : usePlanTemplate(item.document, item.name)}>{item.nodeId ? <NodeIcon type={item.document.plans[0].graph.nodes.find(node => node.id === item.nodeId)!.type} size={18} /> : <BookOpen size={18} />}<span>{item.name}</span><Plus size={15} /></button>
           <button type="button" className="icon-btn" aria-label={`${t.templates.export}: ${item.name}`} title={t.templates.export} onClick={() => download(`ghost-rehearsal-${item.nodeId ? 'node' : 'plan'}-${item.id}.json`, serializeTemplate(item), 'application/json')}><Download size={14} /></button>
@@ -997,7 +1094,7 @@ export function App() {
         <p className="form-error" role="alert">{templateError}</p><p className="subtle template-local">{t.templates.local}</p>
       </div>
     </Modal>}
-    {dialog === 'template-bindings' && connections && <Modal title={t.templates.connectTitle} onClose={() => openLibrary('nodes')}>
+    {dialog === 'template-bindings' && connections && <Modal title={t.templates.connectTitle} onClose={closeTemplateBindings}>
       <form onSubmit={event => { event.preventDefault(); useNodeTemplate(connections.template, connections.values); }}>
         <div className="modal-body"><p>{t.templates.connectHint}</p>{connections.dependencies.map(item => <label className="field" key={`${item.kind}:${item.id}`}><span>{t.templates.bindingKinds[item.kind]} · {item.name}</span>
           <select required value={connections.values[item.kind]?.[item.id] ?? ''} onChange={event => {
@@ -1009,7 +1106,7 @@ export function App() {
             setConnections({ ...connections, values }); setTemplateError('');
           }}><option value="">{t.templates.chooseConnection}</option>{item.options.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}</select>
           {!item.options.length && <small>{t.templates.bindingError}</small>}</label>)}<p className="form-error" role="alert">{templateError}</p></div>
-        <div className="modal-footer"><button type="button" className="btn ghost" onClick={() => openLibrary('nodes')}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={connections.dependencies.some(item => !connections.values[item.kind]?.[item.id])}>{t.dialogs.checkApply}</button></div>
+        <div className="modal-footer"><button type="button" className="btn ghost" onClick={closeTemplateBindings}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={connections.dependencies.some(item => !connections.values[item.kind]?.[item.id])}>{t.dialogs.checkApply}</button></div>
       </form>
     </Modal>}
     {dialog === 'save-template' && templateDraft && <Modal title={t.templates.saveTitle} icon={<BookmarkPlus size={18} />} onClose={() => setDialog(null)}>
@@ -1018,7 +1115,7 @@ export function App() {
         <div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="submit" className="btn primary" disabled={!templateName.trim() || persistence.templateBusy || !['ready', 'empty'].includes(persistence.templateState.status)}><BookmarkPlus size={15} />{t.templates.save}</button></div>
       </form>
     </Modal>}
-    {dialog === 'rename-plan' && <Modal title={t.review.rename} onClose={() => setDialog(null)}><form onSubmit={event => { event.preventDefault(); changePlan({ ...plan, name: planName.trim() }); setDialog(null); }}><div className="modal-body"><label className="field"><span>{t.review.planName}</span><input value={planName} maxLength={100} required onChange={event => setPlanName(event.target.value)} /></label></div><div className="modal-footer"><button type="submit" className="btn primary" disabled={!planName.trim()}>{t.header.save}</button></div></form></Modal>}
+    {dialog === 'rename-plan' && <Modal title={t.review.rename} onClose={() => setDialog(null)}><form onSubmit={event => { event.preventDefault(); const target = project.plans.find(item => item.id === renamePlanId) ?? plan; changePlan({ ...target, name: planName.trim() }); setDialog(null); }}><div className="modal-body"><label className="field"><span>{t.review.planName}</span><input value={planName} maxLength={100} required onChange={event => setPlanName(event.target.value)} /></label></div><div className="modal-footer"><button type="submit" className="btn primary" disabled={!planName.trim()}>{t.header.save}</button></div></form></Modal>}
     {dialog === 'about' && <Modal title={t.dialogs.aboutTitle} onClose={() => setDialog(null)}><div className="modal-body about">
       <div className="about-brand"><div className="about-ghost"><Ghost size={52} /></div><h2>{t.brand.motto}</h2><span>{t.brand.name} · {t.brand.tagline}</span></div>
       <p>{t.dialogs.about1}</p><p>{t.dialogs.about2}</p>
@@ -1030,7 +1127,7 @@ export function App() {
     {dialog === 'export' && <Modal title={t.dialogs.exportTitle} icon={<Download size={18} />} onClose={() => setDialog(null)}><div className="modal-body">
       <button type="button" className="option-card" onClick={() => { const result = readProject(JSON.stringify(project), lang); if (result.document) download('ghost-rehearsal.json', serializeDocument(project), 'application/json'); else setDocumentIssues(result.issues); setDialog(null); }}><span className="option-icon"><Braces size={20} /></span><span><b>{t.dialogs.exportProject}</b><small>{t.dialogs.exportProjectHint}</small></span></button>
       <button type="button" className="option-card" onClick={() => { download(`${plan.id}-execution.md`, executionReport(plan, scenario, run, stale, t, project.plans.find(item => item.id === plan.sourcePlanId), basis), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.dialogs.exportPlan}</b><small>{t.dialogs.exportPlanHint}</small></span></button>
-      {comparing && <button type="button" className="option-card" disabled={!comparisonReady || !selectedStats || !selectedSecondStats} onClick={() => { download('comparison-evidence.md', comparisonReport(run, secondRun, comparisonReady, t, basis, threshold), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.evidence.comparison}</b><small>{t.review[basis]} · {threshold ? t.evidence.minute : t.evidence.any}</small></span></button>}
+      {comparing && <button type="button" className="option-card" disabled={!comparisonReady || !selectedStats || !selectedSecondStats} onClick={() => { download('comparison-evidence.md', comparisonReport(run, secondRun, comparisonReady, t, basis, threshold, project.plans), 'text/markdown;charset=utf-8'); setDialog(null); }}><span className="option-icon"><FileText size={20} /></span><span><b>{t.evidence.comparison}</b><small>{t.review[basis]} · {threshold ? t.evidence.minute : t.evidence.any}</small></span></button>}
       <p className="notice">{t.dialogs.exportNotice}</p>
     </div></Modal>}
     {dialog === 'stress' && <Modal title={t.dialogs.stressTitle} icon={<Flame size={18} />} onClose={() => setDialog(null)}><div className="modal-body"><p>{t.dialogs.stressText}</p><label className="field"><span>{t.dialogs.stressFactor}</span><input aria-label={t.dialogs.stressFactor} type="number" min={0.01} max={100} step={0.05} value={stressFactor} onChange={event => setStressFactor(Number(event.target.value))} /></label></div><div className="modal-footer"><button type="button" className="btn ghost" onClick={() => setDialog(null)}>{t.common.cancel}</button><button type="button" className="btn primary" disabled={!Number.isFinite(stressFactor) || stressFactor <= 0 || stressFactor > 100 || busy} onClick={stress}>{t.dialogs.stressApply}</button></div></Modal>}

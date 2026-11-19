@@ -110,14 +110,20 @@ test('undoing a delayed import restores edits made while reading', async ({ page
   await page.locator('input[type=file]').first().setInputFiles(projectFile('delayed.json', 'Imported project'));
   const expand = page.getByRole('button', { name: t.studioUi.expandPlans, exact: true });
   if (await expand.isVisible()) await expand.click();
-  await page.locator('.plan-navigator .section-heading summary').first().click();
+  await page.locator('.plan-card.is-a .context-menu summary').click();
   await page.getByRole('button', { name: t.review.rename, exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(t.review.planName, { exact: true }).fill('Edit made while reading');
   await dialog.getByRole('button', { name: t.header.save, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText('Edit made while reading');
   await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
+  await page.getByRole('button', { name: t.redesign.backHome, exact: true }).click();
+  const opening = page.locator('.opening-page');
+  await expect(opening).toBeVisible();
   await page.evaluate(() => (window as typeof window & { finishImport: () => Promise<void> }).finishImport());
+  await expect(page.locator('.status-notice')).toHaveText(t.notices.imported);
+  await expect(opening).toBeVisible();
+  await opening.getByRole('button', { name: t.redesign.resume, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 }).first()).toHaveText('Imported project');
   await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);
   const retained = await page.evaluate(async () => {

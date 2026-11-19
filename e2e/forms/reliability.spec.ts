@@ -242,7 +242,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await page.screenshot({ path: info.outputPath('json-error-footer.png') });
       await json.fill(original);
       await page.getByRole('button', { name: t.dialogs.checkApply, exact: true }).click();
-      await page.getByLabel(t.topbar.contextActions, { exact: true }).click();
+      await page.locator('.plan-card.is-a .context-menu summary').click();
       await page.getByRole('button', { name: t.templates.savePlan, exact: true }).click();
       await page.getByLabel(t.templates.name, { exact: true }).fill('Forms template');
       const save = page.getByRole('dialog').locator('button[type="submit"]');
@@ -250,7 +250,7 @@ for (const viewport of [{ width: 390, height: 568 }, { width: 390, height: 844 }
       await expect(save).toBeInViewport({ ratio: 1 });
       await save.press('Enter');
       await expect(page.getByRole('dialog')).toHaveCount(0);
-      await page.getByLabel(t.topbar.contextActions, { exact: true }).click();
+      await page.locator('.plan-card.is-a .context-menu summary').click();
       await page.getByRole('button', { name: t.review.rename, exact: true }).first().click();
       await page.getByLabel(t.review.planName, { exact: true }).fill('Forms renamed');
       await page.getByRole('dialog').getByRole('button', { name: t.header.save, exact: true }).focus();

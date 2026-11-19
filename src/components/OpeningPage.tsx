@@ -22,7 +22,7 @@ export const openingPreview = {
   ],
 } as const;
 
-export function OpeningPage({ reducedMotion, onEnter, onGuide, onLang }: { reducedMotion: boolean; onEnter: () => void; onGuide: () => void; onLang: (lang: Lang) => void }) {
+export function OpeningPage({ reducedMotion, savedActivityName, onEnter, onGuide, onLang }: { reducedMotion: boolean; savedActivityName?: string; onEnter: () => void; onGuide: () => void; onLang: (lang: Lang) => void }) {
   const { t, lang } = useI18n();
   const copy = t.redesign;
   const example = useMemo(() => localizeDocument(initialDocument(), 'zh', lang), [lang]);
@@ -53,10 +53,11 @@ export function OpeningPage({ reducedMotion, onEnter, onGuide, onLang }: { reduc
         <div className="opening-hero-inner">
           <div className="opening-copy"><p className="eyebrow">{copy.eyebrow}</p>
             <h1>{copy.headline}<em>{copy.highlight}</em></h1><p className="opening-introduction">{copy.introduction}</p>
-            <div className="opening-actions"><button type="button" className="btn run" onClick={onEnter}><Ghost size={18} />{copy.create}<ArrowRight size={16} aria-hidden="true" /></button>
+            <div className="opening-actions"><button type="button" className="btn run" onClick={onEnter}><Ghost size={18} />{savedActivityName ? copy.resume : copy.create}<ArrowRight size={16} aria-hidden="true" /></button>
               <button type="button" className="btn ghost" aria-describedby="opening-guide-hint" onClick={onGuide}><Play size={15} aria-hidden="true" />{copy.begin}</button>
               <span className="sr-only" id="opening-guide-hint">{copy.guideHint}</span>
             </div>
+            {savedActivityName && <p className="opening-saved-note">{copy.savedHint(savedActivityName)}</p>}
           </div>
           <figure className="opening-window">
             <figcaption><span className="eyebrow">{copy.example}</span><time>{formatTime(openingPreview.divergence)}</time></figcaption>

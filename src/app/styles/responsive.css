@@ -127,6 +127,7 @@
 @media (max-width: 640px) {
   .plan-nodes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .template-grid { grid-template-columns: 1fr; }
+  .add-node-palette { grid-template-columns: 1fr; }
   .template-library .palette { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .spellbook-intro p { font-size: var(--fs-xl); }
   .haunt-moon { right: var(--haunt-moon-right-2); width: var(--haunt-moon-width-2); height: var(--haunt-moon-height-2); }

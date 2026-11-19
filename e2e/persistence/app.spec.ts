@@ -25,6 +25,7 @@ test('two App tabs keep both edits, report conflict, and restore the selected ve
   await expect(page.locator('.save-state')).toHaveText(t.header.saved);
   const b = await context.newPage(); b.on('pageerror', error => errors.push(error.message));
   await b.goto('./');
+  await b.getByRole('button', { name: t.redesign.resume, exact: true }).click();
   await expect(b.locator('.save-state')).toHaveText(t.header.saved);
   await renameEvent(page, t, 'Tab A draft');
   await expect(page.locator('.save-state')).toHaveText(t.review.draftSaved);

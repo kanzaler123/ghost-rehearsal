@@ -92,6 +92,8 @@ describe.each(['en', 'zh'] as const)('Halloween presets (%s)', lang => {
   it.each(['haunted', 'candy'] as const)('%s has a runnable flow', kind => {
     const document = halloweenProject(kind, MESSAGES[lang]);
     expect(projectDocumentSchema.safeParse(document).success).toBe(true);
+    expect(document.scenarios[0].name).toBe(MESSAGES[lang].templates[kind].name);
+    expect(document.plans[0].name).toBe(MESSAGES[lang].defaults.plan);
     const run = simulate({ schemaVersion: 1, scenario: document.scenarios[0], plan: document.plans[0], runMode: 'run_to_completion' });
     expect(run.issues.filter(issue => issue.severity === 'error')).toEqual([]);
     expect(run.status).toBe('succeeded');

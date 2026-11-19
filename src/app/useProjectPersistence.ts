@@ -4,7 +4,7 @@ import type { SavedTemplate } from '../features/project';
 import { newProjectId, openPersistence } from '../features/persistence';
 import type { Persistence, PersistenceError, Revision, StoredRevision, TemplateSnapshot } from '../features/persistence';
 
-export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null, needsRecovery?: boolean) => void) {
+export function useProjectPersistence(project: ProjectDocument, active: boolean, onLoad: (document: ProjectDocument | null, needsRecovery?: boolean, explicit?: boolean, projectId?: string) => void) {
   const store = useRef<Persistence | null>(null);
   const editor = useRef({ id: newProjectId(), parents: [] as StoredRevision[], confirmed: '' });
   const queue = useRef(Promise.resolve());
@@ -29,12 +29,12 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
   const text = useMemo(() => JSON.stringify(project), [project]);
   const latest = useRef({ project, text, confirmedText }); latest.current = { project, text, confirmedText };
 
-  function accept(revision: Revision<ProjectDocument>, parents: StoredRevision[] = [revision]) {
+  function accept(revision: Revision<ProjectDocument>, parents: StoredRevision[] = [revision], explicit = false) {
     if (revision.status !== 'ready') return;
     editor.current = { id: revision.projectId!, parents, confirmed: JSON.stringify(revision.value) };
     setSavedText(revision.kind === 'saved' ? JSON.stringify(revision.value) : '');
     setConfirmedText(JSON.stringify(revision.value)); setConflict(false); setChooseRecovery(false);
-    load.current(revision.value);
+    load.current(revision.value, false, explicit, editor.current.id);
   }
   function receiveTemplates(state: TemplateSnapshot) {
     setTemplateState(state);
@@ -114,7 +114,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     if (request !== recoveryRequest.current || editor.current !== context || latest.current.text !== text) return;
     const parents: StoredRevision[] = recoveryOptions.filter(item => item.projectId === revision.projectId);
     if (context.id === revision.projectId) parents.push(...context.parents);
-    accept(revision, resolve ? [...new Map(parents.map(parent => [parent.id, parent])).values()] : [revision]);
+    accept(revision, resolve ? [...new Map(parents.map(parent => [parent.id, parent])).values()] : [revision], true);
     editor.current.confirmed = '';
     setConfirmedText('');
     await write('draft', revision.value, true);
@@ -147,7 +147,7 @@ export function useProjectPersistence(project: ProjectDocument, active: boolean,
     window.addEventListener('beforeunload', protect);
     return () => window.removeEventListener('beforeunload', protect);
   }, [protectedEdit]);
-  return { ready, error, conflict, pending, savedText, confirmedText, recovery: chooseRecovery ? recoveryOptions : recovery, recoveryHeads: recovery, chooseRecovery, setChooseRecovery: (choose: boolean) => { recoveryRequest.current += 1; if (choose) setRecoveryOptions(recovery); setChooseRecovery(choose); },
+  return { ready, error, conflict, pending, savedText, confirmedText, projectId: editor.current.id, recovery: chooseRecovery ? recoveryOptions : recovery, recoveryHeads: recovery, chooseRecovery, setChooseRecovery: (choose: boolean) => { recoveryRequest.current += 1; if (choose) setRecoveryOptions(recovery); setChooseRecovery(choose); },
     templates, templateState, templateBusy, write, replace, recover, saveTemplates, retry: () => setRetry(value => value + 1),
     unsaved: text !== savedText || conflict, draftSaved: text === confirmedText && !conflict && !pending,
   };

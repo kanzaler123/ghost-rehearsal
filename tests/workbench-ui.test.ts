@@ -272,6 +272,32 @@ describe('pending runs respect subsequent plan navigation', () => {
     expect(component(CompareReport)).toBeUndefined();
     expect(text(tree.find(item => item.props.className === 'status-notice'))).toContain(lastRuns.map(run => run.request.plan.name).join(' / '));
   });
+  it('opens a dedicated add-node dialog and supports per-plan rename, blank comparison and deletion', () => {
+    component(PlanNavigator).props.onAddNode(); render();
+    expect(tree.some(item => item.props?.title === t.sidebar.addNodeTitle)).toBe(true);
+    expect(tree.some(item => item.props?.title === t.templates.title)).toBe(false);
+
+    // Rename Plan B directly while Plan A stays the active edit target.
+    component(PlanNavigator).props.onRename(planB.id); render();
+    const renameForm = tree.find(item => item.type === 'form')!;
+    const renameInput = flatten(renameForm).find(item => item.type === 'input')!;
+    renameInput.props.onChange({ target: { value: 'Renamed B' } }); render();
+    tree.find(item => item.type === 'form')!.props.onSubmit({ preventDefault() {} }); render();
+    expect(component(PlanNavigator).props.plan.id).toBe(planA.id);
+    expect(component(PlanNavigator).props.second.name).toBe('Renamed B');
+
+    // Add a blank comparison plan in the same scenario.
+    component(PlanNavigator).props.onAddBlankPlan(); render();
+    const blankPlan = component(PlanNavigator).props.second;
+    expect(blankPlan.scenarioId).toBe(planA.scenarioId);
+    expect(blankPlan.graph.nodes).toEqual([]);
+    expect(component(PlanNavigator).props.plan.id).toBe(planA.id);
+
+    // Delete the blank plan cleanly without removing Plan A or Plan B.
+    component(PlanNavigator).props.onDelete(blankPlan.id); render();
+    expect(component(PlanNavigator).props.project.plans.some((item: Plan) => item.id === blankPlan.id)).toBe(false);
+    expect(component(PlanNavigator).props.project.plans.some((item: Plan) => item.id === planB.id)).toBe(true);
+  });
 });
 
 describe('studio presentation preserves simulation contracts', () => {

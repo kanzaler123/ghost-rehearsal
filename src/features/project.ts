@@ -123,7 +123,7 @@ export function importTemplate(text: string | string[], existing: SavedTemplate[
 
 export function halloweenProject(kind: 'haunted' | 'candy', t: Messages): ProjectDocument {
   const names = t.templates[kind];
-  const document = emptyProject({ event: names.name, plan: names.name });
+  const document = emptyProject({ event: names.name, plan: t.defaults.plan });
   const scenario = document.scenarios[0];
   scenario.arrivalStreams[0] = { id: 'arrival-1', kind: 'total_in_window', count: 60, start: 0, end: 600, spacing: 'even', attributeDistributions: {}, provenance: { kind: 'synthetic' } };
   const plan = document.plans[0];
@@ -138,6 +138,22 @@ export function halloweenProject(kind: 'haunted' | 'candy', t: Messages): Projec
   plan.graph.edges = plan.graph.nodes.slice(0, -1).map((node, index) => ({ id: `route-${index + 1}`, source: node.id, target: plan.graph.nodes[index + 1].id, ...(node.type === 'decision' ? { branchKey: 'first' } : {}) }));
   if (kind === 'candy') plan.graph.edges.push({ id: 'route-5', source: 'stop-3', target: 'stop-5', branchKey: 'second' });
   return document;
+}
+
+export function createBlankPlan(scenarioId: string, usedIds: string[], name: string): Plan {
+  return { id: newId('plan', usedIds), name, scenarioId, graph: { nodes: [], edges: [] }, skills: [], staff: [], deviceTypes: [], assignments: [] };
+}
+
+export function nextPlanName(scenarioPlans: readonly Plan[], t: Messages): string {
+  const used = new Set(scenarioPlans.map(item => item.name));
+  if (!used.has(t.defaults.secondPlan)) return t.defaults.secondPlan;
+  for (let code = 67; code <= 90; code++) {
+    const candidate = t.defaults.planLetter(String.fromCharCode(code));
+    if (!used.has(candidate)) return candidate;
+  }
+  let n = scenarioPlans.length + 1;
+  while (used.has(t.defaults.planLetter(String(n)))) n++;
+  return t.defaults.planLetter(String(n));
 }
 
 export function addPlanFromTemplate(project: ProjectDocument, template: ProjectDocument, name: string): ProjectDocument {
@@ -506,12 +522,14 @@ export function executionReport(plan: Plan, scenario: Scenario, run?: Simulation
   return lines.join('\n');
 }
 
-export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun | undefined, ready: boolean, t: Messages, basis: ResultBasis, threshold: WaitThreshold): string {
+export function comparisonReport(a: SimulationRun | undefined, b: SimulationRun | undefined, ready: boolean, t: Messages, basis: ResultBasis, threshold: WaitThreshold, plans: readonly Pick<Plan, 'id' | 'name'>[] = []): string {
   const context = comparisonContext(a, b, basis, threshold, ready), { a: left, b: right, counts: people } = context;
   if (!a || !b || !left || !right || !people) return t.report.noRun;
   const costs = costOf(a.request.plan, b.request.plan, a.request.scenario, left, right, basis);
   const groups = threshold ? t.evidence.groups : t.evidence.anyGroups, bins = threshold ? t.evidence.bins : t.evidence.anyBins;
-  return [`## ${t.evidence.comparison}`, '', `${t.compare.a}: ${a.request.plan.name} (${a.request.plan.id})`, `${t.compare.b}: ${b.request.plan.name} (${b.request.plan.id})`,
+  const aName = plans.find(plan => plan.id === a.request.plan.id)?.name ?? a.request.plan.name;
+  const bName = plans.find(plan => plan.id === b.request.plan.id)?.name ?? b.request.plan.name;
+  return [`## ${t.evidence.comparison}`, '', `${t.compare.a}: ${aName} (${a.request.plan.id})`, `${t.compare.b}: ${bName} (${b.request.plan.id})`,
     t.report.scenario(a.request.scenario.name ?? a.request.scenario.id, a.request.scenario.id),
     t.report.seed(a.request.scenario.seed), t.report.window(a.request.scenario.observationCutoff, a.request.scenario.horizon),
     `${t.review.basis}: ${t.review[basis]}`, `${t.evidence.threshold}: ${threshold ? t.evidence.minute : t.evidence.any}`, t.evidence.rule,

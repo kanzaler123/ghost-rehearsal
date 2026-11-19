@@ -230,15 +230,15 @@ describe('failed comparison checks', () => {
 });
 
 describe('comparison overview and visitor focus', () => {
-  it('keeps the copied plan paired with its source after entering Build', () => {
+  it('keeps the source as baseline when comparing with its copy', () => {
     tree.find(item => item.type === 'button' && item.props['aria-label'] === t.sidebar.duplicate)!.props.onClick(); render();
-    const copied = canvas().plan;
-    expect(copied.id).not.toBe(planA.id);
-    expect(copied.sourcePlanId).toBe(planA.id);
+    expect(canvas().plan.id).toBe(planA.id);
     click(t.modes.Compare);
-    expect(component(CompareReport).props.ready).toBe(true);
-    expect(component(CompareReport).props.planA.id).toBe(copied.id);
-    expect(component(CompareReport).props.planB.id).toBe(planA.id);
+    const report = component(CompareReport).props;
+    expect(report.ready).toBe(true);
+    expect(report.planA.id).toBe(planA.id);
+    expect(report.planB.id).not.toBe(planA.id);
+    expect(report.planB.sourcePlanId).toBe(planA.id);
   });
 
   it('passes the final statistics basis through the report, journey and resource views', () => {

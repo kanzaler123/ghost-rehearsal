@@ -15,7 +15,9 @@ describe('comparison report run context', () => {
   for (const lang of ['en', 'zh'] as const) {
     const t = MESSAGES[lang];
     it(`records the actual cutoff execution inputs in ${lang}`, () => {
-      const text = comparisonReport(cutoff, cutoffB, true, t, 'cutoff', 60);
+      const text = comparisonReport(cutoff, cutoffB, true, t, 'cutoff', 60, [{ id: b.id, name: 'Renamed comparison' }, { id: a.id, name: 'Renamed baseline' }]);
+      expect(text).toContain(`${t.compare.a}: Renamed baseline (${a.id})`);
+      expect(text).toContain(`${t.compare.b}: Renamed comparison (${b.id})`);
       expect(text).toContain(t.report.scenario('Recorded event', scenario.id));
       expect(text).toContain(t.report.seed(173));
       expect(text).toContain(t.report.window(900, 3600));

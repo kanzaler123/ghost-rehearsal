@@ -1,4 +1,4 @@
-import { Braces, ChevronDown, CircleHelp, Download, FileText, Redo2, RotateCcw, Save, Square, Undo2, Upload } from 'lucide-react';
+import { Braces, ChevronDown, CircleHelp, Download, FileText, Redo2, Save, Square, Undo2, Upload } from 'lucide-react';
 import type { RunRequest } from '../../schemas';
 import { useI18n } from '../../i18n';
 import type { Lang } from '../../i18n';
@@ -16,8 +16,9 @@ export interface TopBarProps {
 export function TopBar(props: TopBarProps) {
   const { t } = useI18n();
   const context = t.topbar.context(props.activityName, props.planName);
+  const brand = <><div className="brand-mark"><Ghost size={22} /></div><div className="brand-text"><strong>{t.brand.name}</strong><small>{t.brand.tagline}</small></div></>;
   return <header className="topbar">
-    <div className="brand"><div className="brand-mark"><Ghost size={22} /></div><div className="brand-text"><strong>{t.brand.name}</strong><small>{t.brand.tagline}</small></div></div>
+    {props.onOpening ? <button type="button" className="brand brand-home" aria-label={t.redesign.backHome} title={t.redesign.backHome} onClick={props.onOpening}>{brand}</button> : <div className="brand">{brand}</div>}
     <span className="context-chip" tabIndex={0} title={context} aria-label={context}>{context}</span>
     <ModeNav mode={props.mode} busy={props.busy} compareUnavailable={props.compareUnavailable} onMode={props.onMode} />
     <div className="topbar-spacer" />
@@ -37,7 +38,6 @@ export function TopBar(props: TopBarProps) {
         <button type="button" className="side-action" onClick={props.onPlanJson}><Braces size={15} aria-hidden="true" />{t.sidebar.planJson}</button>
         <button type="button" className="side-action" onClick={props.onScenarioJson}><FileText size={15} aria-hidden="true" />{t.sidebar.scenarioJson}</button>
         {props.onTour && <button type="button" className="side-action" onClick={props.onTour}><CircleHelp size={15} aria-hidden="true" />{t.tour.title}</button>}
-        {props.onOpening && <button type="button" className="side-action" onClick={props.onOpening}><RotateCcw size={15} aria-hidden="true" />{t.redesign.replay}</button>}
         <button type="button" className="side-action" onClick={props.onAbout}><CircleHelp size={15} aria-hidden="true" />{t.header.about}</button>
       </ContextMenu>
     </div>
