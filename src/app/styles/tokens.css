@@ -157,6 +157,8 @@
   --flow-card-changed-inset: -6px;
   --visitor-width: 17px;
   --visitor-height: 22px;
+  --visitor-badge: 10px;
+  --visitor-badge-icon: 8px;
   --visitor-is-tracked-inset: -3px;
   --lod-mid-visitor-width: 22px;
   --lod-mid-visitor-height: 27px;
@@ -243,7 +245,7 @@
   --sidebar-is-rail-width: 212px;
   --nav-bar-bottom: 3px;
   --queue-bar-height: 7px;
-  --moment-grid-template-columns: 10px;
+  --moment-grid-template-columns: 22px;
   --ghost-avatar-width: 54px;
   --ghost-avatar-height: 54px;
   --ghost-journey-grid-template-columns: 220px;

@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import type { CSSProperties } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Boxes, ConciergeBell, DoorOpen, Hourglass, LogOut, Merge, Signpost } from 'lucide-react';
@@ -83,6 +84,7 @@ function SceneGhost({ className, x, y, scale }: { className: string; x: number; 
 
 /** Welcome art: one ghost under the moon and a jack-o'-lantern splits into the mint future A and the violet future B. */
 export function RiftScene() {
+  const moonMaskId = useId();
   const portal = (side: 'a' | 'b', x: number) => <g className={`rift-portal portal-${side}`}>
     <path className="portal-glow" d={`M${x - 6} 184V98a41 41 0 0 1 82 0v86Z`} />
     <path className="portal-door" d={`M${x} 184V100a35 35 0 0 1 70 0v84Z`} fill={`url(#rift-door-${side})`} />
@@ -93,10 +95,10 @@ export function RiftScene() {
       <radialGradient id="rift-door-a" cx="50%" cy="38%" r="70%"><stop offset="0" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0.55 }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0.04 }} /></radialGradient>
       <radialGradient id="rift-door-b" cx="50%" cy="38%" r="70%"><stop offset="0" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0.55 }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0.04 }} /></radialGradient>
       <linearGradient id="rift-seam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style={{ stopColor: 'var(--fx-rift-a)', stopOpacity: 0 }} /><stop offset="0.5" style={{ stopColor: 'var(--fx-moon)' }} /><stop offset="1" style={{ stopColor: 'var(--fx-rift-b)', stopOpacity: 0 }} /></linearGradient>
+      <mask id={moonMaskId}><rect x="240" y="18" width="48" height="48" fill="white" /><circle cx="270" cy="34" r="15" fill="black" /></mask>
     </defs>
     <circle className="rift-moon-halo" cx="262" cy="40" r="42" />
-    <circle className="rift-moon" cx="262" cy="40" r="17" />
-    <circle className="rift-moon-bite" cx="270" cy="34" r="15" />
+    <circle className="rift-moon" cx="262" cy="40" r="17" mask={`url(#${moonMaskId})`} />
     <ellipse className="rift-floor" cx="160" cy="188" rx="150" ry="14" />
     {portal('a', 28)}{portal('b', 222)}
     <rect className="rift-line" x="158.5" y="54" width="3" height="128" fill="url(#rift-seam)" />

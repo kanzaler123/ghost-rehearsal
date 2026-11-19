@@ -7,6 +7,7 @@ import type { Lang } from '../../i18n/messages';
 import { ArrivalDataEditor } from './ArrivalDataEditor';
 import { ServiceDataEditor } from './ServiceDataEditor';
 import { ProvenanceFields } from './ProvenanceFields';
+import '../../app/styles/tokens.css';
 import './lab.css';
 
 function ExistingSource({ value, lang, onChange }: {

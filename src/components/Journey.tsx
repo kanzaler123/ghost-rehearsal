@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Crosshair, Download, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
@@ -122,17 +122,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   useEffect(() => {
     if (compare && nextVisitor !== visitorId) onChoose(nextVisitor);
   }, [compare, nextVisitor, visitorId, onChoose]);
-  useEffect(() => {
-    setSegmentDetail(null);
-    const track = lanesRef.current?.querySelector<HTMLElement>('.lane-track');
-    if (!track) return;
-    const measure = () => setLaneWidth(track.clientWidth);
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [visitorId, basis, runs[0]?.inputKey, runs[1]?.inputKey]);
+  useEffect(() => { setSegmentDetail(null); }, [visitorId, basis, runs[0]?.inputKey, runs[1]?.inputKey]);
   const openEvidence = () => {
     if (!evidenceRef.current) return;
     evidenceRef.current.open = true;
@@ -172,8 +162,35 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     }) as [FateCardSide, FateCardSide];
     download(fateCardFilename(visitorId), buildFateCardSvg({ t, visitorId, visitorName: nameOf(visitorId), eventName: scenario.name ?? scenario.id, basis, cutoff, sides, difference }), 'image/svg+xml;charset=utf-8');
   }
-  const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= 6) ?? Math.ceil(span / 21600) * 3600;
-  const ticks = [...new Set([...Array.from({ length: Math.floor(span / tickStep) + 1 }, (_, index) => index * tickStep), cutoff])];
+  const maxTicks = laneWidth > 0 ? Math.max(2, Math.min(6, Math.floor(laneWidth / 72))) : 6;
+  const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= maxTicks) ?? Math.ceil(span / (maxTicks * 3600)) * 3600;
+  const ticks = [...Array.from({ length: Math.ceil(cutoff / tickStep) }, (_, index) => index * tickStep), cutoff];
+  useLayoutEffect(() => {
+    const track = lanesRef.current?.querySelector<HTMLElement>('.lane-track');
+    const axis = lanesRef.current?.querySelector('.lane-ticks');
+    if (!track || !axis) return;
+    const labels = [...axis.querySelectorAll('i')];
+    const measure = () => {
+      setLaneWidth(track.clientWidth);
+      const bounds = labels.map(label => label.getBoundingClientRect());
+      const last = labels.length - 1;
+      const cutoffLeft = bounds[last].left;
+      labels[last].style.visibility = '';
+      let previousRight = -Infinity;
+      for (let index = 0; index < last; index++) {
+        const { left, right } = bounds[index];
+        const fits = left >= previousRight + 4 && right + 4 <= cutoffLeft;
+        labels[index].style.visibility = fits ? '' : 'hidden';
+        if (fits) previousRight = right;
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    labels.forEach(label => observer.observe(label));
+    return () => observer.disconnect();
+  }, [cutoff, tickStep, person, currentInGroup, compare, context.status]);
   const stories = groupPicks(picks);
   if (compare && context.status !== 'ready') return <p role="status">{t.evidence.unavailable[context.status]}</p>;
   return <div className="ghost-journey">

@@ -8,19 +8,21 @@
 @media (max-width: 1500px) {
   .file-group .btn span { display: none; }
   .file-group .btn { width: var(--control-md); padding: 0; }
+  :lang(en) .mode-compare .view-switch .btn-label { display: none; }
 }
 @media (max-width: 1360px) {
   .sidebar.is-report { width: var(--report-w); }
   .ghost-journey { grid-template-columns: var(--ghost-journey-grid-template-columns-2) minmax(0, 1fr); }
   .topbar { gap: var(--space-3); }
   .brand-text small { display: none; }
-  .sidebar { width: var(--stage-w); }
-  .inspector { width: var(--inspector-width); }
+  .sidebar:where(:not(.is-collapsed, .is-rail, .is-report)) { width: var(--stage-w); }
+  .inspector:where(:not(.collapsed)) { width: var(--inspector-width); }
   .mode-switch .mode-index { display: none; }
   .select-pill select { max-width: var(--select-pill-select-max-width-2); }
   .metric-value { font-size: var(--fs-2xl); }
   .metrics-strip { gap: var(--space-3); padding: var(--space-4) var(--space-4); }
   .clock-label { display: none; }
+  .mode-compare .view-switch .btn-label { display: none; }
 }
 @media (max-width: 1180px) {
   .brand-text { display: none; }
@@ -36,17 +38,15 @@
   .metric-value { font-size: var(--fs-xl); }
   .metric-card { padding: var(--space-3) var(--space-4); }
   .metrics-strip { gap: var(--space-3); }
-  .sidebar { width: var(--sidebar-width); }
-  .inspector { width: var(--inspector-width-2); }
+  .sidebar:where(:not(.is-collapsed, .is-rail, .is-report)) { width: var(--sidebar-width); }
+  .inspector:where(:not(.collapsed)) { width: var(--inspector-width-2); }
   .palette { grid-template-columns: 1fr; }
   .palette-node { flex-direction: row; align-items: center; }
   .palette-text small { display: none; }
   .stage-title small { display: none; }
+  .mode-build .stage-title { position: absolute; width: var(--stroke); height: var(--stroke); min-height: 0; overflow: hidden; clip: rect(0 0 0 0); padding: 0; border: 0; }
   .metric-hint { font-size: var(--fs-xs); }
   .bar-row { grid-template-columns: var(--bar-row-grid-template-columns-2) minmax(0, 1fr) auto; }
-  .mode-compare .stage-head { height: auto; }
-  .mode-compare .canvas-area { padding-top: calc(var(--hud-h) * 2); }
-  .mode-compare .view-switch .btn-label { display: none; }
   .comparison-focus { margin-right: var(--space-1); }
   .comparison-focus button { padding: 0 var(--space-3); }
 }
@@ -107,7 +107,7 @@
   .mode-compare .stage { min-height: 0; }
   .mode-compare.mobile-report .stage, .mode-compare.mobile-report .inspector { display: none; }
   .mode-compare.mobile-canvas .sidebar, .mode-compare.mobile-person .sidebar { display: none; }
-  .mode-compare.mobile-canvas .canvas-area { min-height: var(--mode-compare-mobile-canvas-canvas-area-min-height); height: max(var(--mode-compare-mobile-canvas-canvas-area-height), calc(100dvh - var(--mode-compare-mobile-canvas-canvas-area-height-2))); display: flex; }
+  .mode-compare.mobile-canvas .canvas-area { min-height: max(var(--mode-compare-mobile-canvas-canvas-area-height), calc(100dvh - var(--mode-compare-mobile-canvas-canvas-area-height-2))); height: auto; display: flex; }
   .mode-compare.mobile-canvas .canvas-area .canvas-pane { min-height: var(--mode-compare-mobile-canvas-canvas-area-canvas-pa-min-height); }
   .mode-compare.mobile-canvas .dock-tabs, .mode-compare.mobile-canvas .dock-body { display: none; }
   .mode-compare.mobile-canvas .inspector.collapsed { display: none; }
@@ -236,6 +236,17 @@
 @container dock (max-width: 1180px) {
   .dock-head { display: grid; grid-template-columns: minmax(0, 1fr); }
   .dock-head > .timeline { border-bottom: var(--stroke) solid var(--line); }
+}
+@container dock (min-width: 1181px) and (max-width: 1560px) {
+  .dock-head .clock-label { display: none; }
+  .dock-head > .timeline { gap: var(--space-2); padding: 0 var(--space-3); }
+  .dock-head > .dock-tabs { gap: var(--space-1); padding: 0 var(--space-3); }
+  .dock-head > .dock-tabs > button[role=tab] { gap: var(--space-2); padding: 0 var(--space-3); }
+  .dock-head .legend { margin-right: var(--space-1); }
+}
+@container dock (max-width: 680px) {
+  .dock-head > .dock-tabs { height: auto; flex-wrap: wrap; padding-block: var(--space-1); gap: var(--space-1); }
+  .dock-head > .dock-tabs > button[role=tab] { gap: var(--space-2); padding: 0 var(--space-3); }
 }
 .opening-topbar .brand-text, .opening-topbar .brand-text small { display: block; }
 @media (max-width: 980px) {

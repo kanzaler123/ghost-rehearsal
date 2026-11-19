@@ -289,8 +289,8 @@ interface Props {
 
 /** Fit padding keeps cards clear of the floating HUD (top) and the zoom controls (bottom). */
 const PADDING = { left: 40, right: 40, top: 64, bottom: 56 };
-const PADDING_LABELLED = { left: 28, right: 48, top: 20, bottom: 44 };
-const PADDING_DENSE = { left: 16, right: 24, top: 14, bottom: 10 };
+const PADDING_LABELLED = { left: 28, right: 48, top: 20, bottom: 52 };
+const PADDING_DENSE = { left: 16, right: 24, top: 14, bottom: 22 };
 
 function CanvasInner(props: Props) {
   const { plan, view, previous } = props;
