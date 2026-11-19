@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Guard Haunted Stage UI invariants",
+      "description": "Run frozen SHA-256 simulation digests and Haunted Stage CSS/WCAG contrast contracts after UI component or style edits (local command, zero model credits).",
+      "trigger": "PostFileSave",
+      "matcher": "(?:^|[\\\\/])src[\\\\/](?:components|app[\\\\/]styles)[\\\\/].*\\.(?:tsx?|css)$",
+      "action": {
+        "type": "command",
+        "command": "npx vitest run tests/ui-redesign-equivalence.test.ts tests/ui-styles.test.ts --environment node"
+      },
+      "timeout": 60,
+      "enabled": true
+    }
+  ]
+}
