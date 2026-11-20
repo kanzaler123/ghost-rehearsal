@@ -65,7 +65,7 @@
 - [x] 真实 Worker 浏览器 smoke：桌面 1440×1000 和 390×844、中英文、统计切换、实验与导入导出、未到达/空完成样本、过期和缺少最终结果。
 - [x] 建立 comparison-evidence Steering 并完成日志 Hook 核对；日志只证明加载/注册，**不代表实际执行通过**。
 
-提交：盘点与 Spec 为 `aef3baf`，比较实现为 `1da5495`，引导实现为 `a38917d`；最终测试、CI、中文措辞和记录在本段所在提交。最终 `npm run check` 为 12 文件、272 项及两组 TypeScript 检查通过；Pages 生产构建通过；浏览器 8/8 通过、75.972 秒、无重试或跳过。完整记录及中间失败见 [验证记录](../../../docs/validation-2026-11-15.md)。
+提交：盘点与 Spec 为 `aef3baf`，比较实现为 `1da5495`，引导实现为 `a38917d`；最终测试、CI、中文措辞和记录在本段所在提交。最终 `npm run check` 为 12 文件、272 项及两组 TypeScript 检查通过；Pages 生产构建通过；浏览器 8/8 通过、75.972 秒、无重试或跳过。完整记录及中间失败见 [验证记录](https://github.com/kanzaler123/ghost-rehearsal/blob/6607ece2ab21ed2a5f7f3582de5a94bdc6066f90/docs/validation-2026-11-15.md)。
 
 原先未勾选的完整输出契约、仿真语义/完整金标准、工作台正式键盘与恢复验收、原 Requirement 46 七场景分镜，以及实际 Kiro 会话证据仍未完成；没有把本轮 Codex 工作计入 Kiro 贡献。
 

@@ -2,84 +2,57 @@
 
 **Rehearse an event before the real guests arrive.**
 
-See how staffing and flow decisions change people’s waiting before real guests arrive. Build an event, rehearse two arrangements with the same simulated guests, then follow the same person across both plans to see where their wait and outcome changed. The ghosts make those individual journeys visible.
+Ghost Rehearsal is a zero-backend, browser-based discrete-event simulation (DES) workbench dressed as a **Midnight Haunted Stage** for **Kiroween 2026 (Costume Contest)**. Build an event flow, rehearse two staffing arrangements with the exact same simulated guests, and follow an individual ghost across both futures to see—and hear—where their wait and outcome diverge.
 
-[Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Kiro usage status](KIRO_USAGE.md) · [Submission kit](docs/kiroween-submission.md) · [MIT license](LICENSE)
+[Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Built with Kiro](#built-with-kiro) · [Run locally](#run-locally) · [Project structure](#project-structure) · [MIT License](LICENSE)
 
 ![Open House at 08:00. Side entrance guest #10 is at ID check in the baseline and at Kit pickup in the dual-lane plan.](docs/images/workbench.png)
 
-| Midnight Opening | Exported Spectral Fate Card (1200×630 SVG) |
+| Midnight Opening | Spectral Fate Card (1200×630 SVG / 2× PNG) |
 | --- | --- |
-| ![Midnight Opening landing page previewing Side entrance guest #10 across Plans A and B.](docs/images/opening.png) | ![Standalone Spectral Fate Card SVG poster exported for Side entrance guest #10 showing the 03:30 divergence and -19.6 min wait delta.](docs/images/fate-card.png) |
+| ![Midnight Opening landing page previewing Side entrance guest #10 across Plans A and B.](docs/images/opening.png) | ![Standalone Spectral Fate Card poster exported for Side entrance guest #10 showing the 03:30 divergence and -19.6 min wait delta.](docs/images/fate-card.png) |
 
-## What you can do
+---
 
-- **Open on a Midnight Stage:** first launch opens an interactive **Midnight Opening** landing page with a live timeline preview of Side entrance guest #10 (no simulation worker needed upfront). Jump straight into **Try the 60-second A/B guide**, or click **Rehearse my event** / **Enter the workbench** to choose between a six-step **Feature tour**, the **A/B guide**, or **Set up my event**. Return to the opening anytime from the top-left logo, or revisit the tour from **More options**.
-- **Start with an event:** set its name, guest count, duration, and arrival window. Each event has its own plans; creating another event keeps the existing ones.
-- **Build a flow:** entrances, services, decisions, waiting areas, merges, exits, and subflow groups; curved connections, parameter editing, undo/redo, and stage-aware automatic layout. Subflows are drawn as stage frames, and the default view stays zoomed in far enough to read service times. Double-click the canvas to find a node, use right-click menus, or switch between selection and hand tools.
-- **Reuse your work:** start with Haunted House, Trick or Treat, Open House, or a blank plan. Save a node or an entire plan as a template. Each plan has its own node list. When applying a node template, choose shared or copied resources; matching shared posts include the new node, while copies add staff and equipment.
-- **Run a rehearsal:** deterministic arrivals and sampling, queues, branching, batch release, shared staff and equipment, shifts, handovers, and opening/closing rules.
-- **Follow the ghosts:** replay actual simulation events in a stage view that folds each top-level subflow into one card. Click a stage to open it. Cards show waiting, service, blocking and one-minute queue trends in one shared colour scheme. Queue bars use the same scale across both plans. On phones, drag the rehearsal timeline to a time or tap an event marker beneath it. Choose a guest from stories such as “waited longest” or “queuing now” to pin their label on the canvas and inspect their aligned timelines and recorded events. Route markers represent recorded transfers. Zero-time transfers have no travel animation. Toggle **Spectral sound** in the replay timeline (muted by default; pure Web Audio API with zero external audio files) to hear a soft two-tone rift chord at first divergence, ember pulses on queue overload, and a completion bell.
-- **Compare Two Futures:** start in **Overview**, with two synchronized canvases and a summary of completions, average waiting, and resource cost. Expand the report sections to inspect concrete input changes, outcomes, affected guests, where waiting changed, and resource use. Both canvases can open and zoom to the same stage. Try a slower-service stress scenario; changed inputs mark previous results as stale.
-- **Inspect the people behind the numbers:** click an affected-group count or **Guest journey**. On desktop, both canvases stay above the guest’s timelines and follow their station in each plan as you play or drag the timeline. On phones, switch between **Guest journey** and **Flow**. Browse the complete guest list with search and pagination, filtering by less waiting, more waiting, little change, or finishing in only one plan. Representative stories combine multiple labels for the same person. Compare the guest’s aligned lanes, outcome, first visible difference, station totals and recorded events, open the **Spectral fate card preview** modal to inspect their bilingual 1200×630 poster and download it as **SVG** or **2× PNG (2400×1260)**, then return to **Overview**. These details use the observation cutoff by default, or the final/run-limit record after a full run.
-- **Keep your plans:** recover browser drafts, save locally, import/export project JSON, and export staff posts, batch rules, routes, closures and parameter sources as a readable operational plan. Switch between English and Chinese.
-- **Use observed inputs:** import arrival CSV/TSV in an arrival group's **Event settings**, or service samples in a service node's Inspector. Choose units, preview errors and converted values, and explicitly apply the import. Arrival imports require the outer shared-event Apply; a service import is one undoable edit. Source notes survive manual value changes, which reset the source label to User estimate. See [data entry](docs/data-entry.md).
-- **Test robustness:** open **Robustness lab** from Two Futures to run the selected plans across seeds and service multipliers at the displayed observation cutoff. The batch uses a fixed input snapshot; changed settings mark its results as out of date. Cancel or close the panel to stop its worker. Export a single group to reopen and reproduce it in the workbench. See [the experiment contract](docs/robustness-contract.md).
+## Highlights
 
-No account, API key, or backend is needed. Simulation runs in a browser worker; project data stays in your browser unless you export it. Fonts and icons are bundled locally.
+- **Midnight Opening & Guided Walkthrough:** First launch opens an interactive **Midnight Opening** stage previewing Side entrance guest #10's divergence across Plans A and B—no upfront worker spin-up required. Jump directly into the **60-second A/B/C guide**, a six-step spotlight **Feature tour**, or custom event setup.
+- **Visual Flow Builder (`Build`):** Drag entrances, staffed services, probability/attribute decisions, batch-release waiting areas, merges, exits, and foldable subflow stages on a ComfyUI-inspired React Flow canvas with undo/redo, stage-aware auto-layout, reusable node/plan templates, and observed CSV/TSV arrival & service-sample import ([data entry guide](docs/data-entry.md)).
+- **Deterministic Browser Rehearsal (`Rehearse`):** Runs inside a local Web Worker with keyed Common Random Numbers so the same guest ID experiences identical baseline draws across plans. Models shared multi-skill staff and devices (bipartite matching), shifts, handovers, planned unavailability, queue capacities, overflow routing, and opening/closing drain rules.
+- **Two Futures, Spectral Soundscape & Fate Card Stage (`Compare`):**
+  - Replay synchronized A/B haunted-stage canvases side by side on a shared queue gauge scale, with overload ghost flames, glowing route flows, traveller orbs, and a rotating spotlight on the tracked guest.
+  - Toggle **Spectral sound** (optional, muted by default, zero external audio files, silent under `prefers-reduced-motion`) for procedural Web Audio synthesis: a tritone rift chord at first divergence (`03:30` for Side entrance #10), rate-limited ember pulses on newly crowded stations, and a completion bell.
+  - Open the **Spectral fate card preview** modal directly on stage to inspect the tracked guest's bilingual `1200×630` comparison poster and download it as standalone **SVG** or **2× PNG (`2400×1260`)**.
+- **A/B/C Decision Loop & Robustness Lab:** In the built-in Open House guide, Plan B splits check-in into two lanes (`43 → 41` completions at 30 min; kit pickup remains congested), while **Experiment C** adds one packing worker (`+0.5` staff-hours → `72` completions, average wait `17.6 → 15.9 min`, and `4` more early departures). Sweep plans across seeds and slower-service multipliers in **Robustness Lab** ([experiment contract](docs/robustness-contract.md)).
+- **Local-First & Bilingual:** English and Chinese UI, browser draft branch-recovery, canonical JSON import/export with SHA-256 semantic staleness detection, readable comparison/operational exports ([comparison report guide](docs/comparison-report.md)), and **zero external runtime network requests** (fonts, icons, Canvas 2D atmosphere, Web Audio, and SVG/PNG export are all local).
 
-## Quick start
+---
 
-1. Open the workbench and click **Try the 60-second A/B guide** on the Midnight Opening page—or click **Enter the workbench** and choose **Follow a guest through A/B** (you can also pick **Explore the workbench** for a six-step spotlight tour, or start **Start the A/B/C guide** from the Build sidebar). The guide adds its own example plans and preserves existing events. [Open the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) · [Run locally](#run-locally)
-2. Read the A/B results: completed, unfinished, early departures, average/P90 waiting and resource costs. The example is synthetic, and B changes several arrangements at once.
-3. Choose **Follow the same guest**, then **Jump to first difference**. At 03:30, Side entrance #10 is queuing at ID check in A and being served there in B. Drag the timeline to 08:00 to see A still at ID check while B is already queuing at Kit pickup.
-4. Choose **Inspect posts and resources**, then **Inspect packing evidence**. Check staff eligibility, actual postings and availability; the backlog alone does not establish a unique cause.
-5. Choose **Create C and compare**. C adds one packing worker with the original worker's shifts and unavailable periods. Read all B/C outcomes and **View resource costs**; extra completions can accompany extra departures.
-6. Choose **Prepare C export**, then **Download C arrangement**. The file includes C's rules, posts, sources and B/C evidence using the selected statistics basis and waiting rule.
+## 60-Second Guided Demo
 
-### Save and reopen the guide
+1. Open [the live workbench](https://kanzaler123.github.io/ghost-rehearsal/) and click **Try the 60-second A/B guide** on the Midnight Opening page.
+2. Inspect **Two Futures**: compare A vs. B completions (`43 → 41`), waiting groups (default threshold: at least 60 seconds; switchable to **Any change**), early departures, and resource costs.
+3. Click **Follow the same guest → Jump to first difference** (`03:30` for **Side entrance #10**), optionally turn on **Spectral sound**, scrub to `08:00`, and open **Export fate card** to preview and download their SVG or 2× PNG poster.
+4. Click **Inspect posts and resources → Inspect packing evidence → Create C and compare** to test adding one packing worker (`41 → 72` completions), inspect every outcome and trade-off, and export C's operational plan.
 
-**Download A/B/C experiment** saves a separate, importable JSON containing only the guide's three plans and shared inputs; it leaves other events in the workbench. Re-import the JSON, open **Two Futures**, and choose **Choose comparison plans**. Select original B on the left and the packing-support experiment C on the right, select **Run to completion**, then run the comparison. This reruns both plans; cancelling the picker preserves the current comparison and guide step.
+---
 
-Computed results, guide progress and view settings are not stored in the project file. **Reset guide** reuses its plans, **Rerun this comparison** recalculates them, and **Exit guide** leaves them available for free editing in Build.
+## Built with Kiro
 
-The original two-plan example, blank flows, Haunted house and reusable templates remain available. Selecting Build exits the guide; normal project export preserves all its plans, while simulation results are recalculated after import.
+We used all four Kiro pillars—**Specs**, **always-on Steering**, **Hooks**, and a **custom local MCP server**—to transform a deterministic DES engine into the **Midnight Haunted Stage** while keeping all **6 frozen SHA-256 simulation digests** byte-identical:
 
-## Reading comparison results
+| Kiro Pillar | Workspace Artifacts | What It Delivered |
+| --- | --- | --- |
+| **Specs** (requirements-first) | [`.kiro/specs/haunted-stage-ui/`](.kiro/specs/haunted-stage-ui/) · [`.kiro/specs/haunted-stage-encore/`](.kiro/specs/haunted-stage-encore/) · [`.kiro/specs/ghost-rehearsal-mcp/`](.kiro/specs/ghost-rehearsal-mcp/) · [`.kiro/specs/fate-card-stage/`](.kiro/specs/fate-card-stage/) | Froze visual geometry, WCAG contrast, reduced-motion limits, pure-function APIs, and zero-simulation-mutation contracts before implementation across 4 major Costume Contest milestones (`55ce3c6`, `2c400bb`, `62167e4`, `c3bd8b1`). |
+| **Always-On Steering** (`inclusion: always`) | [`.kiro/steering/haunted-stage.md`](.kiro/steering/haunted-stage.md) · [`.kiro/steering/comparison-evidence.md`](.kiro/steering/comparison-evidence.md) | Authored by Kiro (`72ffc63`) to carry UI, token-only CSS, contrast, zero-network, and statistical-integrity guardrails automatically across every subsequent session (Encore, opening-scene parallax fix `b8165f2`, MCP server, and Fate Card Stage). |
+| **Automated Invariant Hook** (`PostFileSave`) | [`.kiro/hooks/guard-haunted-invariants.json`](.kiro/hooks/guard-haunted-invariants.json) · [`scripts/guard-haunted-invariants.mjs`](scripts/guard-haunted-invariants.mjs) | Zero-credit local command Hook watching `src/components/**` and `src/app/styles/**`, running the 12 frozen SHA-256 digest and CSS/WCAG contract tests automatically on save (hardened with a 150ms non-blocking stdin reader and 5 unit tests in [`tests/guard-haunted-invariants.test.ts`](tests/guard-haunted-invariants.test.ts)). |
+| **Custom Local Engine MCP Server** (zero new deps) | [`.kiro/settings/mcp.json`](.kiro/settings/mcp.json) · [`scripts/ghost-rehearsal-mcp.mjs`](scripts/ghost-rehearsal-mcp.mjs) · [`scripts/mcp/`](scripts/mcp/) | Dev-time JSON-RPC 2.0 stdio MCP server (`ghost-rehearsal-engine`), compiled on demand via the installed `rolldown` bundler with zero bytes in `dist/` and verified by 44 tests in [`tests/mcp-server.test.ts`](tests/mcp-server.test.ts). Exposes 4 read-only tools directly to Kiro: `verify_simulation_invariants`, `inspect_guest_divergence`, `validate_event_project`, and `render_fate_card_svg`. Kiro invoked these tools live during `fate-card-stage` to verify 6/6 frozen SHA-256 digests and `side-stream:10` diverging at `03:30`. |
 
-Choose **Run to completion** in the top toolbar next to **Run rehearsal**, rerun, and select **Statistics basis → Final / run limit** to inspect final summaries, guest waits and resource use. A final run can still contain unfinished guests if it reaches the limit. Statistics are separate from the current replay time. Accepting successful cutoff results selects the observation-cutoff statistics automatically; a full run keeps your selected statistics basis. Changing only the next run's settings does not change the selected basis. While computing, you can still inspect the previous results; cancelling keeps those results and your current statistics basis.
+---
 
-The comparison's **Waiting change rule** defaults to **At least 60 seconds** (inclusive). Choose **Any change** to include every nonzero change at millisecond resolution. Overview, Insights, guest filters, stories, histogram and comparison-evidence export share this setting. The left slot is the baseline and the right slot is the comparison. Waiting groups and their histogram exclude guests who left early on either side. At the Open House cutoff, 9 guests waited at least a minute less, 9 waited at least a minute more and 276 changed by less than a minute. The other 6 paired guests left early. All 300 still count toward outcome comparisons.
+## Run Locally
 
-Primary waiting includes all arrived guests; the separate **Completed only** group shows its own sample size, mean and P90 (90th percentile). Each side reports its actual statistics end, arrived/not-arrived counts and exclusions from the paired sample. Final results may end at different times. Missing final results and stale comparisons do not supply current comparison evidence.
-
-## Editing and saving plans
-
-**Event settings** supports arrival-group additions/removals, arrival patterns and time slots. The Inspector edits routing conditions and service samples; **Staff & devices** edits multiple shifts. Event, opening and shift times are displayed in minutes from the start; short service and handover durations remain in seconds. Plans can be renamed or deleted (with Undo available).
-
-### Draft recovery
-
-Applied project edits are saved as drafts separately from manual saves when their data format is valid. Autosave keeps the latest 20 revisions along each branch, plus manual saves, fork and merge points, and their recovery choices. Apply changes in dialogs before relying on draft recovery. Refresh restores the newest draft; incomplete/invalid edits and unavailable storage trigger leave protection. A browser draft is local to that browser, so export important projects as files. Rehearsal results are recalculated after reloading.
-
-### Templates and backups
-
-Templates are stored separately from the current project in the same browser. In **Templates**, choose **Export all** to pack every saved node and plan into one JSON file. On another device, choose **Import templates** and select that backup, multiple individual files, or a mix of both. Each saved template also retains its own download button.
-
-Imports add independent copies without replacing existing templates or the current project. If any selected file is invalid or unsupported, the whole batch is rejected and the library stays unchanged.
-
-Plan template files include the flow, arrivals, and resources. Node template files retain the source plan and scenario as context for resource reuse; applying one adds the selected node and its resource dependencies. Project JSON exports do not include the saved-template library, so export the templates you want to keep separately. Simulation results are recalculated after a reload.
-
-### Project imports
-
-Project files use a canonical JSON format with explicit defaults and unordered collections sorted by ID. Reopening or importing selects the first plan in that order. Invalid imports list every detected issue and preserve the current project, including unsaved edits; files from a newer schema version require an updated application.
-
-### Canvas controls
-
-The event selector and **Event settings** button sit above the plan list. Only plans belonging to the selected event are shown. The canvas takes interaction cues from [ComfyUI's canvas controls](https://docs.comfy.org/interface/canvas-controls): drag a selection box in Select mode, hold Space or the middle mouse button to pan, scroll to zoom, or use the Hand tool. Shift/Ctrl/Cmd-click selects multiple nodes. Double-click or right-click empty canvas to add a node at that location; right-click a node to edit or delete it. Canvas insertion and opening the inspector preserve the viewport.
-
-## Run locally
-
-Use **Node.js 24 LTS** and npm. The supported Node versions are declared in `package.json`.
+Requires **Node.js 24 LTS** (or any version matching `engines.node` in [`package.json`](package.json)) and npm. No environment variables, API keys, or backend services are required.
 
 ```sh
 git clone https://github.com/kanzaler123/ghost-rehearsal.git
@@ -88,79 +61,56 @@ npm ci
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173` or the address printed by Vite.
+Open `http://127.0.0.1:5173` (or the URL printed by Vite).
+
+### Build & Verification
 
 ```sh
-npm run check
-npm run build
-npm run preview
+npm run check                             # Dual strict TypeScript checks + 671 Vitest unit tests (45 files)
+node --test e2e/release/gate-checks.mjs   # 37 release-gate policy tests
+npm run build -- --base=/ghost-rehearsal/ # Zero-warning Vite 8 production build
+npm run preview                           # Serve dist/ locally
 ```
 
-`check` runs both strict TypeScript checks and the automated tests once. `build` produces `dist/`; `preview` serves that build locally. There are no environment variables or external services to configure.
-
-For the fast real-Chromium / production-Worker smoke suite (40 tests covering the production subpath build, Midnight Opening, six-step tour, and critical save/run/compare/export flows across desktop/390px in English and Chinese), run `npx playwright install chromium` and then:
+To run the real-Chromium / production-Worker browser smoke suite (48 checks across desktop & 390px mobile in English and Chinese):
 
 ```sh
+npx playwright install chromium
 npm run test:browser:smoke
 ```
 
-To run the full Chromium suite locally without hitting the 10-minute global timeout in `playwright.config.ts`, run both shards matching CI: `npm run test:browser -- --shard=1/2` and `npm run test:browser -- --shard=2/2`. Playwright builds the `/ghost-rehearsal/` subpath bundle and starts its own preview server on port 4178. Failure traces, screenshots, downloads and a JSON result go to ignored `test-results/`; the HTML report is in `playwright-report/`.
+For the full Chromium suite matching CI shards: `npm run test:browser -- --shard=1/2` and `npm run test:browser -- --shard=2/2`.
 
-## Deployment and verification
+Pushes to `main` run the 14-job cross-browser [GitHub Actions workflow](.github/workflows/pages.yml) (typecheck, unit tests, release gates, Chromium, Chromium Touch, Firefox, WebKit shards, and dedicated WebKit import/comparison suites) before deploying to GitHub Pages.
 
-[GitHub Actions](https://github.com/kanzaler123/ghost-rehearsal/actions/workflows/pages.yml) installs the locked dependencies, runs tests and type checks, and builds the site. Successful pushes to `main` deploy to GitHub Pages; pull requests run the checks without deployment.
+---
 
-The Pages build uses `/ghost-rehearsal/` as its base path. If you fork and publish under another repository name, update the build argument in [the workflow](.github/workflows/pages.yml), and select **GitHub Actions** in **Settings → Pages**. A normal local build uses `/`.
+## Scope & Limitations
 
-See [GitHub Actions](https://github.com/kanzaler123/ghost-rehearsal/actions/workflows/pages.yml) for checks and deployment status for each revision. The [2026-11-15 validation record](docs/validation-2026-11-15.md) documents an earlier checkpoint, including test counts, browser evidence, intermediate failures and remaining work. Those historical results do not establish the status of the latest commit.
+- **Synthetic examples, not field calibration:** Built-in scenarios use synthetic parameters; no real-event organizer trial is claimed. Use the [field-validation worksheet](docs/field-validation.md) and CSV/TSV importers to calibrate against measured data. This is an operational process model, not a crowd-safety or evacuation certification tool.
+- **Transparent trade-offs & protective caps:** The 10,000-guest cap is a protective limit rather than a performance certification. Paired waiting groups exclude guests who departed early on either side (while keeping all 300 in outcome counts) and report a separate **Completed only** summary. Backlog evidence highlights simultaneous constraints rather than proving a single cause.
+- **Browser-local persistence:** Project drafts and templates stay in your browser; export JSON files for backup or cross-device sharing. Schema codec currently supports version 1.
 
-- On 2026-11-18, the Haunted Stage fixes passed both TypeScript checks, all 592 unit tests, a production build and 80 targeted Chromium tests across English and Chinese desktop and mobile layouts. One Chinese mobile playback test timed out on the first pass. It then passed three isolated runs and the 80-test rerun. [Tested revision](https://github.com/kanzaler123/ghost-rehearsal/commit/9ec4f01115275c1ea60c02533263374ee43af857)
-- On 2026-11-19, commit [`0d8d400`](https://github.com/kanzaler123/ghost-rehearsal/commit/0d8d400) added Vite 8 vendor chunk splitting (`index-*.js` reduced from 1,007 kB to 490 kB with zero chunk-size warnings) and `npm run test:browser:smoke`, passing both TypeScript checks, all 593 unit tests, all 37 release-gate checks (`node --test e2e/release/gate-checks.mjs`), the `/ghost-rehearsal/` subpath build, all 40 local Chromium smoke tests, and the full cross-browser GitHub Actions deployment pipeline ([run `44429878793`](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/44429878793): Chromium, Chromium Touch, Firefox, WebKit shards, import/comparison WebKit, and Pages deploy).
-- On 2026-11-19, Kiro implemented **Haunted Stage Encore** (Spectral Soundscape + Spectral Fate Card SVG export, commit `2c400bb`, governed by Kiro's new `.kiro/steering/haunted-stage.md` in `72ffc63`), followed by post-review edge-case polish and `app-i18n` chunk splitting (`c7385bd`, zero-warning build with `index-*.js` at 412 kB), verified locally across 616 unit tests, 37 release-gate checks, and real-Chromium Encore, first-screen, and smoke browser suites.
-- On 2026-11-20, following Encore replay, layout, and navigation refinements (`343eaa7`, `06b78c8`, `fb038f3`) and Kiro's opening-scene mouse-parallax fix (`b8165f2`), `main` passed both TypeScript checks, all 618 unit tests, all 37 release-gate checks, the zero-warning `/ghost-rehearsal/` production build (`index-*.js` at 419 kB), and the full 14-job cross-browser GitHub Actions deployment pipeline ([run `44668793382`](https://github.com/kanzaler123/ghost-rehearsal/actions/runs/44668793382)).
-- On 2026-11-20, Kiro hardened the local `PostFileSave` UI invariant Hook (`scripts/guard-haunted-invariants.mjs`, 5 tests), built the zero-dependency dev-time engine MCP server (`.kiro/specs/ghost-rehearsal-mcp/`, `.kiro/settings/mcp.json`, 44 tests, zero browser bundle leakage), and delivered the interactive **Spectral Fate Card Stage** preview modal with 2× PNG (`2400×1260`) & SVG dual export (`.kiro/specs/fate-card-stage/`, verified live with Kiro's own MCP tools, 671 unit tests across 45 files, 37 release-gate checks, zero-warning `422 kB` main bundle, 16/16 Encore & first-screen Playwright tests, and 48/48 smoke tests).
+---
 
-## Scope and limitations
+## Project Structure
 
-This is a working preview. The planning specification describes a broader target; the preview has **not** completed acceptance of all 47 requirements.
-
-- No real-event calibration or organizer trial has been completed or claimed. Use the [field-validation worksheet](docs/field-validation.md) to collect measured inputs and record whether a real organizer changes their arrangement.
-- Example parameters are synthetic. Results describe the supplied assumptions, not guaranteed outcomes at a real event. This is an operational process model, not a crowd-safety or evacuation certification tool.
-- The 10,000-guest run cap is a protective limit, not a performance certification at that size.
-- Subflows group members for display and act as stages in Rehearse and Two Futures; they do not change the simulation. Advanced JSON editing is still needed for attribute definitions/distributions; per-guest arrival records can be imported through Event settings.
-- Comparison summaries and guest-journey lanes, outcomes, event evidence and station totals default to the observation cutoff. After running to completion, select the final/run-limit basis to inspect the full results. The journey view, report and resource summaries follow the selected basis. Backlog evidence describes simultaneous constraints; it does not prove a unique cause.
-- Stale-result detection uses canonical SHA-256 fingerprints. Display names and layout changes preserve results; simulation inputs and provenance kinds affect the fingerprint. Omitted transfer durations remain omitted, without invented provenance. The codec currently supports schema version 1; historical migrations will need implementation when the format advances.
-- The complete output contracts, extended golden cases, large-scale benchmarks, and full keyboard-interaction acceptance remain unfinished.
-
-## Kiroween 2026
-
-Intended category: **Costume Contest**. Ghosts represent the same simulated guests across alternative arrangements, making queues, individual waiting, replay soundscape cues, and previewable/exportable SVG & 2× PNG fate cards visible on a Midnight Haunted Stage.
-
-The public repository includes the source, examples, setup instructions, an open-source license, the root [`.kiro/`](.kiro/) directory (12 specs, 2 always-on steering files, 2 hook configurations, and 1 local dev-time engine MCP server), and an English [submission kit & demo script](docs/kiroween-submission.md). English product, Kiro usage, and testing instructions are included; internal planning specs and historical verification records retain their original Chinese entries.
-
-**Submission status:** Source, tests, `.kiro/` artifacts, refreshed screenshots, English Kiro usage guide ([KIRO_USAGE.md](KIRO_USAGE.md)), and the Devpost / demo video script ([docs/kiroween-submission.md](docs/kiroween-submission.md)) are synced and ready for final deployment and submission. Kiro drove the Costume Contest transformation using all four pillars—**Specs, always-on Steering, Hooks, and a custom local MCP server**—delivering the Midnight Haunted Stage (`55ce3c6`), `.kiro/steering/haunted-stage.md` (`72ffc63`), Haunted Stage Encore (`2c400bb`), opening-scene polish (`b8165f2`), hardened `PostFileSave` invariant Hook, the zero-dependency `ghost-rehearsal-engine` MCP server, and the **Spectral Fate Card Stage** preview modal with 2× PNG/SVG export (verified live with Kiro's own MCP tools), with the Stop Hook automatically recording six post-session engineering logs. Recording/uploading the <3-minute public YouTube demo and submitting the Devpost form remain the final steps. See the [official competition requirements](https://kiroween.devpost.com/rules).
-
-## Project map
-
-| Location | Contents |
+| Path | Contents |
 | --- | --- |
-| `src/app/`, `src/components/` | React workbench, Midnight Opening, flow canvas, inspector, Fate Card preview modal, and results |
-| `src/features/` | Project operations, examples, templates, analysis, Spectral Soundscape, and Fate Card SVG / 2× PNG export |
-| `src/simulation/` | Simulation worker, deterministic event engine, and metrics |
-| `src/schemas/` | Input schemas, graph validation, SHA-256 fingerprints, and plan operations |
-| `src/i18n/` | English and Chinese interface text |
-| `scripts/mcp/` | Zero-dependency local dev-time MCP server exposing the real DES engine & validator to Kiro |
-| `tests/`, `e2e/` | 671 unit tests (45 files), 37 release-gate tests, and cross-browser Playwright E2E suites |
-| [examples/open-house.json](examples/open-house.json) | Synthetic two-plan Open House example |
-| [.kiro/specs/](.kiro/specs/) | Requirements, design, and task specs (including `haunted-stage-ui`, `haunted-stage-encore`, `ghost-rehearsal-mcp`, `fate-card-stage`, and `product-foundation`) |
-| [.kiro/hooks/](.kiro/hooks/) | Kiro Stop Hook (6 end-to-end auto-logged entries) and local `PostFileSave` UI invariant guard |
-| [.kiro/steering/](.kiro/steering/) | Always-on Haunted Stage UI guardrails (`haunted-stage.md`) and comparison evidence rules |
-| [.kiro/settings/mcp.json](.kiro/settings/mcp.json) | Workspace registration for the local `ghost-rehearsal-engine` MCP server |
-| [docs/kiroween-submission.md](docs/kiroween-submission.md) | English Devpost project story, 2:45 YouTube demo script, and submission checklist |
-| [PLAN.md](PLAN.md) | Original product roadmap; planned scope, not a completion report |
+| [`.kiro/`](.kiro/) | Kiro Specs (`specs/`), always-on Steering (`steering/`), `PostFileSave` invariant Hook (`hooks/`), and local MCP config (`settings/mcp.json`) |
+| [`src/app/`](src/app/), [`src/components/`](src/components/) | React 19 workbench, Midnight Opening, flow canvas, inspector, `SpectralStageBackdrop`, `FateCardModal`, and comparison views |
+| [`src/features/`](src/features/) | Project operations, templates, comparison analysis, Spectral Soundscape (`soundscape.ts`), and Fate Card SVG / 2× PNG export (`fateCard.ts`) |
+| [`src/simulation/`](src/simulation/), [`src/schemas/`](src/schemas/) | Deterministic Web Worker DES engine, Zod schemas, graph validator, and synchronous SHA-256 semantic fingerprinting |
+| [`src/experiments/robustness/`](src/experiments/robustness/) | The workbench’s Robustness Lab panel and the worker that runs batches of simulations |
+| [`src/i18n/`](src/i18n/) | English and Chinese UI copy |
+| [`scripts/`](scripts/) | Local dev-time MCP server (`mcp/`, `ghost-rehearsal-mcp.mjs`), Hook guard (`guard-haunted-invariants.mjs`), and React Flow patch |
+| [`tests/`](tests/), [`e2e/`](e2e/) | 671 Vitest unit tests (including 6 frozen SHA-256 digests), 37 release-gate tests, and cross-browser Playwright suites |
+| [`examples/`](examples/) | Synthetic two-plan Open House project ([`open-house.json`](examples/open-house.json)) |
+| [`labs/`](labs/) | Standalone development pages for trying the data editors and Robustness Lab with the Open House example |
+| [`docs/`](docs/) | README screenshots (`images/`) and user guides ([`data-entry.md`](docs/data-entry.md), [`comparison-report.md`](docs/comparison-report.md), [`robustness-contract.md`](docs/robustness-contract.md), [`field-validation.md`](docs/field-validation.md)) |
 
-Built with React, TypeScript, React Flow, Zod, Vite, and Vitest.
+---
 
 ## License
 
-Original project code is available under the [MIT license](LICENSE). Bundled dependencies and fonts retain their own licenses; their notices are included in [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt) and distributed with the live build.
+Original project code is released under the [MIT License](LICENSE). Bundled dependencies and local fonts retain their respective licenses; notices are included in [`public/THIRD_PARTY_NOTICES.txt`](public/THIRD_PARTY_NOTICES.txt).

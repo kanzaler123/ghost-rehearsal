@@ -16,7 +16,7 @@ The four projects cover English/Chinese at 1440×1000 and 390×844. Use `--proje
 
 Ownership: `e2e/smoke.spec.ts` and common configuration belong to A/E; A adds cases under `e2e/demo/`, B under `e2e/forms/`, C under `e2e/robustness/`, D under `e2e/data-sources/`. Do not add a second framework or change shared dependencies in other task branches. Keep task-specific helpers beside those cases; request shared fixtures from A/E when needed.
 
-HTML reports: `playwright-report/index.html` (`npx playwright show-report`). Machine-readable results and per-case screenshots: `test-results/`. Failures automatically retain `test-failed-1.png` and `trace.zip` (`npx playwright show-trace <path>`). To retain successful traces too, add `--trace=on`. Both output directories are ignored by Git. Preserve review evidence outside them before a later run overwrites it.
+HTML reports: `playwright-report/index.html` (`npx playwright show-report`). Machine-readable results and per-case screenshots: `test-results/`. Failures automatically retain `test-failed-1.png` and `trace.zip` (`npx playwright show-trace <path>`). To retain successful traces too, add `--trace=on`. Both output directories are ignored by Git. The standalone lab checks and the optional UI capture save their review files under `kiro-evidence/reviews/`, where they survive ordinary test runs.
 
 This increment changes no CI/deployment permissions. B/C/D can merge the integration branch after A0 passes independent review and is integrated. E owns the final deployment gate.
 

@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { chromium, expect } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const evidence = resolve(root, 'docs/reviews/measured-inputs-evidence');
+const evidence = resolve(root, 'kiro-evidence/reviews/measured-inputs-evidence');
 const url = process.env.DATA_SOURCES_URL ?? 'http://127.0.0.1:4186/labs/data-sources.html';
 const copy = {
   en: { arrival: 'Arrival data', service: 'Service samples', text: 'CSV or pasted table', unit: 'Time unit', file: 'CSV file', preview: 'Preview', apply: 'Apply data', cancel: 'Cancel import', kind: 'Source kind', source: 'Source', notes: 'Notes', errors: 'Import errors', converted: 'Converted values (seconds)', template: 'Download CSV template', stream: 'Target stream', node: 'Service node', commit: 'Apply project', discard: 'Discard draft', export: 'Export project', total: 'Data rows', valid: 'Valid rows', early: 'Earliest arrival (seconds)', late: 'Latest arrival (seconds)', before: 'At or before cutoff', after: 'After cutoff', horizon: 'After horizon', samples: 'Samples', min: 'Minimum (seconds)', max: 'Maximum (seconds)', mean: 'Arithmetic mean (seconds)' },

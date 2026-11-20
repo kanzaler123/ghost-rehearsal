@@ -77,7 +77,7 @@ test('default 60 jobs use a real Worker, preserve adverse results and export thr
   await firstRow.locator('td').first().click();
   await expectNoPageOverflow(page);
   expect(errors).toEqual([]);
-  const evidence = resolve('docs/reviews/robustness-lab-assets');
+  const evidence = resolve('kiro-evidence/reviews/robustness-lab-assets');
   await mkdir(evidence, { recursive: true });
   await page.screenshot({ path: resolve(evidence, `${info.project.name}.png`), fullPage: true });
 });

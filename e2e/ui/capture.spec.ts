@@ -9,7 +9,7 @@ test('capture matching UI review states', async ({ page }, info) => {
   const narrow = info.project.name.startsWith('mobile');
   const t = MESSAGES[lang];
   await page.setViewportSize(narrow ? { width: 390, height: 844 } : { width: 1366, height: 768 });
-  const directory = `docs/reviews/ui-visual-polish/${process.env.CAPTURE}`;
+  const directory = `kiro-evidence/reviews/ui-visual-polish/${process.env.CAPTURE}`;
   await mkdir(directory, { recursive: true });
   const capture = async (screen: string) => {
     await page.screenshot({ path: `${directory}/${screen}-${narrow ? '390x844' : '1366x768'}-${lang}.png`, fullPage: true, animations: 'disabled' });

@@ -64,7 +64,7 @@ Shared arrival changes affect all plans referencing that scenario. Outer Apply u
 
 ## Component contract
 
-Import named components from `src/components/data-sources/ArrivalDataEditor.tsx`, `ServiceDataEditor.tsx` and `ProvenanceFields.tsx`. The editors accept the interfaces in [D's task](parallel-release/04-measured-inputs.md); the service editor also accepts optional `targetName` for a specific node label. Pass `lang: 'en' | 'zh'`. `onChange` supplies a schema-valid replacement stream/duration after explicit Apply data. Route arrival replacements to the outer scenario draft; the Inspector commits a service replacement as one node edit. Key service drafts by their target and current duration. `ProvenanceFields` is a controlled metadata field group and takes `value`, `lang`, `onChange`, with optional `kindDisabled` for draft gating.
+Import named components from `src/components/data-sources/ArrivalDataEditor.tsx`, `ServiceDataEditor.tsx` and `ProvenanceFields.tsx`. The service editor also accepts optional `targetName` for a specific node label. Pass `lang: 'en' | 'zh'`. `onChange` supplies a schema-valid replacement stream/duration after explicit Apply data. Route arrival replacements to the outer scenario draft; the Inspector commits a service replacement as one node edit. Key service drafts by their target and current duration. `ProvenanceFields` is a controlled metadata field group and takes `value`, `lang`, `onChange`, with optional `kindDisabled` for draft gating.
 
 Pure exports from `src/features/data-sources/index.ts`:
 
@@ -73,4 +73,4 @@ Pure exports from `src/features/data-sources/index.ts`:
 - `createArrivalTemplate(attributes)` and `createServiceTemplate()` return CSV text.
 - `updateProvenance(previous, { valueChanged?, source?, notes?, kind? })` returns a new provenance object. An explicitly supplied kind takes precedence over the default downgrade. The caller must only supply a measured/historical kind following an explicit user selection for the current values.
 
-The separate lab remains a Vite development entry; production users open these editors in the workbench. See the [module review report](reviews/measured-inputs.md) for the original module evidence and [release verification](reviews/release-verification.md) for integration checks.
+The separate lab remains a Vite development entry; production users open these editors in the workbench.
