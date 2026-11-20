@@ -202,6 +202,9 @@
   --priority-rank-height: 22px;
   --modal-width: 540px;
   --modal-wide-width: 780px;
+  --fate-stage-width: 1040px;
+  --fate-stage-chrome: 290px;
+  --fate-card-ratio: 1200 / 630;
   --skills-list-label-min-width: 150px;
   --dialog-tabs-button-active-left: 10px;
   --dialog-tabs-button-active-right: 10px;

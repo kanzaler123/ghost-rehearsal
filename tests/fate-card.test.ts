@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import example from '../examples/open-house.json';
 import { formatTime } from '../src/features/project';
-import { buildFateCardSvg, escapeXml, fateCardFilename } from '../src/features/fateCard';
+import { FATE_CARD_PNG_SCALE, FATE_CARD_SIZE, buildFateCardSvg, escapeXml, fateCardFilename, fateCardPngFilename, renderFateCardPngBlob } from '../src/features/fateCard';
 import type { FateCardInput, FateCardSide } from '../src/features/fateCard';
 import { firstDifference, journeyOf, statisticsAt } from '../src/features/analysis';
 import { MESSAGES } from '../src/i18n/messages';
@@ -119,5 +119,29 @@ describe('fateCardFilename', () => {
     expect(fateCardFilename(id)).toBe('ghost-fate-card-side-stream-10.svg');
     expect(fateCardFilename('../a b\\c')).toBe('ghost-fate-card-a-b-c.svg');
     expect(fateCardFilename('???')).toBe('ghost-fate-card-guest.svg');
+  });
+});
+describe('fateCardPngFilename', () => {
+  it('makes a safe .png name with the same stem as the SVG name', () => {
+    expect(fateCardPngFilename(id)).toBe('ghost-fate-card-side-stream-10.png');
+    expect(fateCardPngFilename('../a b\\c')).toBe('ghost-fate-card-a-b-c.png');
+    expect(fateCardPngFilename('???')).toBe('ghost-fate-card-guest.png');
+    expect(fateCardPngFilename('')).toBe('ghost-fate-card-guest.png');
+    for (const value of [id, '../a b\\c', '???', 'main-stream:20']) {
+      expect(fateCardPngFilename(value)).toBe(fateCardFilename(value).slice(0, -'.svg'.length) + '.png');
+      expect(fateCardPngFilename(value)).not.toMatch(/[\\/:\s]|\.svg/);
+    }
+  });
+});
+describe('renderFateCardPngBlob', () => {
+  it('exports at 2× the 1200×630 card size by default', () => {
+    expect(FATE_CARD_PNG_SCALE).toBe(2);
+    expect([FATE_CARD_SIZE.width * FATE_CARD_PNG_SCALE, FATE_CARD_SIZE.height * FATE_CARD_PNG_SCALE]).toEqual([2400, 1260]);
+  });
+  it('rejects an unusable scale before touching the browser', async () => {
+    for (const scale of [0, -1, 1.5, 5, Number.NaN, Number.POSITIVE_INFINITY]) await expect(renderFateCardPngBlob(buildFateCardSvg(input('en')), scale)).rejects.toBeInstanceOf(RangeError);
+  });
+  it('fails with a readable error, not a crash, where there is no browser', async () => {
+    await expect(renderFateCardPngBlob(buildFateCardSvg(input('en')))).rejects.toThrow(/needs a browser/);
   });
 });

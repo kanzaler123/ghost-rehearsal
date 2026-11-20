@@ -2,14 +2,15 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { Crosshair, Download, Search, Star } from 'lucide-react';
 import type { Plan, Scenario } from '../schemas';
-import { download, formatTime } from '../features/project';
-import { buildFateCardSvg, fateCardFilename } from '../features/fateCard';
+import { formatTime } from '../features/project';
+import { buildFateCardSvg } from '../features/fateCard';
 import type { FateCardSide } from '../features/fateCard';
 import { comparisonContext, firstDifference, journeyOf, sameStation, stationsOf, statisticsAt, statusAt, THRESHOLD } from '../features/analysis';
 import type { ResultBasis, AffectedFilter, Journey, PickGroup, VisitorStatus, WaitThreshold } from '../features/analysis';
 import { useI18n } from '../i18n';
 import type { Messages } from '../i18n';
 import type { SimulationRun } from '../simulation/types';
+import { FateCardModal } from './FateCardModal';
 import { Ghost } from './Icons';
 import { EVENT_TONES } from './Results';
 import { JourneyContext } from './shell/JourneyContext';
@@ -88,6 +89,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
   const evidenceRef = useRef<HTMLDetailsElement>(null);
   const [laneWidth, setLaneWidth] = useState(0);
   const [segmentDetail, setSegmentDetail] = useState<{ key: string; text: string } | null>(null);
+  const [fateCard, setFateCard] = useState<{ svg: string; visitorId: string; name: string } | null>(null);
   const activeGroup = onGroupChange ? group : localGroup;
   const population = runs[0]?.population ?? [];
   const context = useMemo(() => comparisonContext(runs[0], runs[1], basis, threshold), [runs[0], runs[1], basis, threshold]);
@@ -123,6 +125,9 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     if (compare && nextVisitor !== visitorId) onChoose(nextVisitor);
   }, [compare, nextVisitor, visitorId, onChoose]);
   useEffect(() => { setSegmentDetail(null); }, [visitorId, basis, runs[0]?.inputKey, runs[1]?.inputKey]);
+  // An open card never outlives the guest, basis, runs or ready comparison it was built for.
+  const cardReady = compare && context.status === 'ready';
+  useEffect(() => { setFateCard(null); }, [visitorId, basis, runs[0]?.inputKey, runs[1]?.inputKey, cardReady]);
   const openEvidence = () => {
     if (!evidenceRef.current) return;
     evidenceRef.current.open = true;
@@ -154,13 +159,15 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
     else setTimeout(reveal, 0);
   }
   const canExportCard = compare && journeys.length === 2 && context.status === 'ready';
-  function exportFateCard() {
+  /** Builds the card once per press and opens the stage preview; nothing is downloaded until the user chooses a format. */
+  function openFateCard() {
     if (!canExportCard) return;
     const sides = journeys.map((journey, column) => {
       const stats = statisticsAt(runs[column], basis);
       return { planName: plans[column].name, journey, until: stats?.until ?? journey.until, outcome: stats?.visitors.find(item => item.id === visitorId) };
     }) as [FateCardSide, FateCardSide];
-    download(fateCardFilename(visitorId), buildFateCardSvg({ t, visitorId, visitorName: nameOf(visitorId), eventName: scenario.name ?? scenario.id, basis, cutoff, sides, difference }), 'image/svg+xml;charset=utf-8');
+    const name = nameOf(visitorId);
+    setFateCard({ svg: buildFateCardSvg({ t, visitorId, visitorName: name, eventName: scenario.name ?? scenario.id, basis, cutoff, sides, difference }), visitorId, name });
   }
   const maxTicks = laneWidth > 0 ? Math.max(2, Math.min(6, Math.floor(laneWidth / 72))) : 6;
   const tickStep = [60, 120, 300, 600, 900, 1800, 3600, 7200].find(step => span / step <= maxTicks) ?? Math.ceil(span / (maxTicks * 3600)) * 3600;
@@ -204,7 +211,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
           {scenario.attributes.length > 0 && <div className="ghost-attrs">{scenario.attributes.map(attribute => <span key={attribute.id}>{attribute.name}<b>{person.attributes[attribute.id] ?? '—'}</b></span>)}</div>}
         </div>
         <button type="button" className="btn small ghost locate" onClick={onLocate}><Crosshair size={14} aria-hidden="true" />{t.journey.locate}</button>
-        {canExportCard && <button type="button" className="icon-btn" aria-label={t.encore.fateCard.button} title={t.encore.fateCard.button} onClick={exportFateCard}><Download size={16} aria-hidden="true" /></button>}
+        {canExportCard && <button type="button" className="icon-btn" aria-label={t.encore.fateCard.button} title={t.encore.fateCard.button} onClick={openFateCard} aria-haspopup="dialog"><Download size={16} aria-hidden="true" /></button>}
       </div>
 
       <div className="ghost-futures">{journeys.map((journey, column) => {
@@ -285,6 +292,7 @@ export function GhostJourney({ runs, compare, scenario, visitorId, time, picks, 
         </div>)}</div>
       </details>
     </section>}
+    {fateCard && <FateCardModal svg={fateCard.svg} visitorId={fateCard.visitorId} name={fateCard.name} onClose={() => setFateCard(null)} />}
     <details className="ghost-stories" open>
       <summary>{text.people}</summary>
       {compare && counts && <label className="people-filter"><span>{text.people}</span><select aria-label={text.people} value={activeGroup ?? 'all'} onChange={event => selectGroup(event.target.value === 'all' ? undefined : event.target.value as AffectedFilter)}>

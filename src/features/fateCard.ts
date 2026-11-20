@@ -1,6 +1,7 @@
 /**
  * Spectral fate card: one guest, two futures, as a standalone SVG poster.
- * Pure and self-contained. Colours are literals here because the file leaves the app and cannot use CSS tokens.
+ * The SVG builder is pure and self-contained. Colours are literals here because the file leaves the app and cannot use CSS tokens.
+ * `renderFateCardPngBlob` and `saveBlob` are browser-only and are not used by the builder.
  */
 import type { Difference, Journey, ResultBasis } from './analysis';
 import { formatTime } from './project';
@@ -54,6 +55,49 @@ const text = (x: number, y: number, size: number, content: string, fill: string,
 
 export function fateCardFilename(visitorId: string): string {
   return `ghost-fate-card-${visitorId.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'guest'}.svg`;
+}
+export function fateCardPngFilename(visitorId: string): string {
+  return fateCardFilename(visitorId).replace(/\.svg$/, '.png');
+}
+/** The PNG export is drawn at this multiple of the card size: 2400×1260 pixels. */
+export const FATE_CARD_PNG_SCALE = 2;
+/**
+ * Browser-only: rasterizes the card SVG into a PNG Blob through an off-screen image and a Canvas 2D context.
+ * Rejects with a readable Error when the browser cannot decode the SVG or encode the PNG. The temporary
+ * object URL is revoked on every path. The card has no foreignObject or external resource, so the canvas stays untainted.
+ */
+export async function renderFateCardPngBlob(svg: string, scale: number = FATE_CARD_PNG_SCALE): Promise<Blob> {
+  if (!Number.isInteger(scale) || scale < 1 || scale > 4) throw new RangeError('The PNG scale must be a whole number from 1 to 4.');
+  if (typeof document === 'undefined' || typeof Image === 'undefined') throw new Error('PNG export needs a browser.');
+  const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('The browser could not decode the fate card SVG.'));
+      image.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = FATE_CARD_SIZE.width * scale;
+    canvas.height = FATE_CARD_SIZE.height * scale;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas 2D is not available in this browser.');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return await new Promise<Blob>((resolve, reject) => {
+      try {
+        canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('The browser could not encode the PNG.')), 'image/png');
+      } catch (error) { reject(error instanceof Error ? error : new Error('The browser could not encode the PNG.')); }
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+/** Saves a Blob through a temporary link; the object URL is released shortly after the click. */
+export function saveBlob(name: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url; anchor.download = name; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const signed = (delta: number, t: Messages) => {
   const rounded = Math.round(delta * 1000) / 1000;

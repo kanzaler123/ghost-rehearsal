@@ -35,7 +35,11 @@ const en = {
   encore: {
     sound: { label: 'Spectral sound', titleOn: 'Spectral sound on. Soft cues play during replay. Click to mute.', titleOff: 'Spectral sound off. Click to hear soft cues during replay.', unavailable: 'Spectral sound is unavailable with reduced motion or without browser audio support.' },
     fateCard: {
-      button: 'Export fate card', badge: 'Spectral fate card', guest: (name: string, id: string) => `${name} · ${id}`, event: (name: string) => `Event · ${name}`,
+      button: 'Export fate card', dialogTitle: 'Spectral fate card preview',
+      previewHint: 'One guest, two futures. This is the card you will download.',
+      downloadSvg: 'Download SVG', downloadPng: 'Download PNG (2×)', pngWorking: 'Rendering PNG…',
+      pngFailed: 'This browser could not render the PNG. The SVG download still works.',
+      badge: 'Spectral fate card', guest: (name: string, id: string) => `${name} · ${id}`, event: (name: string) => `Event · ${name}`,
       basisCutoff: (time: string) => `Statistics basis · observation cutoff ${time}`, basisFinal: 'Statistics basis · final / run limit',
       ends: (a: string, b: string) => `Actual statistics ends · A ${a} · B ${b}`,
       planA: 'A · baseline', planB: 'B · comparison', ends1: (time: string) => `ends ${time}`,
@@ -561,7 +565,11 @@ const zh: Messages = {
   encore: {
     sound: { label: '幽灵声景', titleOn: '幽灵声景已开启，回放时会有轻柔提示音。点击静音。', titleOff: '幽灵声景已关闭。点击后回放时会有轻柔提示音。', unavailable: '减少动态效果或浏览器不支持音频时，幽灵声景不可用。' },
     fateCard: {
-      button: '导出命运卡', badge: '幽灵命运卡', guest: (name, id) => `${name} · ${id}`, event: name => `活动 · ${name}`,
+      button: '导出命运卡', dialogTitle: '幽灵命运卡预览',
+      previewHint: '同一位访客，两个未来。这就是你将下载的命运卡。',
+      downloadSvg: '下载 SVG', downloadPng: '下载 PNG (2×)', pngWorking: '正在生成 PNG…',
+      pngFailed: '此浏览器无法生成 PNG。仍可下载 SVG。',
+      badge: '幽灵命运卡', guest: (name, id) => `${name} · ${id}`, event: name => `活动 · ${name}`,
       basisCutoff: time => `统计口径 · 观察截止 ${time}`, basisFinal: '统计口径 · 最终 / 运行上限',
       ends: (a, b) => `实际统计终点 · A ${a} · B ${b}`,
       planA: 'A · 基线', planB: 'B · 对照', ends1: time => `截至 ${time}`,

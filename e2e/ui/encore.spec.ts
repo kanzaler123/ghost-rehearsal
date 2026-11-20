@@ -99,30 +99,141 @@ test('reduced motion keeps the sound toggle disabled and silent', async ({ page 
   expect(await audio(page)).toMatchObject({ contexts: 0, oscillators: 0 });
 });
 
-test('the fate card downloads as a real, valid SVG for the tracked ghost', async ({ page }, info) => {
+/** Tracks the SVG and PNG Blob URLs the page creates so a test can prove that every one is released. */
+async function trackImageUrls(page: Page) {
+  await page.addInitScript(() => {
+    const live = new Set<string>();
+    const create = URL.createObjectURL.bind(URL), revoke = URL.revokeObjectURL.bind(URL);
+    URL.createObjectURL = (source: Blob | MediaSource) => {
+      const url = create(source);
+      if (source instanceof Blob && /^image\/(?:svg\+xml|png)/.test(source.type)) live.add(url);
+      return url;
+    };
+    URL.revokeObjectURL = (url: string) => { live.delete(url); revoke(url); };
+    (window as unknown as { __imageUrls: Set<string> }).__imageUrls = live;
+  });
+}
+const liveImageUrls = (page: Page) => page.evaluate(() => (window as unknown as { __imageUrls: Set<string> }).__imageUrls.size);
+const noPageOverflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+test('the fate card opens a stage preview and downloads valid SVG and PNG files', async ({ page }, info) => {
+  const external: string[] = [];
+  page.on('request', request => { if (!/^(?:https?:\/\/127\.0\.0\.1|blob:|data:|about:)/.test(request.url())) external.push(request.url()); });
+  const downloaded: string[] = [];
+  page.on('download', file => downloaded.push(file.suggestedFilename()));
+  await trackImageUrls(page);
   const t = await openExample(page, info);
   const guide = await compareExample(page, t);
   await guide.getByRole('button', { name: t.guide.actions[0], exact: true }).click();
   await guide.getByRole('button', { name: t.guide.actions[1], exact: true }).click();
   await expect(page.locator('.ghost-id code')).toHaveText('side-stream:10');
-  const button = page.locator('.ghost-card').getByRole('button', { name: t.encore.fateCard.button, exact: true });
-  await expect(button).toBeVisible();
-  const [file] = await Promise.all([page.waitForEvent('download'), button.click()]);
-  expect(file.suggestedFilename()).toBe('ghost-fate-card-side-stream-10.svg');
-  const svg = readFileSync((await file.path())!, 'utf8');
   const card = t.encore.fateCard;
+  // The trigger is still the one original icon button.
+  const button = page.locator('.ghost-card').getByRole('button', { name: card.button, exact: true });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveAttribute('title', card.button);
+  await expect(button).toHaveClass(/icon-btn/);
+  await expect(page.locator('.ghost-card .icon-btn')).toHaveCount(1);
+  expect(await noPageOverflow(page)).toBe(true);
+  // It opens the preview and downloads nothing by itself.
+  await button.click();
+  const dialog = page.getByRole('dialog', { name: card.dialogTitle, exact: true });
+  await expect(dialog).toBeVisible();
+  const preview = dialog.locator('img.fate-card-preview');
+  await expect(preview).toBeVisible();
+  await expect(preview).toHaveAttribute('alt', /#10/);
+  await expect.poll(() => preview.evaluate((image: HTMLImageElement) => [image.naturalWidth, image.naturalHeight])).toEqual([1200, 630]);
+  expect(await preview.evaluate((image: HTMLImageElement) => image.src.startsWith('blob:'))).toBe(true);
+  expect(await dialog.locator('script, object, embed, iframe').count()).toBe(0);
+  expect(downloaded).toEqual([]);
+  const svgButton = dialog.getByRole('button', { name: card.downloadSvg, exact: true });
+  const pngButton = dialog.getByRole('button', { name: card.downloadPng, exact: true });
+  const closeButton = dialog.getByRole('button', { name: t.common.close, exact: true });
+  await expect(svgButton).toBeEnabled();
+  await expect(pngButton).toBeEnabled();
+  // Everything fits: no page overflow, the card and the three actions stay inside the dialog and the viewport.
+  expect(await noPageOverflow(page)).toBe(true);
+  const size = page.viewportSize()!;
+  const frame = (await dialog.boundingBox())!;
+  expect(frame.x).toBeGreaterThanOrEqual(0);
+  expect(frame.x + frame.width).toBeLessThanOrEqual(size.width + 1);
+  const image = (await preview.boundingBox())!;
+  expect(image.x).toBeGreaterThanOrEqual(frame.x);
+  expect(image.x + image.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  expect(image.width / image.height).toBeGreaterThan(1.8);
+  for (const action of [svgButton, pngButton, closeButton]) {
+    const box = (await action.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(frame.x - 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  }
+  expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  // Download SVG: the exact file name, a real SVG for the tracked guest, drawn by the browser at 1200x630.
+  const [svgFile] = await Promise.all([page.waitForEvent('download'), svgButton.click()]);
+  expect(svgFile.suggestedFilename()).toBe('ghost-fate-card-side-stream-10.svg');
+  const svg = readFileSync((await svgFile.path())!, 'utf8');
   expect(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg"')).toBe(true);
   for (const expected of [card.badge.toUpperCase(), 'side-stream:10', card.riftAt('03:30'), card.planA, card.planB, `${card.delta}: `, card.footnote1, card.footnote2]) expect(svg).toContain(expected);
   expect(svg).not.toContain(card.noDifference);
   expect(svg).not.toMatch(/<script|<image|href=/);
-  // A browser must parse it as SVG and draw it at the declared size.
   const rendered = await page.evaluate(async markup => {
     const parsed = new DOMParser().parseFromString(markup, 'image/svg+xml');
-    const image = new Image();
-    const loaded = new Promise<boolean>(resolve => { image.onload = () => resolve(true); image.onerror = () => resolve(false); });
-    image.src = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }));
-    return { error: parsed.querySelector('parsererror') !== null, root: parsed.documentElement.localName, loaded: await loaded, width: image.naturalWidth, height: image.naturalHeight };
+    const picture = new Image();
+    const loaded = new Promise<boolean>(resolve => { picture.onload = () => resolve(true); picture.onerror = () => resolve(false); });
+    const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }));
+    picture.src = url;
+    const ok = await loaded;
+    URL.revokeObjectURL(url);
+    return { error: parsed.querySelector('parsererror') !== null, root: parsed.documentElement.localName, loaded: ok, width: picture.naturalWidth, height: picture.naturalHeight };
   }, svg);
   expect(rendered).toEqual({ error: false, root: 'svg', loaded: true, width: 1200, height: 630 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // Download PNG: the exact file name, the PNG signature, 2400x1260 in the IHDR chunk, and pixels the browser can decode.
+  const [pngFile] = await Promise.all([page.waitForEvent('download'), pngButton.click()]);
+  expect(pngFile.suggestedFilename()).toBe('ghost-fate-card-side-stream-10.png');
+  const png = readFileSync((await pngFile.path())!);
+  expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+  expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  expect(png.subarray(12, 16).toString('ascii')).toBe('IHDR');
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([2400, 1260]);
+  const pixels = await page.evaluate(async encoded => {
+    const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(encoded), character => character.charCodeAt(0))], { type: 'image/png' }));
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width; canvas.height = bitmap.height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(bitmap, 0, 0);
+    const colours = new Set<string>();
+    for (let x = 100; x < bitmap.width; x += 211) for (let y = 100; y < bitmap.height; y += 137) colours.add(context.getImageData(x, y, 1, 1).data.join(','));
+    return { width: bitmap.width, height: bitmap.height, alpha: context.getImageData(1200, 8, 1, 1).data[3], colours: colours.size };
+  }, png.toString('base64'));
+  expect(pixels).toMatchObject({ width: 2400, height: 1260, alpha: 255 });
+  expect(pixels.colours).toBeGreaterThan(3);
+  // A rapid second click does not start a second export.
+  const before = downloaded.filter(name => name.endsWith('.png')).length;
+  await pngButton.dblclick();
+  await expect.poll(() => downloaded.filter(name => name.endsWith('.png')).length).toBe(before + 1);
+  await page.waitForTimeout(500);
+  expect(downloaded.filter(name => name.endsWith('.png')).length).toBe(before + 1);
+  await expect(pngButton).toBeEnabled();
+  expect(await noPageOverflow(page)).toBe(true);
+  // When the browser cannot encode the PNG, the reason is readable and the SVG download still works.
+  await page.evaluate(() => { HTMLCanvasElement.prototype.toBlob = function (callback: BlobCallback) { callback(null); }; });
+  await pngButton.click();
+  await expect(dialog.getByRole('alert')).toHaveText(card.pngFailed);
+  await expect(pngButton).toBeEnabled();
+  await expect(pngButton).toHaveText(card.downloadPng);
+  const [again] = await Promise.all([page.waitForEvent('download'), svgButton.click()]);
+  expect(again.suggestedFilename()).toBe('ghost-fate-card-side-stream-10.svg');
+  expect(await noPageOverflow(page)).toBe(true);
+  // Escape closes the preview and returns focus to the trigger; the Close button does the same.
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(button).toBeFocused();
+  await button.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('alert')).toHaveCount(0);
+  await closeButton.click();
+  await expect(dialog).toBeHidden();
+  await expect(button).toBeFocused();
+  // Every preview and rasterizing URL has been released, and nothing left the machine.
+  await expect.poll(() => liveImageUrls(page)).toBe(0);
+  expect(await noPageOverflow(page)).toBe(true);
+  expect(external).toEqual([]);
 });
