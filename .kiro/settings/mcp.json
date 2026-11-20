@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "ghost-rehearsal-engine": {
+      "command": "node",
+      "args": ["scripts/ghost-rehearsal-mcp.mjs"],
+      "disabled": false,
+      "autoApprove": [
+        "verify_simulation_invariants",
+        "inspect_guest_divergence",
+        "validate_event_project",
+        "render_fate_card_svg"
+      ]
+    }
+  }
+}

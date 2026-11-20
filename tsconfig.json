@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "tests/**/*.ts", "vite.config.ts", "vitest.config.ts", "playwright*.config.ts", "e2e/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/mcp/**/*.ts", "tests/**/*.ts", "vite.config.ts", "vitest.config.ts", "playwright*.config.ts", "e2e/**/*.ts"]
 }
